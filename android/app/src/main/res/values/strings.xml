@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Joytox</string>
+    <string name="facebook_app_id">3572981369694832</string>
+    <string name="fb_login_protocol_scheme">fb3572981369694832</string>
+    <string name="facebook_client_token">11566d7b0125aac43d9fc77b66506c57</string>
+    <string name="admob_app_id">ca-app-pub-111111111111111~0000000000</string>
+</resources>

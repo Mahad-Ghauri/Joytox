@@ -1,0 +1,136 @@
+
+plugins {
+    id "com.android.application"
+    id "kotlin-android"
+    id "dev.flutter.flutter-gradle-plugin"
+    id "com.google.gms.google-services"
+    id "com.google.firebase.crashlytics"
+    id "com.google.firebase.firebase-perf"
+}
+
+def localProperties = new Properties()
+def localPropertiesFile = rootProject.file('local.properties')
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.withReader('UTF-8') { reader ->
+        localProperties.load(reader)
+    }
+}
+
+def flutterVersionCode = localProperties.getProperty('flutter.versionCode') ?: '78'
+def flutterVersionName = localProperties.getProperty('flutter.versionName') ?: '3.0.0'
+
+def keystoreProperties = new Properties()
+def keystorePropertiesFile = rootProject.file('key.properties')
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
+android {
+    namespace 'com.trace.appsdabanda'
+    compileSdkVersion 36
+    ndkVersion "27.0.12077973"
+
+    defaultConfig {
+        applicationId "com.trace.appsdabanda"
+        minSdkVersion 24
+        targetSdkVersion 35
+        versionCode flutterVersionCode.toInteger()
+        versionName flutterVersionName
+        multiDexEnabled true
+
+        ndk {
+            abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86_64'
+        }
+    }
+
+    // signingConfigs {
+    //     release {
+    //         keyAlias keystoreProperties['keyAlias']
+    //         keyPassword keystoreProperties['keyPassword']
+    //         storeFile keystoreProperties['storeFile'] ? file(keystoreProperties['storeFile']) : null
+    //         storePassword keystoreProperties['storePassword']
+    //     }
+    // }
+
+
+    buildTypes {
+        release {
+            // signingConfig signingConfigs.release
+            minifyEnabled false
+            shrinkResources false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_21
+        targetCompatibility JavaVersion.VERSION_21
+    }
+
+    kotlinOptions {
+        jvmTarget = "21"
+    }
+
+    java {
+        toolchain {
+            languageVersion = JavaLanguageVersion.of(21)
+        }
+    }
+
+    lint {
+        checkReleaseBuilds false
+        disable 'InvalidPackage'
+    }
+
+    packagingOptions {
+        jniLibs {
+            pickFirsts += [
+                    'lib/x86/libc++_shared.so',
+                    'lib/x86_64/libc++_shared.so',
+                    'lib/armeabi-v7a/libc++_shared.so',
+                    'lib/arm64-v8a/libc++_shared.so',
+                    '**/libyuv.so',
+                    '**/libbanuba-ve-yuv.so'
+            ]
+        }
+    }
+
+    sourceSets {
+        main.java.srcDirs += 'src/main/kotlin'
+    }
+}
+
+flutter {
+    source '../..'
+}
+
+dependencies {
+    // ✅ Firebase BOM manages versioning
+    implementation platform('com.google.firebase:firebase-bom:33.7.0')
+
+    // ✅ Firebase dependencies
+    implementation 'com.google.firebase:firebase-analytics'
+    implementation 'com.google.firebase:firebase-auth'
+    implementation 'com.google.firebase:firebase-crashlytics'
+    implementation 'com.google.firebase:firebase-perf'
+
+    // ✅ Google Sign-In
+    implementation 'com.google.android.gms:play-services-auth:21.0.0'
+
+    // ✅ Facebook SDK
+    implementation 'com.facebook.android:facebook-android-sdk:18.1.3'
+
+    // ✅ Google AdMob
+    implementation 'com.google.android.gms:play-services-ads:24.1.0'
+
+    // ✅ Other required libs
+    implementation 'androidx.work:work-runtime-ktx:2.9.1'
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+    implementation 'androidx.core:core-splashscreen:1.0.1'
+    implementation 'com.android.support:multidex:1.0.3'
+}
+
+apply plugin: 'com.google.gms.google-services' // ✅ yeh bottom me honi chahiye
+

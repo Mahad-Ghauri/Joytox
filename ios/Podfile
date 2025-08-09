@@ -1,0 +1,119 @@
+# Uncomment this line to define a global platform for your project
+# platform :ios, '12.0'
+platform :ios, '14.0'
+$FirebaseAnalyticsWithoutAdIdSupport = true
+
+# CocoaPods analytics sends network stats synchronously affecting flutter build latency.
+ENV['COCOAPODS_DISABLE_STATS'] = 'true'
+
+project 'Runner', {
+  'Debug' => :debug,
+  'Profile' => :release,
+  'Release' => :release,
+}
+
+def flutter_root
+  generated_xcode_build_settings_path = File.expand_path(File.join('..', 'Flutter', 'Generated.xcconfig'), __FILE__)
+  unless File.exist?(generated_xcode_build_settings_path)
+    raise "#{generated_xcode_build_settings_path} must exist. If you're running pod install manually, make sure flutter pub get is executed first"
+  end
+
+  File.foreach(generated_xcode_build_settings_path) do |line|
+    matches = line.match(/FLUTTER_ROOT\=(.*)/)
+    return matches[1].strip if matches
+  end
+  raise "FLUTTER_ROOT not found in #{generated_xcode_build_settings_path}. Try deleting Generated.xcconfig, then run flutter pub get"
+end
+
+require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelper'), flutter_root)
+
+flutter_ios_podfile_setup
+
+install! 'cocoapods', :disable_input_output_paths => true
+
+target 'Runner' do
+  use_frameworks!
+  use_modular_headers!
+
+  flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
+end
+
+post_install do |installer|
+  installer.pods_project.targets.each do |target|
+    flutter_additional_ios_build_settings(target)
+    target.build_configurations.each do |config|
+      config.build_settings['ENABLE_BITCODE'] = 'NO'
+      config.build_settings['DEBUG_INFORMATION_FORMAT'] = 'dwarf-with-dsym'
+      config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'arm64 i386'
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
+      config.build_settings['ONLY_ACTIVE_ARCH'] = 'NO'
+      config.build_settings['STRIP_STYLE'] = 'debugging'
+      config.build_settings['STRIP_SWIFT_SYMBOLS'] = 'NO'
+      config.build_settings['DEAD_CODE_STRIPPING'] = 'NO'
+      config.build_settings['COPY_PHASE_STRIP'] = 'NO'
+      config.build_settings['GENERATE_PROFILING_CODE'] = 'YES'
+      config.build_settings['DWARF_DSYM_FILE_SHOULD_ACCOMPANY_PRODUCT'] = 'YES'
+      config.build_settings['DWARF_DSYM_FOLDER_PATH'] = '$(CONFIGURATION_BUILD_DIR)'
+
+      config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= [
+        '$(inherited)',
+        'PERMISSION_CAMERA=1',
+        'PERMISSION_MICROPHONE=1',
+        'PERMISSION_PHOTOS=1',
+        'PERMISSION_LOCATION=1',
+        'PERMISSION_NOTIFICATIONS=1',
+      ]
+    end
+  end
+
+  # Adicionar código para remover bitcode dos frameworks FFmpeg
+  bitcode_strip_path = `xcrun --find bitcode_strip`.chop!
+
+  def strip_bitcode_from_framework(bitcode_strip_path, framework_path)
+    if File.exist?(framework_path)
+      command = "#{bitcode_strip_path} #{framework_path} -r -o #{framework_path}"
+      puts "Removendo bitcode: #{command}"
+      system(command)
+    else
+      puts "Aviso: Framework não encontrado em #{framework_path}"
+    end
+  end
+
+  # Procurar os frameworks em diferentes locais possíveis
+  possible_locations = [
+    "Pods/ffmpeg-kit-ios-min-gpl",  # Novo caminho baseado no log de instalação
+    "Pods/ffmpegkit-ios",
+    "Pods/ffmpeg-kit-ios",
+    "Pods/ffmpeg-kit-ios-full"
+  ]
+
+  ffmpeg_base_path = nil
+  possible_locations.each do |location|
+    if Dir.exist?(location)
+      puts "Verificando diretório: #{location}"
+      frameworks = Dir.glob("#{location}/**/*.framework")
+      if frameworks.any?
+        ffmpeg_base_path = location
+        break
+      end
+    end
+  end
+
+  if ffmpeg_base_path.nil?
+    puts "Aviso: Nenhum diretório de frameworks FFmpeg encontrado!"
+  else
+    puts "FFmpeg frameworks encontrados em: #{ffmpeg_base_path}"
+
+    # Procurar recursivamente por todos os frameworks
+    Dir.glob("#{ffmpeg_base_path}/**/*.framework").each do |framework_dir|
+      framework_name = File.basename(framework_dir, ".framework")
+      binary_path = "#{framework_dir}/#{framework_name}"
+
+      if File.exist?(binary_path)
+        puts "Encontrado framework: #{binary_path}"
+        strip_bitcode_from_framework(bitcode_strip_path, binary_path)
+      end
+    end
+  end
+end
+
