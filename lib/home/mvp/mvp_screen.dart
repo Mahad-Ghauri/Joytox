@@ -2,12 +2,12 @@
 
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:trace/app/config.dart';
 import 'package:trace/models/MvpCoinRewardModel.dart';
 import 'package:trace/models/MvpModel.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import 'package:trace/home/mvp/privilege_info_screen.dart';
 
-import '../../app/Config.dart';
 import '../../helpers/quick_help.dart';
 import '../../models/UserModel.dart';
 import '../../ui/container_with_corner.dart';
@@ -79,7 +79,6 @@ class _MVPScreenState extends State<MVPScreen> {
         ),
       ),
       body: ListView(
-
         children: [
           Stack(
             children: [
@@ -150,33 +149,38 @@ class _MVPScreenState extends State<MVPScreen> {
                   color: Colors.deepPurpleAccent.withOpacity(0.1),
                   borderWidth: 0,
                   borderRadius: 50,
-                  onTap: () async{
-                    if(QuickHelp.isMvpUser(widget.currentUser)) {
-
+                  onTap: () async {
+                    if (QuickHelp.isMvpUser(widget.currentUser)) {
                       QuickHelp.showLoadingDialog(context);
 
                       QueryBuilder query = QueryBuilder(MvpCoinsRewardModel());
-                      query.whereEqualTo(MvpCoinsRewardModel.keyAuthorId, widget.currentUser!.objectId!);
+                      query.whereEqualTo(MvpCoinsRewardModel.keyAuthorId,
+                          widget.currentUser!.objectId!);
                       query.orderByDescending(MvpCoinsRewardModel.keyCreatedAt);
                       query.setLimit(1);
                       ParseResponse response = await query.query();
-                      if(response.success) {
+                      if (response.success) {
                         QuickHelp.hideLoadingDialog(context);
-                        if(response.results != null){
-                          MvpCoinsRewardModel rewardCoin = response.results!.first;
-                          if(QuickHelp.has24HoursPassed(rewardCoin.createdAt!)) {
+                        if (response.results != null) {
+                          MvpCoinsRewardModel rewardCoin =
+                              response.results!.first;
+                          if (QuickHelp.has24HoursPassed(
+                              rewardCoin.createdAt!)) {
                             updateUserCredit();
-                          }else{
+                          } else {
                             QuickHelp.showAppNotificationAdvanced(
                               title: "next_reward".tr(),
-                              message: "try_again_in".tr(namedArgs: {"time": QuickHelp.timeUntil24Hours(rewardCoin.createdAt!)}),
+                              message: "try_again_in".tr(namedArgs: {
+                                "time": QuickHelp.timeUntil24Hours(
+                                    rewardCoin.createdAt!)
+                              }),
                               context: context,
                             );
                           }
-                        }else{
+                        } else {
                           updateUserCredit();
                         }
-                      }else{
+                      } else {
                         QuickHelp.hideLoadingDialog(context);
                         QuickHelp.showAppNotificationAdvanced(
                           title: "error".tr(),
@@ -184,7 +188,7 @@ class _MVPScreenState extends State<MVPScreen> {
                           message: "report_screen.report_failed_explain".tr(),
                         );
                       }
-                    }else{
+                    } else {
                       QuickHelp.showAppNotificationAdvanced(
                         title: "not_mvp".tr(),
                         message: "activate_mvp".tr(),
@@ -219,7 +223,7 @@ class _MVPScreenState extends State<MVPScreen> {
               physics: NeverScrollableScrollPhysics(),
               children: List.generate(
                 premiumTitle.length,
-                    (index) {
+                (index) {
                   return options(
                     caption: premiumTitle[index],
                     index: index,
@@ -389,7 +393,7 @@ class _MVPScreenState extends State<MVPScreen> {
   updateUserCredit() async {
     QuickHelp.showLoadingDialog(context);
     widget.currentUser!.addCredit = diamondsToClaim;
-    widget.currentUser!.addUserPoints =  diamondsToClaim ~/ 2;
+    widget.currentUser!.addUserPoints = diamondsToClaim ~/ 2;
 
     ParseResponse response = await widget.currentUser!.save();
     if (response.success) {
@@ -401,7 +405,7 @@ class _MVPScreenState extends State<MVPScreen> {
         amountTransacted: diamondsToClaim,
       );
       getDailyReward();
-    }else {
+    } else {
       QuickHelp.hideLoadingDialog(context);
       QuickHelp.showAppNotificationAdvanced(
         title: "error".tr(),
@@ -453,13 +457,14 @@ class _MVPScreenState extends State<MVPScreen> {
     }
   }
 
-  checkExistingVipMember() async{
+  checkExistingVipMember() async {
     QueryBuilder queryBuilder = QueryBuilder(MvpModels());
-    queryBuilder.whereEqualTo(MvpModels.keyAuthorId, widget.currentUser!.objectId!);
+    queryBuilder.whereEqualTo(
+        MvpModels.keyAuthorId, widget.currentUser!.objectId!);
     queryBuilder.setLimit(1);
     ParseResponse response = await queryBuilder.query();
 
-    if(response.success && response.results != null) {
+    if (response.success && response.results != null) {
       MvpModels mvpMember = response.results!.first;
       if (selectedMonths[0] == 0) {
         mvpMember.setMVPEndDate =
@@ -480,7 +485,7 @@ class _MVPScreenState extends State<MVPScreen> {
         widget.currentUser!.addUserPoints = points[3];
       }
       mvpMember.save();
-    }else{
+    } else {
       createMVPMember();
     }
   }
@@ -519,12 +524,12 @@ class _MVPScreenState extends State<MVPScreen> {
     Size size = MediaQuery.of(context).size;
     return ContainerCorner(
       onTap: () async {
-        UserModel? user =
-        await QuickHelp.goToNavigatorScreenForResult(
-            context, PrivilegeInfoScreen(
-          currentUser: widget.currentUser,
-          initialIndex: index,
-        ));
+        UserModel? user = await QuickHelp.goToNavigatorScreenForResult(
+            context,
+            PrivilegeInfoScreen(
+              currentUser: widget.currentUser,
+              initialIndex: index,
+            ));
         if (user != null) {
           setState(() {
             widget.currentUser = user;

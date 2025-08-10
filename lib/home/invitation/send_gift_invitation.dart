@@ -4,8 +4,8 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:trace/app/config.dart';
 
-import '../../app/Config.dart';
 import '../../helpers/quick_actions.dart';
 import '../../helpers/quick_help.dart';
 import '../../models/GiftsModel.dart';
@@ -19,16 +19,15 @@ class SendGiftInvitationScreen extends StatefulWidget {
   SendGiftInvitationScreen({this.currentUser, Key? key}) : super(key: key);
 
   @override
-  State<SendGiftInvitationScreen> createState() => _SendGiftInvitationScreenState();
+  State<SendGiftInvitationScreen> createState() =>
+      _SendGiftInvitationScreenState();
 }
 
 class _SendGiftInvitationScreenState extends State<SendGiftInvitationScreen> {
-
   var promotionalImages = [];
   int current = 0;
   final CarouselController _controller = CarouselController();
   String linkToShare = "";
-
 
   @override
   void initState() {
@@ -74,9 +73,11 @@ class _SendGiftInvitationScreenState extends State<SendGiftInvitationScreen> {
                           child: CarouselView(
                             controller: _controller,
                             itemExtent: double.infinity,
-                            children: List.generate(promotionalImages.length, (index){
+                            children: List.generate(promotionalImages.length,
+                                (index) {
                               return Padding(
-                                padding: const EdgeInsets.only(left: 5, right: 5, top: 50, bottom: 10),
+                                padding: const EdgeInsets.only(
+                                    left: 5, right: 5, top: 50, bottom: 10),
                                 child: QuickActions.photosWidget(
                                   promotionalImages[index]["file"]["url"],
                                   borderRadius: 10,
@@ -88,17 +89,17 @@ class _SendGiftInvitationScreenState extends State<SendGiftInvitationScreen> {
                       } else if (snapshot.hasError) {
                         return ContainerCorner(
                             height: 230,
-                            child: Center(child: TextWithTap("personality_screen.nothing_found".tr())));
-                      }else if(!snapshot.hasData){
+                            child: Center(
+                                child: TextWithTap(
+                                    "personality_screen.nothing_found".tr())));
+                      } else if (!snapshot.hasData) {
                         return ContainerCorner(
                             height: 230,
-                            child: Center(child: QuickHelp.appLoading())
-                        );
-                      }else {
+                            child: Center(child: QuickHelp.appLoading()));
+                      } else {
                         return ContainerCorner(
                             height: 230,
-                            child: Center(child: QuickHelp.appLoading())
-                        );
+                            child: Center(child: QuickHelp.appLoading()));
                       }
                     }),
               ),
@@ -131,7 +132,13 @@ class _SendGiftInvitationScreenState extends State<SendGiftInvitationScreen> {
             marginRight: 30,
             marginLeft: 30,
             marginTop: 15,
-            child: TextWithTap(linkToShare, color: Colors.white, marginTop: 10, marginLeft: 15, marginRight: 15,),
+            child: TextWithTap(
+              linkToShare,
+              color: Colors.white,
+              marginTop: 10,
+              marginLeft: 15,
+              marginRight: 15,
+            ),
           ),
           ContainerCorner(
             borderWidth: 0,
@@ -143,7 +150,7 @@ class _SendGiftInvitationScreenState extends State<SendGiftInvitationScreen> {
             marginBottom: 20,
             marginTop: 40,
             width: 170,
-            onTap: ()=> shareLink(),
+            onTap: () => shareLink(),
             child: TextWithTap(
               "invitation_gift_screen.click_to_share".tr(),
               color: Colors.white,
@@ -152,31 +159,30 @@ class _SendGiftInvitationScreenState extends State<SendGiftInvitationScreen> {
               marginRight: 10,
             ),
           )
-      ],),
+        ],
+      ),
     );
   }
 
   getPromotionalImages() async {
-
     QueryBuilder<GiftsModel> query = QueryBuilder<GiftsModel>(GiftsModel());
 
     query.whereEqualTo(
         GiftsModel.keyGiftCategories, GiftsModel.categoryPromotionalImage);
-
 
     ParseResponse response = await query.query();
 
     if (response.success) {
       if (response.result != null) {
         return response.results;
-      }else{
+      } else {
         return response.error as dynamic;
       }
     }
   }
 
   shareLink() async {
-    Share.share("settings_screen.share_app_url".tr(namedArgs: {"app_name": Config.appName, "url": linkToShare}));
+    Share.share("settings_screen.share_app_url"
+        .tr(namedArgs: {"app_name": Config.appName, "url": linkToShare}));
   }
-
 }

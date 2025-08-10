@@ -1,11 +1,10 @@
-// ignore_for_file: deprecated_member_use
+// ignore_for_file: deprecated_member_use, unused_local_variable
 
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:parse_server_sdk/parse_server_sdk.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
-import 'package:trace/app/Config.dart';
 import 'package:trace/helpers/quick_help.dart';
 import 'package:trace/models/UserModel.dart';
 
@@ -29,8 +28,7 @@ class CoinsScreen extends StatefulWidget {
 }
 
 class _CoinsScreenState extends State<CoinsScreen> {
-
-  void getUser() async{
+  void getUser() async {
     widget.currentUser = await ParseUser.currentUser();
   }
 
@@ -41,13 +39,11 @@ class _CoinsScreenState extends State<CoinsScreen> {
 
   @override
   void dispose() {
-
     super.dispose();
   }
 
   @override
   void initState() {
-
     QuickHelp.saveCurrentRoute(route: CoinsScreen.route);
     initProducts();
 
@@ -59,7 +55,6 @@ class _CoinsScreenState extends State<CoinsScreen> {
       offerings = await Purchases.getOfferings();
 
       if (offerings.current!.availablePackages.length > 0) {
-
         setState(() {
           _isAvailable = true;
           _loading = false;
@@ -77,7 +72,6 @@ class _CoinsScreenState extends State<CoinsScreen> {
   }
 
   List<InAppPurchaseModel> getInAppList() {
-
     List<Package> myProductList = offerings.current!.availablePackages;
 
     List<InAppPurchaseModel> inAppPurchaseList = [];
@@ -92,14 +86,11 @@ class _CoinsScreenState extends State<CoinsScreen> {
     );
   }
 
-
   Widget getBody() {
     if (_loading) {
       return QuickHelp.appLoading();
     } else if (_isAvailable) {
-
       return getProductList();
-
     } else {
       return QuickActions.noContentFound(context);
     }
@@ -126,7 +117,7 @@ class _CoinsScreenState extends State<CoinsScreen> {
             child: Column(
               children: [
                 TextWithTap(
-                    QuickHelp.checkFundsWithString(amount: "${inApp.coins}"),
+                  QuickHelp.checkFundsWithString(amount: "${inApp.coins}"),
                   fontWeight: FontWeight.w700,
                   fontSize: 18,
                   marginTop: 5,
@@ -147,7 +138,7 @@ class _CoinsScreenState extends State<CoinsScreen> {
                   color: Colors.deepPurpleAccent,
                   marginBottom: 5,
                   child: TextWithTap(
-                      "${inApp.price}",
+                    "${inApp.price}",
                     color: Colors.white,
                     alignment: Alignment.center,
                     fontSize: 10,
@@ -162,8 +153,7 @@ class _CoinsScreenState extends State<CoinsScreen> {
     );
   }
 
-  _purchaseProduct(InAppPurchaseModel inAppPurchaseModel) async{
-
+  _purchaseProduct(InAppPurchaseModel inAppPurchaseModel) async {
     QuickHelp.showLoadingDialog(context);
 
     try {
@@ -173,32 +163,28 @@ class _CoinsScreenState extends State<CoinsScreen> {
       await widget.currentUser!.save();
 
       QuickHelp.hideLoadingDialog(context);
-      QuickHelp.showAppNotificationAdvanced(context:context,
+      QuickHelp.showAppNotificationAdvanced(
+        context: context,
         user: widget.currentUser,
-        title: "in_app_purchases.coins_purchased".tr(namedArgs: {"coins" : _inAppPurchaseModel!.coins!.toString()}),
+        title: "in_app_purchases.coins_purchased"
+            .tr(namedArgs: {"coins": _inAppPurchaseModel!.coins!.toString()}),
         message: "in_app_purchases.coins_added_to_account".tr(),
         isError: false,
       );
-
     } on PlatformException catch (e) {
-
       var errorCode = PurchasesErrorHelper.getErrorCode(e);
 
       if (errorCode != PurchasesErrorCode.purchaseCancelledError) {
-
         QuickHelp.hideLoadingDialog(context);
 
         QuickHelp.showAppNotificationAdvanced(
-          context:context,
+          context: context,
           user: widget.currentUser,
           title: "in_app_purchases.purchase_cancelled_title".tr(),
           message: "in_app_purchases.purchase_cancelled".tr(),
         );
-
       } else if (errorCode != PurchasesErrorCode.invalidReceiptError) {
-
-       _handleInvalidPurchase();
-
+        _handleInvalidPurchase();
       } else {
         handleError(e);
       }
@@ -206,13 +192,13 @@ class _CoinsScreenState extends State<CoinsScreen> {
   }
 
   void _handleInvalidPurchase() {
-
-    QuickHelp.showAppNotification(context:context, title: "in_app_purchases.invalid_purchase".tr());
+    QuickHelp.showAppNotification(
+        context: context, title: "in_app_purchases.invalid_purchase".tr());
     QuickHelp.hideLoadingDialog(context);
   }
 
-  void registerPayment(CustomerInfo customerInfo, InAppPurchaseModel productDetails) async {
-
+  void registerPayment(
+      CustomerInfo customerInfo, InAppPurchaseModel productDetails) async {
     // Save all payment information
     PaymentsModel paymentsModel = PaymentsModel();
     paymentsModel.setAuthor = widget.currentUser!;
@@ -224,15 +210,18 @@ class _CoinsScreenState extends State<CoinsScreen> {
     paymentsModel.setTransactionId = customerInfo.originalPurchaseDate!;
     paymentsModel.setCurrency = productDetails.currency!.toUpperCase();
     paymentsModel.setPrice = productDetails.price.toString();
-    paymentsModel.setMethod = QuickHelp.isAndroidPlatform()? "Google Play" : QuickHelp.isIOSPlatform() ? "App Store" : "";
+    paymentsModel.setMethod = QuickHelp.isAndroidPlatform()
+        ? "Google Play"
+        : QuickHelp.isIOSPlatform()
+            ? "App Store"
+            : "";
     paymentsModel.setStatus = PaymentsModel.paymentStatusCompleted;
 
     await paymentsModel.save();
   }
 
   void handleError(PlatformException error) {
-
     QuickHelp.hideLoadingDialog(context);
-    QuickHelp.showAppNotification(context:context, title: error.message);
+    QuickHelp.showAppNotification(context: context, title: error.message);
   }
 }

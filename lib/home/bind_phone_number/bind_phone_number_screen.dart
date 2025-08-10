@@ -7,8 +7,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import 'package:pin_code_fields/pin_code_fields.dart';
+import 'package:trace/app/config.dart';
 
-import '../../app/Config.dart';
 import '../../app/setup.dart';
 import '../../helpers/quick_help.dart';
 import '../../models/UserModel.dart';
@@ -23,8 +23,7 @@ import '../../widgets/CountDownTimer.dart';
 class BindPoneNumberScreen extends StatefulWidget {
   UserModel? currentUser;
 
-  BindPoneNumberScreen({this.currentUser, Key? key})
-      : super(key: key);
+  BindPoneNumberScreen({this.currentUser, Key? key}) : super(key: key);
 
   @override
   State<BindPoneNumberScreen> createState() => _BindPoneNumberScreenState();
@@ -42,8 +41,9 @@ class _BindPoneNumberScreenState extends State<BindPoneNumberScreen> {
 
   String countryIsoCode = Config.initialCountry;
   String countryDialCode = QuickHelp.getCountryDialCode(Config.initialCountry);
-  List<String> languagesIso =  QuickHelp.getLanguageByCountryIso(code: Config.initialCountry);
-  bool isEmptyPhoneField =  false;
+  List<String> languagesIso =
+      QuickHelp.getLanguageByCountryIso(code: Config.initialCountry);
+  bool isEmptyPhoneField = false;
 
   TextEditingController phoneNumberEditingController = TextEditingController();
   TextEditingController pinCodeEditingController = TextEditingController();
@@ -98,10 +98,10 @@ class _BindPoneNumberScreenState extends State<BindPoneNumberScreen> {
           children: [
             Visibility(
               visible: widget.currentUser!.getPhoneNumberFull!.isNotEmpty,
-              child: TextWithTap("bind_phone_number_screen.original_phone".tr(
-                  namedArgs: {
-                    "number": widget.currentUser!.getPhoneNumberFull!
-                  }),
+              child: TextWithTap(
+                "bind_phone_number_screen.original_phone".tr(namedArgs: {
+                  "number": widget.currentUser!.getPhoneNumberFull!
+                }),
                 marginLeft: 15,
                 marginTop: 10,
                 color: kGrayColor,
@@ -200,7 +200,8 @@ class _BindPoneNumberScreenState extends State<BindPoneNumberScreen> {
                     onPressed: () {
                       if (phoneNumberKey.currentState!.validate()) {
                         if (widget.currentUser!.getPhoneNumberFull ==
-                            countryDialCode+phoneNumberEditingController.text) {
+                            countryDialCode +
+                                phoneNumberEditingController.text) {
                           QuickHelp.showAppNotificationAdvanced(
                             title: "error".tr(),
                             message:
@@ -368,12 +369,12 @@ class _BindPoneNumberScreenState extends State<BindPoneNumberScreen> {
 
     try {
       if (QuickHelp.isWebPlatform()) {
-        confirmationResult =
-            await _auth.signInWithPhoneNumber(countryDialCode+phoneNumberEditingController.text);
+        confirmationResult = await _auth.signInWithPhoneNumber(
+            countryDialCode + phoneNumberEditingController.text);
         //userCredential = await confirmationResult.confirm('123456');
       } else {
         await _auth.verifyPhoneNumber(
-            phoneNumber: countryDialCode+phoneNumberEditingController.text,
+            phoneNumber: countryDialCode + phoneNumberEditingController.text,
             timeout: const Duration(seconds: 5),
             verificationCompleted: verificationCompleted,
             verificationFailed: verificationFailed,
@@ -490,7 +491,7 @@ class _BindPoneNumberScreenState extends State<BindPoneNumberScreen> {
             borderColor: isEmptyPhoneField ? kRedColor1 : kTransparentColor,
             errorTextField: TextStyle(fontSize: 0.0),
             validator: (text) {
-              if(text!.isEmpty) {
+              if (text!.isEmpty) {
                 isEmptyPhoneField = true;
                 setState(() {});
                 return "";
@@ -500,10 +501,10 @@ class _BindPoneNumberScreenState extends State<BindPoneNumberScreen> {
               return null;
             },
             onChanged: (text) {
-              if(text.isEmpty) {
+              if (text.isEmpty) {
                 isEmptyPhoneField = true;
                 setState(() {});
-              }else{
+              } else {
                 isEmptyPhoneField = false;
                 setState(() {});
               }
@@ -514,7 +515,7 @@ class _BindPoneNumberScreenState extends State<BindPoneNumberScreen> {
             onCountryChanged: (country) {
               countryIsoCode = country.isoCode;
               countryDialCode = country.dialCode;
-              languagesIso =  country.languagesIso;
+              languagesIso = country.languagesIso;
             },
           ),
         ],
@@ -526,7 +527,8 @@ class _BindPoneNumberScreenState extends State<BindPoneNumberScreen> {
     QuickHelp.showLoadingDialog(context);
     QueryBuilder<UserModel> queryBuilder =
         QueryBuilder<UserModel>(UserModel.forQuery());
-    queryBuilder.whereEqualTo(UserModel.keyPhoneNumber, phoneNumberEditingController.text);
+    queryBuilder.whereEqualTo(
+        UserModel.keyPhoneNumber, phoneNumberEditingController.text);
     queryBuilder.whereNotEqualTo(
         UserModel.keyObjectId, widget.currentUser!.objectId);
     ParseResponse apiResponse = await queryBuilder.query();
@@ -579,7 +581,8 @@ class _BindPoneNumberScreenState extends State<BindPoneNumberScreen> {
     widget.currentUser!.setCountryCode = countryIsoCode;
     widget.currentUser!.setCountryDialCode = countryDialCode;
     widget.currentUser!.setPhoneNumber = phoneNumberEditingController.text;
-    widget.currentUser!.setPhoneNumberFull = countryDialCode+phoneNumberEditingController.text;
+    widget.currentUser!.setPhoneNumberFull =
+        countryDialCode + phoneNumberEditingController.text;
 
     ParseResponse response = await widget.currentUser!.save();
 

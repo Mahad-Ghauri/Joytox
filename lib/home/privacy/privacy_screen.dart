@@ -3,7 +3,7 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:trace/app/Config.dart';
+import 'package:trace/app/config.dart';
 
 import '../../helpers/quick_help.dart';
 import '../../models/UserModel.dart';
@@ -14,8 +14,7 @@ import '../../utils/colors.dart';
 class PrivacyScreen extends StatefulWidget {
   UserModel? currentUser;
 
-  PrivacyScreen({this.currentUser, Key? key})
-      : super(key: key);
+  PrivacyScreen({this.currentUser, Key? key}) : super(key: key);
 
   @override
   State<PrivacyScreen> createState() => _PrivacyScreenState();
@@ -63,7 +62,6 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
       ];
     });
   }
-
 
   @override
   void initState() {

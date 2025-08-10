@@ -1,8 +1,7 @@
 import 'package:get/get.dart';
+import 'package:trace/app/config.dart';
 import 'package:trace/models/GiftsModel.dart';
 import 'package:trace/models/UserModel.dart';
-
-import '../../app/Config.dart';
 
 class Controller extends GetxController {
   var countryCode = Config.initialCountry.obs;
@@ -22,7 +21,7 @@ class Controller extends GetxController {
 
   // Per-seat state management
   var selectedSeatIndex = (-1).obs;
-  
+
   var showSeatMenu = false.obs;
 
   var receivedGiftList = <GiftsModel>[].obs;

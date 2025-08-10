@@ -31,7 +31,7 @@ import 'package:trace/models/CallsModel.dart';
 import 'package:trace/models/CommentsModel.dart';
 import 'package:trace/models/GiftsModel.dart';
 import 'package:trace/models/GiftsSentModel.dart';
-import 'package:trace/models/HashTagsModel.dart';
+import 'package:trace/models/HashtagsModel.dart';
 import 'package:trace/models/InvitedUsersModel.dart';
 import 'package:trace/models/LeadersModel.dart';
 import 'package:trace/models/MessageModel.dart';
@@ -54,7 +54,6 @@ import 'package:zego_uikit_prebuilt_call/zego_uikit_prebuilt_call.dart';
 import 'package:zego_uikit_prebuilt_live_streaming/zego_uikit_prebuilt_live_streaming.dart';
 import 'package:zego_uikit_signaling_plugin/zego_uikit_signaling_plugin.dart';
 import 'controllers/feed_controller.dart';
-import 'firebase_options.dart';
 import 'home/a_shorts/shorts_cached_controller.dart';
 import 'home/responsive_home_screen.dart';
 import 'home/feed/create_pictures_post_screen.dart';
@@ -220,7 +219,7 @@ Future<void> initPlatformState() async {
   } else if (QuickHelp.isIOSPlatform()) {
     configuration = PurchasesConfiguration(Config.publicIosSdkKey);
   }
-  if(!QuickHelp.isWebPlatform()) {
+  if (!QuickHelp.isWebPlatform()) {
     await Purchases.configure(configuration!);
   }
 }
@@ -268,7 +267,6 @@ class _AppState extends State<App> with WidgetsBindingObserver {
         acl.setPublicReadAccess(allowed: true);
         currentUser!.setACL(acl);
         await currentUser!.save();
-
 
         // Após obter o usuário atual, pré-carrega o feed
         _preloadFeed();
@@ -322,7 +320,6 @@ class _AppState extends State<App> with WidgetsBindingObserver {
       acl.setPublicReadAccess(allowed: true);
       currentUser!.setACL(acl);
       await currentUser!.save();
-
     }
   }
 

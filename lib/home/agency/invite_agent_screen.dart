@@ -5,8 +5,8 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:trace/app/config.dart';
 
-import '../../app/Config.dart';
 import '../../helpers/quick_help.dart';
 import '../../models/UserModel.dart';
 import '../../ui/container_with_corner.dart';
@@ -16,8 +16,7 @@ import '../../utils/colors.dart';
 class InviteAgentScreen extends StatefulWidget {
   UserModel? currentUser;
 
-  InviteAgentScreen({this.currentUser, Key? key})
-      : super(key: key);
+  InviteAgentScreen({this.currentUser, Key? key}) : super(key: key);
 
   @override
   State<InviteAgentScreen> createState() => _InviteAgentScreenState();
@@ -179,21 +178,21 @@ class _InviteAgentScreenState extends State<InviteAgentScreen> {
                           mainAxisAlignment: MainAxisAlignment.spaceAround,
                           children: List.generate(
                               socialMediaIcons.length,
-                                  (index) => Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Image.asset(
-                                    socialMediaIcons[index],
-                                    height: 45,
-                                    width: 45,
-                                  ),
-                                  TextWithTap(
-                                    socialMediaTitle[index],
-                                    color: kGrayColor,
-                                    marginTop: 10,
-                                  )
-                                ],
-                              )),
+                              (index) => Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Image.asset(
+                                        socialMediaIcons[index],
+                                        height: 45,
+                                        width: 45,
+                                      ),
+                                      TextWithTap(
+                                        socialMediaTitle[index],
+                                        color: kGrayColor,
+                                        marginTop: 10,
+                                      )
+                                    ],
+                                  )),
                         ),
                         ContainerCorner(
                           height: 60,
@@ -252,7 +251,6 @@ class _InviteAgentScreenState extends State<InviteAgentScreen> {
   }
 
   createLink() async {
-
     QuickHelp.showAppNotificationAdvanced(
         context: context,
         title: "error".tr(),
