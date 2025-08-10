@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "452853037055",
+    "project_id": "joytox-official",
+    "storage_bucket": "joytox-official.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:452853037055:android:39306ef5c507f0a4f4d9ca",
+        "android_client_info": {
+          "package_name": "com.trace.appsdabanda"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "452853037055-2qqlnl6577lo94geu91sjs5561nv8hqa.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.trace.appsdabanda",
+            "certificate_hash": "d2fbf945a58962bbfc0c7640fbf6c38467be6240"
+          }
+        },
+        {
+          "client_id": "452853037055-r9smlifcg9c5du0nfpo5depbsscl9h6s.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBtyEi6TRiu9VrDScStZTUJ0MO1fYnF-tc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "452853037055-r9smlifcg9c5du0nfpo5depbsscl9h6s.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

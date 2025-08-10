@@ -5,14 +5,14 @@ import 'package:parse_server_sdk/parse_server_sdk.dart';
 import 'GiftSendersModel.dart';
 
 class LiveStreamingModel extends ParseObject implements ParseCloneable {
-
   static final String keyTableName = "Streaming";
 
   LiveStreamingModel() : super(keyTableName);
   LiveStreamingModel.clone() : this();
 
   @override
-  LiveStreamingModel clone(Map<String, dynamic> map) => LiveStreamingModel.clone()..fromJson(map);
+  LiveStreamingModel clone(Map<String, dynamic> map) =>
+      LiveStreamingModel.clone()..fromJson(map);
 
   static final String privacyTypeAnyone = "anyone";
   static final String privacyTypeFriends = "friends";
@@ -25,7 +25,6 @@ class LiveStreamingModel extends ParseObject implements ParseCloneable {
   static final String livePrefixAudioRoom = "audio_room";
   static final String livePrefixLive = "single_live";
   static final String livePrefixParty = "party_live";
-
 
   static const String liveSubAll = "All";
   static const String liveSubTalking = "talk";
@@ -62,21 +61,20 @@ class LiveStreamingModel extends ParseObject implements ParseCloneable {
   static String keyAuthorInvited = "AuthorInvited";
   static String keyAuthorInvitedUid = "AuthorInvitedUid";
 
-   static final String keyViewersUid = "viewers_uid";
-   static final String keyViewersId = "viewers_id";
+  static final String keyViewersUid = "viewers_uid";
+  static final String keyViewersId = "viewers_id";
 
   static final String keyViewersCountLive = "viewersCountLive";
   static final String keyStreamingPrivate = "private";
 
-   static final String keyLiveImage = "image";
+  static final String keyLiveImage = "image";
   static final String keyLiveGeoPoint = "geoPoint";
   static final String keyLiveTags = "live_tag";
 
-   static final String keyStreaming = "streaming";
-   static final String keyStreamingTime = "streaming_time";
-   static final String keyStreamingDiamonds = "streaming_diamonds";
+  static final String keyStreaming = "streaming";
+  static final String keyStreamingTime = "streaming_time";
+  static final String keyStreamingDiamonds = "streaming_diamonds";
   static final String keyAuthorTotalDiamonds = "author_total_diamonds";
-
 
   static final String keyStreamingChannel = "streaming_channel";
 
@@ -136,6 +134,11 @@ class LiveStreamingModel extends ParseObject implements ParseCloneable {
   static final String keyPartyTheme = "party_theme";
   static final String keyShareMedia = "share_media";
 
+  // Per-seat management keys
+  static final String keyLockedSeats = "locked_seats";
+  static final String keyMutedSeats = "muted_seats";
+  static final String keySeatUserMapping = "seat_user_mapping";
+
   static final String keyBattle = "is_battle";
   static final String keyBattleStatus = "battle_status";
   static final String battlePaused = "battle_paused";
@@ -152,214 +155,251 @@ class LiveStreamingModel extends ParseObject implements ParseCloneable {
 
   int? get getRepeatBattleTimes {
     int? number = get<int>(keyRepeatBattleTimes);
-    if(number != null) {
+    if (number != null) {
       return number;
-    }else{
+    } else {
       return 0;
     }
   }
-  set addRepeatBattleTimes(int number) => setIncrement(keyRepeatBattleTimes, number);
+
+  set addRepeatBattleTimes(int number) =>
+      setIncrement(keyRepeatBattleTimes, number);
   set setRepeatBattleTimes(int number) => set(keyRepeatBattleTimes, number);
 
   int? get getHisBattleVictory {
     int? number = get<int>(keyHisBattleVictory);
-    if(number != null) {
+    if (number != null) {
       return number;
-    }else{
+    } else {
       return 0;
     }
   }
-  set addHisBattleVictory(int number) => setIncrement(keyHisBattleVictory, number);
+
+  set addHisBattleVictory(int number) =>
+      setIncrement(keyHisBattleVictory, number);
   set setHisBattleVictory(int number) => set(keyHisBattleVictory, number);
 
   int? get getMyBattleVictory {
     int? number = get<int>(keyMyBattleVictory);
-    if(number != null) {
+    if (number != null) {
       return number;
-    }else{
+    } else {
       return 0;
     }
   }
-  set addMyBattleVictory(int number) => setIncrement(keyMyBattleVictory, number);
+
+  set addMyBattleVictory(int number) =>
+      setIncrement(keyMyBattleVictory, number);
   set setMyBattleVictory(int number) => set(keyMyBattleVictory, number);
 
   int? get getMyBattlePoints {
     int? battlePoints = get<int>(keyMyBattlePoints);
-    if(battlePoints != null) {
+    if (battlePoints != null) {
       return battlePoints;
-    }else{
+    } else {
       return 0;
     }
   }
-  set addMyBattlePoints(int diamonds) => setIncrement(keyMyBattlePoints, diamonds);
+
+  set addMyBattlePoints(int diamonds) =>
+      setIncrement(keyMyBattlePoints, diamonds);
   set setMyBattlePoints(int diamonds) => set(keyMyBattlePoints, diamonds);
 
   int? get getHisBattlePoints {
     int? battlePoints = get<int>(keyHisBattlePoints);
-    if(battlePoints != null) {
+    if (battlePoints != null) {
       return battlePoints;
-    }else{
+    } else {
       return 0;
     }
   }
-  set addHisBattlePoints(int diamonds) => setIncrement(keyHisBattlePoints, diamonds);
+
+  set addHisBattlePoints(int diamonds) =>
+      setIncrement(keyHisBattlePoints, diamonds);
   set setHisBattlePoints(int diamonds) => set(keyHisBattlePoints, diamonds);
 
   String? get getBattleLiveId {
     String? battleLiveId = get<String>(keyBattleLiveId);
-    if(battleLiveId != null){
+    if (battleLiveId != null) {
       return battleLiveId;
     } else {
       return "";
     }
   }
 
-  set setBattleLiveId(String battleLiveId) => set<String>(keyBattleLiveId, battleLiveId);
+  set setBattleLiveId(String battleLiveId) =>
+      set<String>(keyBattleLiveId, battleLiveId);
 
   String? get getBattleStatus {
     String? battleStatus = get<String>(keyBattleStatus);
-    if(battleStatus != null){
+    if (battleStatus != null) {
       return battleStatus;
     } else {
       return "";
     }
   }
 
-  set setBattleStatus(String battleStatus) => set<String>(keyBattleStatus, battleStatus);
+  set setBattleStatus(String battleStatus) =>
+      set<String>(keyBattleStatus, battleStatus);
 
   bool? get getBattle {
     bool? isBattle = get<bool>(keyBattle);
-    if(isBattle != null) {
+    if (isBattle != null) {
       return isBattle;
-    }else{
+    } else {
       return false;
     }
   }
+
   set setBattle(bool isBattle) => set<bool>(keyBattle, isBattle);
 
   bool? get getSharingMedia {
     bool? isSharingMedia = get<bool>(keyShareMedia);
-    if(isSharingMedia != null) {
+    if (isSharingMedia != null) {
       return isSharingMedia;
-    }else{
+    } else {
       return false;
     }
   }
-  set setSharingMedia(bool isSharingMedia) => set<bool>(keyShareMedia, isSharingMedia);
+
+  set setSharingMedia(bool isSharingMedia) =>
+      set<bool>(keyShareMedia, isSharingMedia);
 
   String? get getAuthorUserName {
     String? username = get<String>(keyAuthorUserName);
-    if(username != null) {
+    if (username != null) {
       return username;
-    }else {
+    } else {
       return "";
     }
   }
-  set setAuthorUserName(String username) => set<String>(keyAuthorUserName, username);
+
+  set setAuthorUserName(String username) =>
+      set<String>(keyAuthorUserName, username);
 
   ParseFileBase? get getPartyTheme => get<ParseFileBase>(keyPartyTheme);
-  set setPartyTheme(ParseFileBase file) => set<ParseFileBase>(keyPartyTheme, file);
+  set setPartyTheme(ParseFileBase file) =>
+      set<ParseFileBase>(keyPartyTheme, file);
 
   int? get getNumberOfChairs {
     int? number = get<int>(keyNumberOfChairs);
-    if(number != null) {
+    if (number != null) {
       return number;
-    }else{
+    } else {
       return 0;
     }
   }
-  set setNumberOfChairs(int partyType) => set<int>(keyNumberOfChairs, partyType);
+
+  set setNumberOfChairs(int partyType) =>
+      set<int>(keyNumberOfChairs, partyType);
 
   String? get getPartyType => get<String>(keyPartyType);
   set setPartyType(String partyType) => set<String>(keyPartyType, partyType);
 
-  List<dynamic>? get getReachedPeople{
+  List<dynamic>? get getReachedPeople {
     List<dynamic>? users = get<List<dynamic>>(keyReachedPeople);
-    if(users != null && users.length > 0){
+    if (users != null && users.length > 0) {
       return users;
     } else {
       return [];
     }
   }
+
   set addReachedPeople(String userId) => setAddUnique(keyReachedPeople, userId);
 
-  List<dynamic>? get getFollower{
+  List<dynamic>? get getFollower {
     List<dynamic>? users = get<List<dynamic>>(keyFollowers);
-    if(users != null && users.length > 0){
+    if (users != null && users.length > 0) {
       return users;
     } else {
       return [];
     }
   }
+
   set addFollower(String userId) => setAddUnique(keyFollowers, userId);
   set removeFollower(String userId) => setRemove(keyFollowers, userId);
 
-
   String? get getLiveSubType => get<String>(keyLiveSubType);
-  set setLiveSubType(String audioRoomTitle) => set<String>(keyLiveSubType, audioRoomTitle);
+  set setLiveSubType(String audioRoomTitle) =>
+      set<String>(keyLiveSubType, audioRoomTitle);
 
   String? get getLiveTitle => get<String>(keyAudioRoomTitle);
-  set setLiveTitle(String audioRoomTitle) => set<String>(keyAudioRoomTitle, audioRoomTitle);
+  set setLiveTitle(String audioRoomTitle) =>
+      set<String>(keyAudioRoomTitle, audioRoomTitle);
 
-  List<dynamic>? get getUserSelfMutedAudioIds{
+  List<dynamic>? get getUserSelfMutedAudioIds {
     List<dynamic>? users = get<List<dynamic>>(keyUserSelfMutedAudioIds);
-    if(users != null && users.length > 0){
+    if (users != null && users.length > 0) {
       return users;
     } else {
       return [];
     }
   }
-  set addUserSelfMutedAudioIds(String userId) => setAddUnique(keyUserSelfMutedAudioIds, userId);
-  set removeUserSelfMutedAudioIds(String userId) => setRemove(keyUserSelfMutedAudioIds, userId);
 
-  List<dynamic>? get getUnMutedUserIds{
+  set addUserSelfMutedAudioIds(String userId) =>
+      setAddUnique(keyUserSelfMutedAudioIds, userId);
+  set removeUserSelfMutedAudioIds(String userId) =>
+      setRemove(keyUserSelfMutedAudioIds, userId);
+
+  List<dynamic>? get getUnMutedUserIds {
     List<dynamic>? users = get<List<dynamic>>(keyUnMutedUserIds);
-    if(users != null && users.length > 0){
+    if (users != null && users.length > 0) {
       return users;
     } else {
       return [];
     }
   }
-  set addUnMutedUserIds(String userId) => setAddUnique(keyUnMutedUserIds, userId);
-  set removeUnMutedUserIds(String userId) => setRemove(keyUnMutedUserIds, userId);
 
-  List<dynamic>? get getMutedUserIds{
+  set addUnMutedUserIds(String userId) =>
+      setAddUnique(keyUnMutedUserIds, userId);
+  set removeUnMutedUserIds(String userId) =>
+      setRemove(keyUnMutedUserIds, userId);
+
+  List<dynamic>? get getMutedUserIds {
     List<dynamic>? users = get<List<dynamic>>(keyMutedUserIds);
-    if(users != null && users.length > 0){
+    if (users != null && users.length > 0) {
       return users;
     } else {
       return [];
     }
   }
+
   set addMutedUserIds(String userId) => setAddUnique(keyMutedUserIds, userId);
   set removeMutedUserIds(String userId) => setRemove(keyMutedUserIds, userId);
 
-  List<dynamic>? get getRemovedUserIds{
+  List<dynamic>? get getRemovedUserIds {
     List<dynamic>? users = get<List<dynamic>>(keyRemovedUserIds);
-    if(users != null && users.length > 0){
+    if (users != null && users.length > 0) {
       return users;
     } else {
       return [];
     }
   }
-  set addRemovedUserIds(String userId) => setAddUnique(keyRemovedUserIds, userId);
-  set removeRemovedUserIds(String userId) => setRemove(keyRemovedUserIds, userId);
 
-  List<dynamic>? get getAudioHostsList{
+  set addRemovedUserIds(String userId) =>
+      setAddUnique(keyRemovedUserIds, userId);
+  set removeRemovedUserIds(String userId) =>
+      setRemove(keyRemovedUserIds, userId);
+
+  List<dynamic>? get getAudioHostsList {
     List<dynamic>? users = get<List<dynamic>>(keyAudioHostsList);
-    if(users != null && users.length > 0){
+    if (users != null && users.length > 0) {
       return users;
     } else {
       return [];
     }
   }
-  set addAudioHostToList(UserModel user) => setAddUnique(keyAudioHostsList, user);
-  set removeAudioHostToList(UserModel user) => setRemove(keyAudioHostsList, user);
+
+  set addAudioHostToList(UserModel user) =>
+      setAddUnique(keyAudioHostsList, user);
+  set removeAudioHostToList(UserModel user) =>
+      setRemove(keyAudioHostsList, user);
 
   String? get getLiveType => get<String>(keyLiveType);
   set setLiveType(String liveType) => set<String>(keyLiveType, liveType);
 
-  set removeViewersId(String viewerAuthorId) => setRemove(keyViewersId, viewerAuthorId);
+  set removeViewersId(String viewerAuthorId) =>
+      setRemove(keyViewersId, viewerAuthorId);
 
   UserModel? get getAuthor => get<UserModel>(keyAuthor);
   set setAuthor(UserModel author) => set<UserModel>(keyAuthor, author);
@@ -368,99 +408,105 @@ class LiveStreamingModel extends ParseObject implements ParseCloneable {
   set setAuthorUid(int authorUid) => set<int>(keyAuthorUid, authorUid);
 
   UserModel? get getCoHostAuthor => get<UserModel>(keyCoHostAuthor);
-  set setCoHostAuthor(UserModel author) => set<UserModel>(keyCoHostAuthor, author);
+  set setCoHostAuthor(UserModel author) =>
+      set<UserModel>(keyCoHostAuthor, author);
 
   int? get getCoHostAuthorUid => get<int>(keyCoHostAuthorUid);
-  set setCoHostAuthorUid(int authorUid) => set<int>(keyCoHostAuthorUid, authorUid);
+  set setCoHostAuthorUid(int authorUid) =>
+      set<int>(keyCoHostAuthorUid, authorUid);
 
   bool? get getCoHostAuthorAvailable => get<bool>(keyCoHostAvailable);
-  set setCoHostAvailable(bool coHostAvailable) => set<bool>(keyCoHostAvailable, coHostAvailable);
+  set setCoHostAvailable(bool coHostAvailable) =>
+      set<bool>(keyCoHostAvailable, coHostAvailable);
 
   String? get getAuthorId => get<String>(keyAuthorId);
   set setAuthorId(String authorId) => set<String>(keyAuthorId, authorId);
 
   String? get getInvitedBroadCasterId => get<String>(keyInvitedBroadCasterId);
-  set setInvitedBroadCasterId(String authorId) => set<String>(keyInvitedBroadCasterId, authorId);
+  set setInvitedBroadCasterId(String authorId) =>
+      set<String>(keyInvitedBroadCasterId, authorId);
 
   UserModel? get getAuthorInvited => get<UserModel>(keyAuthorInvited);
-  set setAuthorInvited(UserModel invitedAuthor) => set<UserModel>(keyAuthorInvited, invitedAuthor);
+  set setAuthorInvited(UserModel invitedAuthor) =>
+      set<UserModel>(keyAuthorInvited, invitedAuthor);
 
   int? get getAuthorInvitedUid => get<int>(keyAuthorInvitedUid);
-  set setAuthorInvitedUid(int invitedAuthorUid) => set<int>(keyAuthorInvitedUid, invitedAuthorUid);
+  set setAuthorInvitedUid(int invitedAuthorUid) =>
+      set<int>(keyAuthorInvitedUid, invitedAuthorUid);
 
-  int? get getViewersCount{
-
+  int? get getViewersCount {
     int? viewersCount = get<int>(keyViewersCountLive);
-    if(viewersCount != null){
+    if (viewersCount != null) {
       return viewersCount;
     } else {
       return 0;
     }
   }
-  set addViewersCount(int viewersCount) => setIncrement(keyViewersCountLive, viewersCount);
-  set removeViewersCount(int viewersCount) {
 
-    if(getViewersCount! > 0){
+  set addViewersCount(int viewersCount) =>
+      setIncrement(keyViewersCountLive, viewersCount);
+  set removeViewersCount(int viewersCount) {
+    if (getViewersCount! > 0) {
       setDecrement(keyViewersCountLive, viewersCount);
     }
   }
 
-
   ParseFileBase? get getImage => get<ParseFileBase>(keyLiveImage);
-  set setImage(ParseFileBase imageFile) => set<ParseFileBase>(keyLiveImage, imageFile);
+  set setImage(ParseFileBase imageFile) =>
+      set<ParseFileBase>(keyLiveImage, imageFile);
 
-
-  set setGifSenderImage(ParseFileBase imageFile) => setAddUnique(keyGiftSendersPicture, imageFile);
+  set setGifSenderImage(ParseFileBase imageFile) =>
+      setAddUnique(keyGiftSendersPicture, imageFile);
 
   List<dynamic>? get getGifSenderImage {
-
     List<dynamic>? images = get<List<dynamic>>(keyGiftSendersPicture);
-    if(images != null && images.length > 0){
+    if (images != null && images.length > 0) {
       return images;
-    }else{
+    } else {
       return [];
     }
   }
 
-  List<dynamic>? get getCoHostUiD{
-
+  List<dynamic>? get getCoHostUiD {
     List<dynamic>? coHostUiD = get<List<dynamic>>(keyCoHostUID);
-    if(coHostUiD != null && coHostUiD.length > 0){
+    if (coHostUiD != null && coHostUiD.length > 0) {
       return coHostUiD;
     } else {
       return [];
     }
   }
+
   set setCoHostUID(int coHostUiD) => setAddUnique(keyCoHostUID, coHostUiD);
 
-
-  List<dynamic>? get getViewers{
-
+  List<dynamic>? get getViewers {
     List<dynamic>? viewers = get<List<dynamic>>(keyViewersUid);
-    if(viewers != null && viewers.length > 0){
+    if (viewers != null && viewers.length > 0) {
       return viewers;
     } else {
       return [];
     }
   }
+
   set setViewers(int viewerUid) => setAddUnique(keyViewersUid, viewerUid);
 
-  List<dynamic>? get getViewersId{
-
+  List<dynamic>? get getViewersId {
     List<dynamic>? viewersId = get<List<dynamic>>(keyViewersId);
-    if(viewersId != null && viewersId.length > 0){
+    if (viewersId != null && viewersId.length > 0) {
       return viewersId;
     } else {
       return [];
     }
   }
-  set setViewersId(String viewerAuthorId) => setAddUnique(keyViewersId, viewerAuthorId);
+
+  set setViewersId(String viewerAuthorId) =>
+      setAddUnique(keyViewersId, viewerAuthorId);
 
   int? get getDiamonds => get<int>(keyStreamingDiamonds);
   set addDiamonds(int diamonds) => setIncrement(keyStreamingDiamonds, diamonds);
 
   int? get getAuthorTotalDiamonds => get<int>(keyAuthorTotalDiamonds);
-  set addAuthorTotalDiamonds(int diamonds) => setIncrement(keyAuthorTotalDiamonds, diamonds);
+  set addAuthorTotalDiamonds(int diamonds) =>
+      setIncrement(keyAuthorTotalDiamonds, diamonds);
 
   bool? get getStreaming => get<bool>(keyStreaming);
   set setStreaming(bool isStreaming) => set<bool>(keyStreaming, isStreaming);
@@ -468,26 +514,26 @@ class LiveStreamingModel extends ParseObject implements ParseCloneable {
   bool? get getFirstLive {
     var isFirstTime = get<bool>(keyFirstLive);
 
-    if(isFirstTime != null){
+    if (isFirstTime != null) {
       return isFirstTime;
-    }else{
+    } else {
       return false;
     }
   }
 
   set setFirstLive(bool isFirstLive) => set<bool>(keyFirstLive, isFirstLive);
 
-
-
   String? get getStreamingTime => get<String>(keyStreamingTime);
-  set setStreamingTime(String streamingTime) => set<String>(keyStreamingTime, streamingTime);
+  set setStreamingTime(String streamingTime) =>
+      set<String>(keyStreamingTime, streamingTime);
 
   String? get getStreamingCategory => get<String>(keyStreamingCategory);
-  set setStreamingCategory(String streamingCategory) => set<String>(keyStreamingCategory, streamingCategory);
+  set setStreamingCategory(String streamingCategory) =>
+      set<String>(keyStreamingCategory, streamingCategory);
 
   String? get getStreamingTags {
     String? text = get<String>(keyLiveTags);
-    if(text != null){
+    if (text != null) {
       return text;
     } else {
       return "";
@@ -497,62 +543,60 @@ class LiveStreamingModel extends ParseObject implements ParseCloneable {
   set setStreamingTags(String text) => set<String>(keyLiveTags, text);
 
   String? get getStreamingChannel => get<String>(keyStreamingChannel);
-  set setStreamingChannel(String streamingChannel) => set<String>(keyStreamingChannel, streamingChannel);
+  set setStreamingChannel(String streamingChannel) =>
+      set<String>(keyStreamingChannel, streamingChannel);
 
-  ParseGeoPoint? get getStreamingGeoPoint => get<ParseGeoPoint>(keyLiveGeoPoint);
-  set setStreamingGeoPoint(ParseGeoPoint liveGeoPoint) => set<ParseGeoPoint>(keyLiveGeoPoint, liveGeoPoint);
+  ParseGeoPoint? get getStreamingGeoPoint =>
+      get<ParseGeoPoint>(keyLiveGeoPoint);
+  set setStreamingGeoPoint(ParseGeoPoint liveGeoPoint) =>
+      set<ParseGeoPoint>(keyLiveGeoPoint, liveGeoPoint);
 
-  bool? get getPrivate{
+  bool? get getPrivate {
     bool? private = get<bool>(keyStreamingPrivate);
-    if(private != null){
+    if (private != null) {
       return private;
     } else {
       return false;
     }
   }
+
   set setPrivate(bool private) => set<bool>(keyStreamingPrivate, private);
 
-  bool? get getInvitationAccepted{
+  bool? get getInvitationAccepted {
     bool? accepted = get<bool>(keyInvitationAccepted);
-    if(accepted != null){
+    if (accepted != null) {
       return accepted;
     } else {
       return false;
     }
   }
-  set setInvitationAccepted(bool accepted) => set<bool>(keyInvitationAccepted, accepted);
 
+  set setInvitationAccepted(bool accepted) =>
+      set<bool>(keyInvitationAccepted, accepted);
 
+  List<String>? get getHashtags {
+    var arrayString = get<List<dynamic>>(keyHashTagsId);
 
-
-  List<String>? get getHashtags{
-
-    var arrayString =  get<List<dynamic>>(keyHashTagsId);
-
-    if(arrayString != null){
+    if (arrayString != null) {
       List<String> users = new List<String>.from(arrayString);
       return users;
     } else {
       return [];
     }
-
   }
 
-  List<dynamic>? get getHashtagsForQuery{
+  List<dynamic>? get getHashtagsForQuery {
+    var arrayString = get<List<dynamic>>(keyHashTags);
 
-    var arrayString =  get<List<dynamic>>(keyHashTags);
-
-    if(arrayString != null){
+    if (arrayString != null) {
       List<String> users = new List<String>.from(arrayString);
       return users;
     } else {
       return [];
     }
-
   }
 
   set setHashtags(List hashtags) {
-
     List<String> hashTagsList = [];
 
     /*for(HashTagModel hashTag in hashtags){
@@ -564,44 +608,47 @@ class LiveStreamingModel extends ParseObject implements ParseCloneable {
   }
 
   GiftsModel? get getPrivateGift => get<GiftsModel>(keyPrivateLiveGift);
-  set setPrivateLivePrice(GiftsModel privateLivePrice) => set<GiftsModel>(keyPrivateLiveGift, privateLivePrice);
-  set removePrice(GiftsModel privateLivePrice) => setRemove(keyPrivateLiveGift, privateLivePrice);
+  set setPrivateLivePrice(GiftsModel privateLivePrice) =>
+      set<GiftsModel>(keyPrivateLiveGift, privateLivePrice);
+  set removePrice(GiftsModel privateLivePrice) =>
+      setRemove(keyPrivateLiveGift, privateLivePrice);
 
-  List<dynamic>? get getPrivateViewersId{
-
+  List<dynamic>? get getPrivateViewersId {
     List<dynamic>? viewersId = get<List<dynamic>>(keyPrivateViewers);
-    if(viewersId != null && viewersId.length > 0){
+    if (viewersId != null && viewersId.length > 0) {
       return viewersId;
     } else {
       return [];
     }
   }
-  set setPrivateViewersId(String viewerAuthorId) => setAddUnique(keyPrivateViewers, viewerAuthorId);
+
+  set setPrivateViewersId(String viewerAuthorId) =>
+      setAddUnique(keyPrivateViewers, viewerAuthorId);
 
   set setPrivateListViewersId(List viewersId) {
-
     List<String> listViewersId = [];
 
-    for(String privateViewer in viewersId){
+    for (String privateViewer in viewersId) {
       listViewersId.add(privateViewer);
     }
     setAddAllUnique(keyPrivateViewers, listViewersId);
   }
 
-  List<dynamic>? get getGiftsSenders{
-
+  List<dynamic>? get getGiftsSenders {
     List<dynamic>? giftSenders = get<List<dynamic>>(keyGiftSenders);
-    if(giftSenders != null && giftSenders.length > 0){
+    if (giftSenders != null && giftSenders.length > 0) {
       return giftSenders;
     } else {
       return [];
     }
   }
-  set addGiftsSenders(GiftsSenderModel giftsSenderModel) => setAddUnique(keyGiftSenders, giftsSenderModel);
 
-  bool? get isLiveCancelledByAdmin{
+  set addGiftsSenders(GiftsSenderModel giftsSenderModel) =>
+      setAddUnique(keyGiftSenders, giftsSenderModel);
+
+  bool? get isLiveCancelledByAdmin {
     bool? cancelled = get<bool>(keyEndByAdmin);
-    if(cancelled != null){
+    if (cancelled != null) {
       return cancelled;
     } else {
       return false;
@@ -610,22 +657,74 @@ class LiveStreamingModel extends ParseObject implements ParseCloneable {
 
   set setTerminatedByAdmin(bool yes) => set<bool>(keyEndByAdmin, yes);
 
-  List<dynamic>? get getInvitedPartyUid{
-
+  List<dynamic>? get getInvitedPartyUid {
     List<dynamic>? invitedUid = get<List<dynamic>>(keyInvitedPartyUid);
-    if(invitedUid != null && invitedUid.length > 0){
+    if (invitedUid != null && invitedUid.length > 0) {
       return invitedUid;
     } else {
       return [];
     }
   }
-  set addInvitedPartyUid(List<dynamic> uidList) => setAddAllUnique(keyInvitedPartyUid, uidList);
+
+  set addInvitedPartyUid(List<dynamic> uidList) =>
+      setAddAllUnique(keyInvitedPartyUid, uidList);
 
   set removeInvitedPartyUid(int uid) => setRemove(keyInvitedPartyUid, uid);
 
-  LiveStreamingModel? get getInvitationLivePending => get<LiveStreamingModel>(keyInvitedPartyLive);
+  LiveStreamingModel? get getInvitationLivePending =>
+      get<LiveStreamingModel>(keyInvitedPartyLive);
 
-  set setInvitationLivePending(LiveStreamingModel live) => set<LiveStreamingModel>(keyInvitedPartyLive, live);
+  set setInvitationLivePending(LiveStreamingModel live) =>
+      set<LiveStreamingModel>(keyInvitedPartyLive, live);
 
   removeInvitationLivePending() => unset(keyInvitedPartyLive);
+
+  // Per-seat management methods
+  List<dynamic>? get getLockedSeats {
+    List<dynamic>? lockedSeats = get<List<dynamic>>(keyLockedSeats);
+    if (lockedSeats != null && lockedSeats.length > 0) {
+      return lockedSeats;
+    } else {
+      return [];
+    }
+  }
+
+  set addLockedSeat(int seatIndex) => setAddUnique(keyLockedSeats, seatIndex);
+  set removeLockedSeat(int seatIndex) => setRemove(keyLockedSeats, seatIndex);
+
+  List<dynamic>? get getMutedSeats {
+    List<dynamic>? mutedSeats = get<List<dynamic>>(keyMutedSeats);
+    if (mutedSeats != null && mutedSeats.length > 0) {
+      return mutedSeats;
+    } else {
+      return [];
+    }
+  }
+
+  set addMutedSeat(int seatIndex) => setAddUnique(keyMutedSeats, seatIndex);
+  set removeMutedSeat(int seatIndex) => setRemove(keyMutedSeats, seatIndex);
+
+  Map<String, dynamic>? get getSeatUserMapping {
+    Map<String, dynamic>? mapping =
+        get<Map<String, dynamic>>(keySeatUserMapping);
+    return mapping ?? {};
+  }
+
+  set setSeatUserMapping(Map<String, dynamic> mapping) =>
+      set<Map<String, dynamic>>(keySeatUserMapping, mapping);
+
+  void setSeatUser(int seatIndex, String? userId) {
+    Map<String, dynamic> currentMapping = getSeatUserMapping ?? {};
+    if (userId != null) {
+      currentMapping[seatIndex.toString()] = userId;
+    } else {
+      currentMapping.remove(seatIndex.toString());
+    }
+    setSeatUserMapping = currentMapping;
+  }
+
+  String? getSeatUser(int seatIndex) {
+    Map<String, dynamic>? mapping = getSeatUserMapping;
+    return mapping?[seatIndex.toString()];
+  }
 }

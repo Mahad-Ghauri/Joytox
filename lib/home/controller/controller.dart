@@ -20,16 +20,79 @@ class Controller extends GetxController {
   var isPrivateLive = false.obs;
   var isFollowing = false.obs;
 
+  // Per-seat state management
+  var selectedSeatIndex = (-1).obs;
+  
+  var showSeatMenu = false.obs;
 
   var receivedGiftList = <GiftsModel>[].obs;
   var giftSenderList = <UserModel>[].obs;
   var giftReceiverList = <UserModel>[].obs;
 
-  updateCountryCode (String code) {
+  // Seat management state
+  var seatStates = <int, Map<String, dynamic>>{}.obs;
+
+  updateCountryCode(String code) {
     countryCode.value = code;
   }
 
-  updateSearchField (String text) {
+  updateSearchField(String text) {
     emptyField.value = text.isEmpty;
+  }
+
+  // Seat management methods
+  void initializeSeatStates(int totalSeats) {
+    seatStates.clear();
+    for (int i = 0; i < totalSeats; i++) {
+      seatStates[i] = {
+        'isLocked': false,
+        'isMuted': false,
+        'userId': null,
+        'userName': null,
+      };
+    }
+  }
+
+  void updateSeatState(int seatIndex, String key, dynamic value) {
+    if (!seatStates.containsKey(seatIndex)) {
+      seatStates[seatIndex] = {
+        'isLocked': false,
+        'isMuted': false,
+        'userId': null,
+        'userName': null,
+      };
+    }
+    seatStates[seatIndex]![key] = value;
+    seatStates.refresh();
+  }
+
+  Map<String, dynamic>? getSeatState(int seatIndex) {
+    return seatStates[seatIndex];
+  }
+
+  void lockSeat(int seatIndex) {
+    updateSeatState(seatIndex, 'isLocked', true);
+  }
+
+  void unlockSeat(int seatIndex) {
+    updateSeatState(seatIndex, 'isLocked', false);
+  }
+
+  void muteSeat(int seatIndex) {
+    updateSeatState(seatIndex, 'isMuted', true);
+  }
+
+  void unmuteSeat(int seatIndex) {
+    updateSeatState(seatIndex, 'isMuted', false);
+  }
+
+  void selectSeat(int seatIndex) {
+    selectedSeatIndex.value = seatIndex;
+    showSeatMenu.value = true;
+  }
+
+  void closeSeatMenu() {
+    showSeatMenu.value = false;
+    selectedSeatIndex.value = -1;
   }
 }
