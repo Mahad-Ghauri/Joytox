@@ -1,5 +1,5 @@
 // Flutter imports:
-// ignore_for_file: must_be_immutable, unnecessary_null_comparison, deprecated_member_use
+// ignore_for_file: must_be_immutable, unnecessary_null_comparison, deprecated_member_use, unused_local_variable
 
 import 'dart:async';
 
@@ -44,7 +44,6 @@ import 'global_private_live_price_sheet.dart';
 import 'global_user_profil_sheet.dart';
 import 'widgets/seat_action_menu.dart';
 import 'widgets/invite_friends_sheet.dart';
-import 'widgets/seat_overlay_widget.dart';
 import 'widgets/seat_management_fab.dart';
 
 class PrebuildAudioRoomScreen extends StatefulWidget {
@@ -1521,8 +1520,8 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
         QuickHelp.hideLoadingDialog(context);
         QuickHelp.showAppNotificationAdvanced(
           context: context,
-          title: "seat_actions.unmuted".tr(),
-          message: "seat_actions.seat_unmuted_success"
+          title: "seat_actions.un-muted".tr(),
+          message: "seat_actions.seat_un-muted_success"
               .tr(namedArgs: {"seat": "${seatIndex + 1}"}),
         );
       } else {
@@ -1538,7 +1537,7 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
     } catch (e) {
       QuickHelp.hideLoadingDialog(context);
       showGiftSendersController.muteSeat(seatIndex);
-      print("Error unmuting seat: $e");
+      print("Error un-muting seat: $e");
     }
   }
 
