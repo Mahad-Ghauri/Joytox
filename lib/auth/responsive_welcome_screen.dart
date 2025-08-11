@@ -8,7 +8,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import 'package:quickalert/models/quickalert_type.dart';
 import 'package:quickalert/widgets/quickalert_dialog.dart';
-import 'package:trace/app/Config.dart';
+import 'package:trace/app/config.dart';
 import 'package:trace/auth/phone_login_screen.dart';
 import 'package:trace/auth/responsive_forget_password_screen.dart';
 import 'package:trace/auth/responsive_signup_screen.dart';
@@ -229,8 +229,7 @@ class _ResponsiveWelcomeScreenState extends State<ResponsiveWelcomeScreen> {
                             onPressed: () {
                               QuickHelp.goToNavigatorScreen(
                                 context,
-                                ResponsiveForgetPasswordScreen(
-                                ),
+                                ResponsiveForgetPasswordScreen(),
                               );
                             },
                             child: TextWithTap(
@@ -267,8 +266,7 @@ class _ResponsiveWelcomeScreenState extends State<ResponsiveWelcomeScreen> {
                           onPressed: () {
                             QuickHelp.goToNavigatorScreen(
                               context,
-                              ResponsiveSignUpScreen(
-                              ),
+                              ResponsiveSignUpScreen(),
                             );
                           },
                           child: TextWithTap(
@@ -333,8 +331,7 @@ class _ResponsiveWelcomeScreenState extends State<ResponsiveWelcomeScreen> {
                             onTap: () {
                               QuickHelp.goToNavigatorScreen(
                                 context,
-                                PhoneLoginScreen(
-                                ),
+                                PhoneLoginScreen(),
                               );
                             },
                             child: Padding(
@@ -680,8 +677,7 @@ class _ResponsiveWelcomeScreenState extends State<ResponsiveWelcomeScreen> {
     ParseResponse response = await user.save();
 
     if (response.success) {
-      SocialLogin.getPhotoFromUrl(
-          context, user, googleUser.photoUrl!);
+      SocialLogin.getPhotoFromUrl(context, user, googleUser.photoUrl!);
     } else {
       QuickHelp.hideLoadingDialog(context);
       QuickHelp.showErrorResult(context, response.error!.code);

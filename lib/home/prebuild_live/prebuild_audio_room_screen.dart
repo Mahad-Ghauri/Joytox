@@ -1,5 +1,5 @@
 // Flutter imports:
-// ignore_for_file: must_be_immutable, unnecessary_null_comparison, deprecated_member_use
+// ignore_for_file: must_be_immutable, unnecessary_null_comparison, deprecated_member_use, unused_local_variable
 
 import 'dart:async';
 
@@ -17,7 +17,6 @@ import 'package:text_scroll/text_scroll.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:zego_uikit_prebuilt_live_audio_room/zego_uikit_prebuilt_live_audio_room.dart';
 import 'package:zego_uikit_prebuilt_live_streaming/zego_uikit_prebuilt_live_streaming.dart';
-
 import '../../app/constants.dart';
 import '../../app/setup.dart';
 import '../../helpers/quick_actions.dart';
@@ -1776,9 +1775,8 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
         QuickHelp.showAppNotificationAdvanced(
           context: context,
           title: "seat_actions.unmuted".tr(),
-          message: "seat_actions.seat_unmuted_success".tr(
-            namedArgs: {"seat": "${seatIndex + 1}"},
-          ),
+          message: "seat_actions.seat_unmuted_success"
+              .tr(namedArgs: {"seat": "${seatIndex + 1}"}),
         );
       } else {
         QuickHelp.hideLoadingDialog(context);
@@ -1793,7 +1791,7 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
     } catch (e) {
       QuickHelp.hideLoadingDialog(context);
       showGiftSendersController.muteSeat(seatIndex);
-      print("Error unmuting seat: $e");
+      print("Error un-muting seat: $e");
     }
   }
 

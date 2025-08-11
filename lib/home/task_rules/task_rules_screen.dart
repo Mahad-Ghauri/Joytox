@@ -2,8 +2,8 @@
 
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:trace/app/config.dart';
 
-import '../../app/Config.dart';
 import '../../helpers/quick_help.dart';
 import '../../models/UserModel.dart';
 import '../../ui/container_with_corner.dart';
@@ -13,8 +13,7 @@ import '../../utils/colors.dart';
 class TaskRulesScreen extends StatefulWidget {
   UserModel? currentUser;
 
-  TaskRulesScreen({this.currentUser, Key? key})
-      : super(key: key);
+  TaskRulesScreen({this.currentUser, Key? key}) : super(key: key);
 
   @override
   State<TaskRulesScreen> createState() => _TaskRulesScreenState();
@@ -82,10 +81,11 @@ class _TaskRulesScreenState extends State<TaskRulesScreen> {
           stylesTitle(
               title: "new_task_system_screen.ordinary_hosts".tr(), width: 150),
           ordinaryHosts(),
-          stylesTitle(
-              title: "new_task_system_screen.notice_".tr(), width: 80),
+          stylesTitle(title: "new_task_system_screen.notice_".tr(), width: 80),
           notices(),
-          SizedBox(height: 30,),
+          SizedBox(
+            height: 30,
+          ),
         ],
       ),
     );
@@ -102,12 +102,14 @@ class _TaskRulesScreenState extends State<TaskRulesScreen> {
       padding: const EdgeInsets.only(left: 15, right: 10, top: 15),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: List.generate(notices.length, (index) => TextWithTap(
-          notices[index],
-          fontWeight: FontWeight.w600,
-          fontSize: 14,
-          marginBottom: 8,
-        )),
+        children: List.generate(
+            notices.length,
+            (index) => TextWithTap(
+                  notices[index],
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                  marginBottom: 8,
+                )),
       ),
     );
   }
