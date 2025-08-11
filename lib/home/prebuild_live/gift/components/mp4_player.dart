@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:zego_express_engine/zego_express_engine.dart';
 import 'package:zego_uikit/zego_uikit.dart';
 
-class GiftMp4Player with ZegoUIKitMediaEventInterface {
+class GiftMp4Player extends ZegoUIKitMediaEventInterface {
   static final GiftMp4Player _instance = GiftMp4Player._internal();
   factory GiftMp4Player() => _instance;
   GiftMp4Player._internal();
@@ -15,12 +15,16 @@ class GiftMp4Player with ZegoUIKitMediaEventInterface {
   int _mediaPlayerViewID = -1;
 
   /// callbacks
-  void Function(ZegoMediaPlayerState state, int errorCode)? _onMediaPlayerStateUpdate;
-  void Function(ZegoMediaPlayerFirstFrameEvent event)? _onMediaPlayerFirstFrameEvent;
+  void Function(ZegoMediaPlayerState state, int errorCode)?
+  _onMediaPlayerStateUpdate;
+  void Function(ZegoMediaPlayerFirstFrameEvent event)?
+  _onMediaPlayerFirstFrameEvent;
 
   void registerCallbacks({
-    Function(ZegoMediaPlayerState state, int errorCode)? onMediaPlayerStateUpdate,
-    Function(ZegoMediaPlayerFirstFrameEvent event)? onMediaPlayerFirstFrameEvent,
+    Function(ZegoMediaPlayerState state, int errorCode)?
+    onMediaPlayerStateUpdate,
+    Function(ZegoMediaPlayerFirstFrameEvent event)?
+    onMediaPlayerFirstFrameEvent,
   }) {
     if (!_registerToUIKit) {
       ZegoUIKit().registerMediaEvent(_instance);
@@ -42,7 +46,9 @@ class GiftMp4Player with ZegoUIKitMediaEventInterface {
 
     // create widget
     if (_mediaPlayerViewID == -1) {
-      _mediaPlayerWidget = await ZegoExpressEngine.instance.createCanvasView((viewID) {
+      _mediaPlayerWidget = await ZegoExpressEngine.instance.createCanvasView((
+        viewID,
+      ) {
         _mediaPlayerViewID = viewID;
         _mediaPlayer?.setPlayerCanvas(ZegoCanvas(viewID, alphaBlend: true));
       });
@@ -79,7 +85,10 @@ class GiftMp4Player with ZegoUIKitMediaEventInterface {
     _mediaPlayer?.clearView();
   }
 
-  Future<int> loadResource(String url, {ZegoAlphaLayoutType layoutType = ZegoAlphaLayoutType.Left}) async {
+  Future<int> loadResource(
+    String url, {
+    ZegoAlphaLayoutType layoutType = ZegoAlphaLayoutType.Left,
+  }) async {
     debugPrint('Mp4 Player loadResource: $url');
     int ret = -1;
     if (_mediaPlayer != null) {

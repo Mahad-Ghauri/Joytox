@@ -22,7 +22,7 @@ class Controller extends GetxController {
 
   // Per-seat state management
   var selectedSeatIndex = (-1).obs;
-  
+
   var showSeatMenu = false.obs;
 
   var receivedGiftList = <GiftsModel>[].obs;
@@ -31,6 +31,10 @@ class Controller extends GetxController {
 
   // Seat management state
   var seatStates = <int, Map<String, dynamic>>{}.obs;
+
+  // Announcement management state
+  var activeAnnouncements = <String>[].obs;
+  var pinnedAnnouncements = <String>[].obs;
 
   updateCountryCode(String code) {
     countryCode.value = code;
@@ -94,5 +98,36 @@ class Controller extends GetxController {
   void closeSeatMenu() {
     showSeatMenu.value = false;
     selectedSeatIndex.value = -1;
+  }
+
+  // Announcement management methods
+  void addAnnouncement(String announcementId) {
+    if (!activeAnnouncements.contains(announcementId)) {
+      activeAnnouncements.add(announcementId);
+    }
+  }
+
+  void removeAnnouncement(String announcementId) {
+    activeAnnouncements.remove(announcementId);
+    pinnedAnnouncements.remove(announcementId);
+  }
+
+  void pinAnnouncement(String announcementId) {
+    if (!pinnedAnnouncements.contains(announcementId)) {
+      pinnedAnnouncements.add(announcementId);
+    }
+  }
+
+  void unpinAnnouncement(String announcementId) {
+    pinnedAnnouncements.remove(announcementId);
+  }
+
+  bool isAnnouncementPinned(String announcementId) {
+    return pinnedAnnouncements.contains(announcementId);
+  }
+
+  void clearAllAnnouncements() {
+    activeAnnouncements.clear();
+    pinnedAnnouncements.clear();
   }
 }
