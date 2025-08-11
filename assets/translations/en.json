@@ -1903,7 +1903,22 @@
     "make_your_follow": "Make your follow invisible on the fan list of your host. Take care of your host silently",
     "prevent_guest_admins": "Prevent Guest Admins and VIP Users from muting or kicking out Users from streams (VIP Users cannot mute or kick out each other).",
     "exclusive_vip_bullet": "Exclusive VIP bullet messaging",
-    "contact_your_vip": "Contact your VIP customer service to recommend you host for the number one spot on global or regional hot list. Note: official accounts or recommendations by other VIP have priorities. -VIP9: one hour global No. 1 recommendation per month. Three of one hour regional No.1 recommendation per month. -VIP10: five recommendations for global No. 1 per month. Recommended host are featured for one hour."
+    "contact_your_vip": "Contact your VIP customer service to recommend you host for the number one spot on global or regional hot list. Note: official accounts or recommendations by other VIP have priorities. -VIP9: one hour global No. 1 recommendation per month. Three of one hour regional No.1 recommendation per month. -VIP10: five recommendations for global No. 1 per month. Recommended host are featured for one hour.",
+    "announcement_dialog_title": "Send Announcement",
+    "announcement_title_label": "Title",
+    "announcement_title_hint": "Enter announcement title...",
+    "announcement_title_required": "Title is required",
+    "announcement_message_label": "Message",
+    "announcement_message_hint": "Enter your announcement message...",
+    "announcement_message_required": "Message is required",
+    "announcement_priority_label": "Priority",
+    "announcement_duration_label": "Duration",
+    "announcement_send_button": "Send Announcement",
+    "announcement_sent_title": "Announcement Sent",
+    "announcement_sent_message": "Your announcement has been sent to all participants",
+    "announcement_send_failed": "Failed to send announcement. Please try again.",
+    "announcement_just_now": "Just now",
+    "announcement_minutes_ago": "{minutes}m ago"
   },
   "choose_guardian_screen": {
     "choose_guardian": "Choose a guardian",

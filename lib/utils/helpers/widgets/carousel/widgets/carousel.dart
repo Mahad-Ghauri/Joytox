@@ -264,7 +264,7 @@ class _CarouselState extends State<Carousel> {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(builder: (_, constraints) {
+    return LayoutBuilder(builder: (context, constraints) {
       final Size size = constraints.biggest;
       final double height = size.height;
 
@@ -281,11 +281,11 @@ class _CarouselState extends State<Carousel> {
         dragStartBehavior: widget.dragStartBehavior,
         scrollDirection: widget.scrollDirection,
         itemCount: widget.isInfinite ? null : widget.itemCount,
-        itemBuilder: (_, int index) {
+        itemBuilder: (context, int index) {
           final int realIndex = index % widget.itemCount;
           return AnimatedBuilder(
             animation: _pageController,
-            builder: (_, Widget? child) {
+            builder: (context, Widget? child) {
               late double? page;
               try {
                 page = _pageController.page;
@@ -302,7 +302,7 @@ class _CarouselState extends State<Carousel> {
                 child: child!,
               );
             },
-            child: widget.itemBuilder(_, realIndex),
+            child: widget.itemBuilder(context, realIndex),
           );
         },
       );
