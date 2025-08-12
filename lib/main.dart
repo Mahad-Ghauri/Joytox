@@ -54,7 +54,6 @@ import 'package:zego_uikit_prebuilt_call/zego_uikit_prebuilt_call.dart';
 import 'package:zego_uikit_prebuilt_live_streaming/zego_uikit_prebuilt_live_streaming.dart';
 import 'package:zego_uikit_signaling_plugin/zego_uikit_signaling_plugin.dart';
 import 'controllers/feed_controller.dart';
-import 'firebase_options.dart';
 import 'home/a_shorts/shorts_cached_controller.dart';
 import 'home/responsive_home_screen.dart';
 import 'home/feed/create_pictures_post_screen.dart';

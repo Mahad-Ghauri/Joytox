@@ -44,7 +44,6 @@ import 'global_private_live_price_sheet.dart';
 import 'global_user_profil_sheet.dart';
 import 'widgets/seat_action_menu.dart';
 import 'widgets/invite_friends_sheet.dart';
-import 'widgets/seat_overlay_widget.dart';
 import 'widgets/seat_management_fab.dart';
 
 class PrebuildAudioRoomScreen extends StatefulWidget {

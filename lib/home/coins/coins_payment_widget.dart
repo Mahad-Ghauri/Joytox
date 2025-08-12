@@ -16,7 +16,6 @@ import 'package:trace/ui/container_with_corner.dart';
 import 'package:trace/ui/text_with_tap.dart';
 import 'package:trace/utils/colors.dart';
 
-import '../../app/config.dart';
 
 class CoinsFlowPayment {
   CoinsFlowPayment(

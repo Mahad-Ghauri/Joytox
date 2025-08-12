@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:parse_server_sdk/parse_server_sdk.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
-import 'package:trace/app/Config.dart';
 import 'package:trace/helpers/quick_help.dart';
 import 'package:trace/models/UserModel.dart';
 

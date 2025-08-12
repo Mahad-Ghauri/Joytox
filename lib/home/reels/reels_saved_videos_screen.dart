@@ -12,8 +12,7 @@ import '../../models/UserModel.dart';
 import '../../ui/container_with_corner.dart';
 import '../../ui/text_with_tap.dart';
 import 'package:get/get.dart';
-import 'package:trace/controllers/reels_controller.dart'; // ✔ correct path if controller is here
-import 'package:trace/home/reels/reels_single_screen.dart';
+// ✔ correct path if controller is here
 import 'package:easy_localization/easy_localization.dart';
 
 
