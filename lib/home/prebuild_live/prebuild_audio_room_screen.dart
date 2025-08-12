@@ -2,6 +2,7 @@
 // ignore_for_file: must_be_immutable, unnecessary_null_comparison, deprecated_member_use, unused_local_variable
 
 import 'dart:async';
+import 'package:zego_express_engine/zego_express_engine.dart';
 
 import 'package:easy_localization/easy_localization.dart';
 import 'package:fade_shimmer/fade_shimmer.dart';
@@ -47,6 +48,9 @@ import 'widgets/invite_friends_sheet.dart';
 import 'widgets/seat_management_fab.dart';
 import 'widgets/announcement_dialog.dart';
 import 'widgets/announcement_overlay_widget.dart';
+import 'room_theme_selector.dart';
+import '../streaming/live_audio_room_manager.dart';
+import '../streaming/pages/audio_room/audio_room_page.dart';
 
 class PrebuildAudioRoomScreen extends StatefulWidget {
   UserModel? currentUser;
@@ -67,6 +71,15 @@ class PrebuildAudioRoomScreen extends StatefulWidget {
 
 class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
     with TickerProviderStateMixin {
+  ZegoMediaPlayer? _musicPlayer;
+  int _musicPlayerViewID = -1;
+  bool _isMusicReady = false;
+  late final VoidCallback _musicListener;
+  final List<String> _playlistUrls = [
+    'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
+    'https://www.soundjay.com/misc/sounds/bell-ringing-05.wav',
+  ];
+  int _currentMusicIndex = 0;
   int numberOfSeats = 0;
   AnimationController? _animationController;
 
@@ -166,6 +179,10 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
         widget.liveStreaming!.getDiamonds!.toString();
     showGiftSendersController.shareMediaFiles.value =
         widget.liveStreaming!.getSharingMedia!;
+
+    // Initialize room theme
+    showGiftSendersController.selectedRoomTheme.value =
+        widget.liveStreaming!.getRoomTheme ?? 'theme_default';
     if (widget.liveStreaming!.getNumberOfChairs == 20) {
       numberOfSeats = (widget.liveStreaming!.getNumberOfChairs! ~/ 5) + 1;
     } else if (widget.liveStreaming!.getNumberOfChairs == 24) {
@@ -202,8 +219,10 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
     }
     setupLiveGifts();
     setupStreamingLiveQuery();
+    setupThemeSync(); // Add theme synchronization
     _animationController = AnimationController.unbounded(vsync: this);
-
+    _musicListener = _onMusicStateChanged;
+    ZegoLiveAudioRoomManager().musicStateNoti.addListener(_musicListener);
     print("📢 [ANNOUNCEMENT DEBUG] initState() completed successfully");
   }
 
@@ -217,7 +236,10 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
     }
     subscription = null;
     _avatarWidgetsCache.clear();
-    _resetSeatCounter(); // Clear seat mappings and reset counter
+    _resetSeatCounter();
+    _destroyMusicPlayer();
+    ZegoLiveAudioRoomManager().musicStateNoti.removeListener(
+        _musicListener); // Clear seat mappings and reset counter
     _announcementsNotifier.dispose(); // Clean up announcement notifier
   }
 
@@ -295,6 +317,22 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
       child: Padding(
         padding: const EdgeInsets.all(3.0),
         child: Lottie.asset("assets/lotties/ic_gift.json", height: 29),
+      ),
+    );
+
+    final themeButton = ElevatedButton(
+      style: ElevatedButton.styleFrom(
+        fixedSize: const Size(40, 40),
+        shape: const CircleBorder(),
+        backgroundColor: Colors.black26,
+      ),
+      onPressed: () {
+        print("🎨 Theme button pressed!");
+        _showThemeSelector();
+      },
+      child: Padding(
+        padding: const EdgeInsets.all(3.0),
+        child: Icon(Icons.palette, color: kPrimaryColor, size: 24),
       ),
     );
 
@@ -433,6 +471,7 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
                   )
                   ..bottomMenuBar.hostExtendButtons = [
                     announcementButton, // Host can create announcements
+                    themeButton, // Host can change room theme
                     // Gift button removed from host - hosts don't send gifts to themselves
                     Obx(() {
                       print(
@@ -461,11 +500,13 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
                 : (ZegoUIKitPrebuiltLiveAudioRoomConfig.audience()
                   ..bottomMenuBar.audienceExtendButtons = [
                     announcementButton, // Audience can view announcements
-                    giftButton, // Audience can send gifts
+                    giftButton,
+                    // Audience can send gifts
                   ]
                   ..bottomMenuBar.speakerExtendButtons = [
                     announcementButton, // Speakers can view announcements
-                    giftButton, // Speakers can send gifts
+                    giftButton,
+                    // Speakers can send gifts
                   ])
               // Continue with your other config options...
               ..seat.avatarBuilder = (
@@ -593,6 +634,8 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
               ..inRoomMessage.showAvatar = true
               ..bottomMenuBar.hostExtendButtons = [
                 announcementButton,
+                themeButton,
+                _buildMusicControlButton(),
 
                 //giftButton,
                 Obx(() {
@@ -619,12 +662,22 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
                 announcementButton,
                 giftButton,
               ]
-              ..background = Image.asset(
-                "assets/images/audio_bg_start.png",
-                height: size.height,
-                width: size.width,
-                fit: BoxFit.fill,
-              ),
+              ..background = Obx(() => Image.asset(
+                    showGiftSendersController.getThemePath(
+                        showGiftSendersController.selectedRoomTheme.value),
+                    height: size.height,
+                    width: size.width,
+                    fit: BoxFit.fill,
+                    errorBuilder: (context, error, stackTrace) {
+                      // Fallback to default theme if current theme fails to load
+                      return Image.asset(
+                        "assets/images/backgrounds/theme_default.png",
+                        height: size.height,
+                        width: size.width,
+                        fit: BoxFit.fill,
+                      );
+                    },
+                  )),
           ),
           Positioned(
             top: 30,
@@ -2099,6 +2152,265 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
                 child: CircularProgressIndicator(),
               ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Theme synchronization setup
+  void setupThemeSync() async {
+    if (!widget.isHost!) {
+      // Only non-hosts need to listen for theme changes
+      // Hosts will update themes directly through the UI
+      QueryBuilder<LiveStreamingModel> queryBuilder =
+          QueryBuilder<LiveStreamingModel>(LiveStreamingModel());
+      queryBuilder.whereEqualTo(
+          LiveStreamingModel.keyObjectId, widget.liveStreaming!.objectId!);
+
+      subscription = await liveQuery.client.subscribe(queryBuilder);
+
+      subscription!.on(LiveQueryEvent.update, (value) {
+        print("🎨 [THEME SYNC] Live streaming model updated");
+
+        if (value is LiveStreamingModel) {
+          final newTheme = value.getRoomTheme ?? 'theme_default';
+          final currentTheme =
+              showGiftSendersController.selectedRoomTheme.value;
+
+          if (newTheme != currentTheme) {
+            print(
+                "🎨 [THEME SYNC] Theme changed from $currentTheme to $newTheme");
+            showGiftSendersController.updateRoomTheme(newTheme);
+
+            // Show notification to participants about theme change
+            QuickHelp.showAppNotificationAdvanced(
+              context: context,
+              title: "Theme Changed",
+              message: "The host has changed the room theme!",
+              isError: false,
+            );
+          }
+        }
+      });
+    }
+  }
+
+  // Theme management methods
+  void _showThemeSelector() {
+    if (!widget.isHost!) {
+      QuickHelp.showAppNotificationAdvanced(
+        context: context,
+        title: "Error",
+        message: "Only the host can change the room theme.",
+        isError: true,
+      );
+      return;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => RoomThemeSelector(
+        currentUser: widget.currentUser!,
+        liveStreaming: widget.liveStreaming!,
+        onThemeSelected: _onThemeChanged,
+      ),
+    );
+  }
+
+  void _onThemeChanged(String newTheme) {
+    print("🎨 Theme changed to: $newTheme");
+
+    // Update the controller state
+    showGiftSendersController.updateRoomTheme(newTheme);
+
+    // The UI will automatically update due to Obx wrapper on background
+    print("🎨 Theme applied successfully!");
+  }
+
+  Future<void> _ensureMusicPlayer() async {
+    if (_musicPlayer != null) return;
+    _musicPlayer = await ZegoExpressEngine.instance.createMediaPlayer();
+    _musicPlayer?.setVolume(60);
+    _isMusicReady = false;
+  }
+
+  Future<void> _destroyMusicPlayer() async {
+    if (_musicPlayer != null) {
+      await ZegoExpressEngine.instance.destroyMediaPlayer(_musicPlayer!);
+      _musicPlayer = null;
+    }
+    if (_musicPlayerViewID != -1) {
+      await ZegoExpressEngine.instance.destroyCanvasView(_musicPlayerViewID);
+      _musicPlayerViewID = -1;
+    }
+  }
+
+  Future<void> _hostPlayUrl(String url) async {
+    if (!widget.isHost!) return;
+
+    try {
+      await _ensureMusicPlayer();
+      final source = ZegoMediaPlayerResource.defaultConfig()..filePath = url;
+      final result = await _musicPlayer!.loadResourceWithConfig(source);
+
+      if (result.errorCode == 0) {
+        _isMusicReady = true;
+        _musicPlayer!.start();
+        await ZegoLiveAudioRoomManager().setMusicState(
+            MusicPlaybackState(trackUrl: url, isPlaying: true, positionMs: 0));
+
+        QuickHelp.showAppNotificationAdvanced(
+          context: context,
+          title: "Music Playing",
+          message: "Background music started",
+          isError: false,
+        );
+      }
+    } catch (e) {
+      print("Error playing music: $e");
+    }
+  }
+
+  Future<void> _hostPause() async {
+    if (_musicPlayer == null || !widget.isHost!) return;
+
+    _musicPlayer!.pause();
+    final cur = ZegoLiveAudioRoomManager().musicStateNoti.value;
+    await ZegoLiveAudioRoomManager().setMusicState(
+        (cur ?? MusicPlaybackState.empty()).copyWith(isPlaying: false));
+  }
+
+  Future<void> _hostResume() async {
+    if (_musicPlayer == null || !widget.isHost!) return;
+
+    _musicPlayer!.resume();
+    final cur = ZegoLiveAudioRoomManager().musicStateNoti.value;
+    await ZegoLiveAudioRoomManager().setMusicState(
+        (cur ?? MusicPlaybackState.empty()).copyWith(isPlaying: true));
+  }
+
+  Future<void> _hostStop() async {
+    if (_musicPlayer == null || !widget.isHost!) return;
+
+    _musicPlayer!.stop();
+    await ZegoLiveAudioRoomManager()
+        .setMusicState(MusicPlaybackState.stopped());
+  }
+
+  Future<void> _hostNextTrack() async {
+    if (!widget.isHost!) return;
+
+    _currentMusicIndex = (_currentMusicIndex + 1) % _playlistUrls.length;
+    await _hostPlayUrl(_playlistUrls[_currentMusicIndex]);
+  }
+
+// Apply incoming music state for non-hosts
+  void _onMusicStateChanged() {
+    final state = ZegoLiveAudioRoomManager().musicStateNoti.value;
+    if (state == null || widget.isHost!) return; // Host drives the player
+
+    () async {
+      try {
+        await _ensureMusicPlayer();
+        if (state.trackUrl == null || state.trackUrl!.isEmpty) {
+          _musicPlayer?.stop();
+          return;
+        }
+
+        if (!_isMusicReady) {
+          final source = ZegoMediaPlayerResource.defaultConfig()
+            ..filePath = state.trackUrl!;
+          final result = await _musicPlayer!.loadResourceWithConfig(source);
+          if (result.errorCode == 0) {
+            _isMusicReady = true;
+          }
+        }
+
+        if (state.isPlaying) {
+          _musicPlayer?.start();
+        } else {
+          _musicPlayer?.pause();
+        }
+      } catch (e) {
+        print("Error syncing music state: $e");
+      }
+    }();
+  }
+
+  Widget _buildMusicControlButton() {
+    return ElevatedButton(
+      style: ElevatedButton.styleFrom(
+        fixedSize: const Size(40, 40),
+        shape: const CircleBorder(),
+        backgroundColor: Colors.black26,
+      ),
+      onPressed: () {
+        if (widget.isHost!) {
+          _showMusicControls();
+        }
+      },
+      child: Padding(
+        padding: const EdgeInsets.all(3.0),
+        child: Icon(Icons.music_note, color: kPrimaryColor, size: 24),
+      ),
+    );
+  }
+
+// 8. ADD THIS METHOD to show music controls dialog
+  void _showMusicControls() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: QuickHelp.isDarkMode(context)
+            ? kContentColorLightTheme
+            : kContentColorDarkTheme,
+        title: TextWithTap("Music Controls", fontWeight: FontWeight.bold),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                ElevatedButton(
+                  onPressed: () async {
+                    _currentMusicIndex = 0;
+                    await _hostPlayUrl(_playlistUrls[_currentMusicIndex]);
+                  },
+                  child: Icon(Icons.play_arrow),
+                ),
+                ElevatedButton(
+                  onPressed: _hostPause,
+                  child: Icon(Icons.pause),
+                ),
+                ElevatedButton(
+                  onPressed: _hostResume,
+                  child: Icon(Icons.play_circle),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                ElevatedButton(
+                  onPressed: _hostNextTrack,
+                  child: Icon(Icons.skip_next),
+                ),
+                ElevatedButton(
+                  onPressed: _hostStop,
+                  child: Icon(Icons.stop),
+                ),
+              ],
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text("Close"),
           ),
         ],
       ),

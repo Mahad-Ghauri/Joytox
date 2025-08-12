@@ -35,6 +35,11 @@ class Controller extends GetxController {
   var activeAnnouncements = <String>[].obs;
   var pinnedAnnouncements = <String>[].obs;
 
+  // Room theme management state
+  var selectedRoomTheme = 'theme_default'.obs;
+  var availableThemes =
+      <String>['theme_default', 'theme_forest', 'theme_gradient'].obs;
+
   updateCountryCode(String code) {
     countryCode.value = code;
   }
@@ -97,6 +102,27 @@ class Controller extends GetxController {
   void closeSeatMenu() {
     showSeatMenu.value = false;
     selectedSeatIndex.value = -1;
+  }
+
+  // Theme management methods
+  void updateRoomTheme(String theme) {
+    if (availableThemes.contains(theme)) {
+      selectedRoomTheme.value = theme;
+    }
+  }
+
+  String getThemePath(String theme) {
+    // Check if it's a jpg or png file
+    if (theme == 'theme_gradient') {
+      return "assets/images/backgrounds/$theme.jpg";
+    }
+    return "assets/images/backgrounds/$theme.png";
+  }
+
+  void addNewTheme(String themeName) {
+    if (!availableThemes.contains(themeName)) {
+      availableThemes.add(themeName);
+    }
   }
 
   // Announcement management methods

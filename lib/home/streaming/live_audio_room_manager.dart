@@ -1,13 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
-
 import 'package:flutter/material.dart';
-
 import '../../main.dart';
 import 'zego_sdk_manager.dart';
-
 export 'zego_sdk_manager.dart';
-
 import 'internal/business/audio_room/room_seat_service.dart';  // ✅ Required for RoomSeatService
 
 
@@ -24,6 +20,9 @@ class ZegoLiveAudioRoomManager {
   ValueNotifier<bool> isLockSeat = ValueNotifier(false);
   ValueNotifier<ZegoSDKUser?> hostUserNoti = ValueNotifier(null);
   ValueNotifier<ZegoLiveAudioRoomRole> roleNoti = ValueNotifier(ZegoLiveAudioRoomRole.audience);
+
+  /// Music playback state synced via room extra info so all users can hear consistent background music
+  ValueNotifier<MusicPlaybackState?> musicStateNoti = ValueNotifier(null);
 
   RoomSeatService? roomSeatService;
 
@@ -98,7 +97,7 @@ class ZegoLiveAudioRoomManager {
   String generateStreamID() {
     final userID = ZEGOSDKManager().currentUser!.userID;
     final roomID = ZEGOSDKManager().expressService.currentRoomID;
-    final streamID = '${roomID}_${userID}_${ZegoLiveAudioRoomManager().roleNoti.value == ZegoLiveAudioRoomRole.host ? 'host' : 'speaker'}';
+    final streamID = '${roomID}${userID}${ZegoLiveAudioRoomManager().roleNoti.value == ZegoLiveAudioRoomRole.host ? 'host' : 'speaker'}';
     return streamID;
   }
 
@@ -161,7 +160,7 @@ class ZegoLiveAudioRoomManager {
     return ZEGOSDKManager().zimService.getUserAvatar(userID);
   }
 
-  /// ✅ NEW: Sync per-seat lock state from backend `lockseats`
+  /// ✅ NEW: Sync per-seat lock state from backend lockseats
   void updateLockedSeats(List<int> lockedSeatIndexes) {
     for (var seat in seatList) {
       seat.isLocked.value = lockedSeatIndexes.contains(seat.seatIndex);
@@ -189,8 +188,34 @@ class ZegoLiveAudioRoomManager {
           List<int> lockedIndexes = lockedSeatList.map((e) => int.tryParse(e.toString()) ?? -1).where((e) => e >= 0).toList();
           updateLockedSeats(lockedIndexes);
         }
+
+        /// ✅ MUSIC STATE SYNC
+        if (roomExtraInfoDict.containsKey('music')) {
+          try {
+            final musicJson = roomExtraInfoDict['music'];
+            if (musicJson is Map<String, dynamic>) {
+              musicStateNoti.value = MusicPlaybackState.fromJson(musicJson);
+            } else if (musicJson is String) {
+              musicStateNoti.value = MusicPlaybackState.fromJson(jsonDecode(musicJson));
+            }
+          } catch (_) {}
+        }
       }
     }
+  }
+
+  /// Host updates music state which is broadcast to the room via room extra info
+  Future<ZegoRoomSetRoomExtraInfoResult?> setMusicState(MusicPlaybackState state) async {
+    if (roleNoti.value != ZegoLiveAudioRoomRole.host) {
+      return null;
+    }
+    roomExtraInfoDict['music'] = state.toJson();
+    final dataJson = jsonEncode(roomExtraInfoDict);
+    final result = await ZEGOSDKManager().expressService.setRoomExtraInfo(roomKey, dataJson);
+    if (result.errorCode == 0) {
+      musicStateNoti.value = state;
+    }
+    return result;
   }
 
   void onRoomUserListUpdate(ZegoRoomUserListUpdateEvent event) {
@@ -227,5 +252,37 @@ class ZegoLiveAudioRoomManager {
 
   ZegoSDKUser? getHostUser(String userID) {
     return ZEGOSDKManager().getUser(userID);
+  }
+}
+
+/// Serializable music playback state used to sync across room
+class MusicPlaybackState {
+  final String? trackUrl;
+  final bool isPlaying;
+  final int positionMs;
+
+  MusicPlaybackState({this.trackUrl, required this.isPlaying, required this.positionMs});
+
+  factory MusicPlaybackState.empty() => MusicPlaybackState(trackUrl: null, isPlaying: false, positionMs: 0);
+  factory MusicPlaybackState.stopped() => MusicPlaybackState(trackUrl: null, isPlaying: false, positionMs: 0);
+
+  Map<String, dynamic> toJson() => {
+        'trackUrl': trackUrl,
+        'isPlaying': isPlaying,
+        'positionMs': positionMs,
+      };
+
+  factory MusicPlaybackState.fromJson(Map<String, dynamic> json) => MusicPlaybackState(
+        trackUrl: json['trackUrl'] as String?,
+        isPlaying: (json['isPlaying'] ?? false) as bool,
+        positionMs: (json['positionMs'] ?? 0) as int,
+      );
+
+  MusicPlaybackState copyWith({String? trackUrl, bool? isPlaying, int? positionMs}) {
+    return MusicPlaybackState(
+      trackUrl: trackUrl ?? this.trackUrl,
+      isPlaying: isPlaying ?? this.isPlaying,
+      positionMs: positionMs ?? this.positionMs,
+    );
   }
 }

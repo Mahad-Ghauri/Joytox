@@ -13,6 +13,7 @@ import '../../components/components.dart';
 import '../../live_audio_room_manager.dart';
 import '../../utils/zegocloud_token.dart';
 import '../../zego_sdk_key_center.dart';
+import 'package:zego_express_engine/zego_express_engine.dart';
 import '../../zego_live_audio_room_seat_tile.dart';
 
 
@@ -41,6 +42,15 @@ class AudioRoomPageState extends State<AudioRoomPage> {
   List<StreamSubscription> subscriptions = [];
   String? currentRequestID;
   ValueNotifier<bool> isApplyStateNoti = ValueNotifier(false);
+  ZegoMediaPlayer? _musicPlayer;
+  int _musicPlayerViewID = -1;
+  bool _isMusicReady = false;
+  late final VoidCallback _musicListener;
+  final List<String> _playlistUrls = [
+   'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
+    'https://www.soundjay.com/misc/sounds/bell-ringing-05.wav',
+  ];
+  int _currentIndex = 0;
 
   @override
   void initState() {
@@ -54,7 +64,13 @@ class AudioRoomPageState extends State<AudioRoomPage> {
       zimService.onInComingRoomRequestStreamCtrl.stream.listen(onInComingRoomRequest),
       zimService.onOutgoingRoomRequestAcceptedStreamCtrl.stream.listen(onOutgoingRoomRequestAccepted),
       zimService.onOutgoingRoomRequestRejectedStreamCtrl.stream.listen(onOutgoingRoomRequestRejected),
+      expressService.onMediaPlayerStateUpdateCtrl.stream.listen((event) {
+        // keep for future UI updates
+      }),
     ]);
+
+    _musicListener = _onMusicStateChanged;
+    ZegoLiveAudioRoomManager().musicStateNoti.addListener(_musicListener);
 
     loginRoom();
 
@@ -81,6 +97,8 @@ class AudioRoomPageState extends State<AudioRoomPage> {
     super.dispose();
     uninitGift();
     ZegoLiveAudioRoomManager().logoutRoom();
+    _destroyMusicPlayer();
+    ZegoLiveAudioRoomManager().musicStateNoti.removeListener(_musicListener);
     for (final subscription in subscriptions) {
       subscription.cancel();
     }
@@ -97,6 +115,87 @@ class AudioRoomPageState extends State<AudioRoomPage> {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("failed_take_seat".tr(namedArgs: {"error":"\$error"}))));
       });
     }
+  }
+
+  // ===== Music Player host-only controls and sync =====
+  Future<void> _ensureMusicPlayer() async {
+    if (_musicPlayer != null) return;
+    _musicPlayer = await ZegoExpressEngine.instance.createMediaPlayer();
+    _musicPlayer?.setVolume(60);
+    _isMusicReady = false;
+  }
+
+  Future<void> _destroyMusicPlayer() async {
+    if (_musicPlayer != null) {
+      await ZegoExpressEngine.instance.destroyMediaPlayer(_musicPlayer!);
+      _musicPlayer = null;
+    }
+    if (_musicPlayerViewID != -1) {
+      await ZegoExpressEngine.instance.destroyCanvasView(_musicPlayerViewID);
+      _musicPlayerViewID = -1;
+    }
+  }
+
+  Future<void> _hostPlayUrl(String url) async {
+    if (ZegoLiveAudioRoomManager().roleNoti.value != ZegoLiveAudioRoomRole.host) return;
+    await _ensureMusicPlayer();
+    final source = ZegoMediaPlayerResource.defaultConfig()
+      ..filePath = url;
+    final result = await _musicPlayer!.loadResourceWithConfig(source);
+    if (result.errorCode == 0) {
+      _isMusicReady = true;
+      _musicPlayer!.start();
+      await ZegoLiveAudioRoomManager().setMusicState(MusicPlaybackState(trackUrl: url, isPlaying: true, positionMs: 0));
+    }
+  }
+
+  Future<void> _hostPause() async {
+    if (_musicPlayer == null) return;
+    _musicPlayer!.pause();
+    final cur = ZegoLiveAudioRoomManager().musicStateNoti.value;
+    await ZegoLiveAudioRoomManager().setMusicState((cur ?? MusicPlaybackState.empty()).copyWith(isPlaying: false));
+  }
+
+  Future<void> _hostResume() async {
+    if (_musicPlayer == null) return;
+    _musicPlayer!.resume();
+    final cur = ZegoLiveAudioRoomManager().musicStateNoti.value;
+    await ZegoLiveAudioRoomManager().setMusicState((cur ?? MusicPlaybackState.empty()).copyWith(isPlaying: true));
+  }
+
+  Future<void> _hostStop() async {
+    if (_musicPlayer == null) return;
+    _musicPlayer!.stop();
+    await ZegoLiveAudioRoomManager().setMusicState(MusicPlaybackState.stopped());
+  }
+
+  // Apply incoming music state for non-hosts
+  void _onMusicStateChanged() {
+    final state = ZegoLiveAudioRoomManager().musicStateNoti.value;
+    if (state == null) return;
+    final isHost = ZegoLiveAudioRoomManager().roleNoti.value == ZegoLiveAudioRoomRole.host;
+    if (isHost) return; // host drives the player
+
+    () async {
+      await _ensureMusicPlayer();
+      if (state.trackUrl == null || state.trackUrl!.isEmpty) {
+        _musicPlayer?.stop();
+        return;
+      }
+      if (!_isMusicReady) {
+        final source = ZegoMediaPlayerResource.defaultConfig()
+          ..filePath = state.trackUrl!;
+        final result = await _musicPlayer!.loadResourceWithConfig(source);
+        if (result.errorCode == 0) {
+          _isMusicReady = true;
+        }
+      }
+      if (state.isPlaying) {
+        _musicPlayer?.start();
+      } else {
+        _musicPlayer?.pause();
+      }
+    }();
   }
 
   @override
@@ -147,14 +246,21 @@ class AudioRoomPageState extends State<AudioRoomPage> {
         valueListenable: ZegoLiveAudioRoomManager().roleNoti,
         builder: (context, currentRole, _) {
           if (currentRole == ZegoLiveAudioRoomRole.host) {
-            return Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+            return Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                const SizedBox(width: 10),
-                requestMemberButton(),
-                const SizedBox(width: 10),
-                micorphoneButton(),
-                const SizedBox(width: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    const SizedBox(width: 10),
+                    requestMemberButton(),
+                    const SizedBox(width: 10),
+                    micorphoneButton(),
+                    const SizedBox(width: 10),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                _hostMusicControls(),
               ],
             );
           } else if (currentRole == ZegoLiveAudioRoomRole.speaker) {
@@ -185,6 +291,47 @@ class AudioRoomPageState extends State<AudioRoomPage> {
             );
           }
         });
+  }
+
+  Widget _hostMusicControls() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          ElevatedButton(
+            onPressed: () async {
+              _currentIndex = 0;
+              await _hostPlayUrl(_playlistUrls[_currentIndex]);
+            },
+            child: const Icon(Icons.play_arrow),
+          ),
+          const SizedBox(width: 8),
+          ElevatedButton(
+            onPressed: _hostPause,
+            child: const Icon(Icons.pause),
+          ),
+          const SizedBox(width: 8),
+          ElevatedButton(
+            onPressed: _hostResume,
+            child: const Icon(Icons.play_circle),
+          ),
+          const SizedBox(width: 8),
+          ElevatedButton(
+            onPressed: () async {
+              _currentIndex = (_currentIndex + 1) % _playlistUrls.length;
+              await _hostPlayUrl(_playlistUrls[_currentIndex]);
+            },
+            child: const Icon(Icons.skip_next),
+          ),
+          const SizedBox(width: 8),
+          ElevatedButton(
+            onPressed: _hostStop,
+            child: const Icon(Icons.stop),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget requestMemberButton() {
