@@ -51,6 +51,8 @@ import 'widgets/announcement_overlay_widget.dart';
 import 'room_theme_selector.dart';
 import '../streaming/live_audio_room_manager.dart';
 import '../streaming/pages/audio_room/audio_room_page.dart';
+import 'package:zego_uikit_signaling_plugin/zego_uikit_signaling_plugin.dart';
+import 'package:zego_uikit_prebuilt_live_audio_room/zego_uikit_prebuilt_live_audio_room.dart';
 
 class PrebuildAudioRoomScreen extends StatefulWidget {
   UserModel? currentUser;
@@ -153,6 +155,8 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
     );
   }
 
+  StreamSubscription? _themePropertySubscription; // from dart:async
+
   @override
   void initState() {
     super.initState();
@@ -219,7 +223,7 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
     }
     setupLiveGifts();
     setupStreamingLiveQuery();
-    setupThemeSync(); // Add theme synchronization
+    _initThemeSync(); // Theme synchronization using room properties
     _animationController = AnimationController.unbounded(vsync: this);
     _musicListener = _onMusicStateChanged;
     ZegoLiveAudioRoomManager().musicStateNoti.addListener(_musicListener);
@@ -241,12 +245,68 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
     ZegoLiveAudioRoomManager().musicStateNoti.removeListener(
         _musicListener); // Clear seat mappings and reset counter
     _announcementsNotifier.dispose(); // Clean up announcement notifier
+
+    // Optional: clear theme listener if you registered one
+    _themePropertySubscription?.cancel();
   }
 
   var userAvatar;
 
   final isSeatClosedNotifier = ValueNotifier<bool>(false);
   final isRequestingNotifier = ValueNotifier<bool>(false);
+
+  // Initialize and sync room background theme using Zego room properties
+  Future<void> _initThemeSync() async {
+    try {
+      final roomID = widget.liveStreaming!.getStreamingChannel!;
+      final ctrl = Get.find<Controller>();
+
+      // 1) Fetch current room properties to get theme on join
+      Map<String, String> props = {};
+      try {
+        final result = await ZegoUIKitSignalingPlugin().queryRoomProperties(
+          roomID: roomID,
+        );
+        props = Map<String, String>.from(result.properties ?? {});
+      } catch (e) {
+        debugPrint('queryRoomProperties failed: $e');
+      }
+      final themeFromRoom = props['theme'];
+      if (themeFromRoom != null && themeFromRoom.isNotEmpty) {
+        ctrl.updateRoomTheme(themeFromRoom);
+      } else {
+        // Fallback to backend value; host seeds the room property
+        final backendTheme =
+            widget.liveStreaming!.getRoomTheme ?? 'theme_default';
+        ctrl.updateRoomTheme(backendTheme);
+        if (widget.isHost == true) {
+          try {
+            await ZegoUIKitSignalingPlugin().updateRoomProperties(
+              roomID: roomID,
+              roomProperties: {'theme': backendTheme},
+              isForce: true,
+            );
+          } catch (e) {
+            debugPrint('setRoomProperty (seed) failed: $e');
+          }
+        }
+      }
+
+      // 2) Subscribe to updates
+      _themePropertySubscription = ZegoUIKitSignalingPlugin()
+          .getRoomPropertiesUpdatedEventStream()
+          .listen((event) {
+        if (event.roomID != roomID) return;
+        final setProps = event.setProperties as Map? ?? {};
+        final newTheme = setProps['theme'];
+        if (newTheme != null && newTheme is String && newTheme.isNotEmpty) {
+          ctrl.updateRoomTheme(newTheme);
+        }
+      });
+    } catch (e) {
+      debugPrint('_initThemeSync error: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -328,7 +388,21 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
       ),
       onPressed: () {
         print("🎨 Theme button pressed!");
-        _showThemeSelector();
+        showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
+          builder: (_) {
+            return RoomThemeSelector(
+              currentUser: widget.currentUser!,
+              liveStreaming: widget.liveStreaming!,
+              onThemeSelected: (theme) {
+                // Update local controller immediately; remote users will update via room property
+                Get.find<Controller>().updateRoomTheme(theme);
+              },
+            );
+          },
+        );
       },
       child: Padding(
         padding: const EdgeInsets.all(3.0),
@@ -336,9 +410,23 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
       ),
     );
 
+    final Controller controller = Get.find<Controller>();
+
     return Scaffold(
       body: Stack(
+        fit: StackFit.expand,
         children: [
+          // Background image reacting to theme changes
+          Obx(() {
+            final bgPath =
+                controller.getThemePath(controller.selectedRoomTheme.value);
+            return Image.asset(
+              bgPath,
+              fit: BoxFit.cover,
+              errorBuilder: (c, e, s) => Container(color: Colors.black),
+            );
+          }),
+
           ZegoUIKitPrebuiltLiveAudioRoom(
             appID: Setup.zegoLiveStreamAppID,
             appSign: Setup.zegoLiveStreamAppSign,

@@ -10,6 +10,8 @@ import '../../ui/container_with_corner.dart';
 import '../../ui/text_with_tap.dart';
 import '../../utils/colors.dart';
 import '../../helpers/quick_help.dart';
+import 'package:zego_uikit_signaling_plugin/zego_uikit_signaling_plugin.dart';
+import 'package:zego_uikit_prebuilt_live_audio_room/zego_uikit_prebuilt_live_audio_room.dart';
 
 class RoomThemeSelector extends StatefulWidget {
   final UserModel currentUser;
@@ -240,7 +242,19 @@ class _RoomThemeSelectorState extends State<RoomThemeSelector> {
       final response = await widget.liveStreaming.save();
 
       if (response.success) {
-        // Call the callback to update the UI
+        // Real-time sync to everyone in the room using room properties
+        try {
+          await ZegoUIKitSignalingPlugin().updateRoomProperties(
+            roomID: widget.liveStreaming.getStreamingChannel!,
+            roomProperties: {'theme': selectedTheme},
+            isForce: true,
+          );
+        } catch (e) {
+          // Continue even if signaling plugin is not available; local UI will still update
+          debugPrint('Failed to set room property theme: $e');
+        }
+
+        // Call the callback to update the UI (host local)
         widget.onThemeSelected(selectedTheme);
 
         // Show success message
