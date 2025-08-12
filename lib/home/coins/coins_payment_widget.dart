@@ -16,10 +16,6 @@ import 'package:trace/ui/container_with_corner.dart';
 import 'package:trace/ui/text_with_tap.dart';
 import 'package:trace/utils/colors.dart';
 
-<<<<<<< HEAD
-
-=======
->>>>>>> fdde1238cce4b06a0c6eb5543ed6240e6877f0b4
 class CoinsFlowPayment {
   CoinsFlowPayment(
       {required BuildContext context,
