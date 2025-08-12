@@ -46,6 +46,15 @@ class AudioRoomPageState extends State<AudioRoomPage> {
   int _musicPlayerViewID = -1;
   bool _isMusicReady = false;
   late final VoidCallback _musicListener;
+  
+  // ✅ NEW: Enhanced state management and error handling
+  bool _isMusicPlayerInitializing = false;
+  bool _isMusicPlayerError = false;
+  String? _lastErrorMessage;
+  int _retryCount = 0;
+  static const int _maxRetries = 3;
+  Timer? _retryTimer;
+  
   final List<String> _playlistUrls = [
    'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
     'https://www.soundjay.com/misc/sounds/bell-ringing-05.wav',
@@ -64,9 +73,7 @@ class AudioRoomPageState extends State<AudioRoomPage> {
       zimService.onInComingRoomRequestStreamCtrl.stream.listen(onInComingRoomRequest),
       zimService.onOutgoingRoomRequestAcceptedStreamCtrl.stream.listen(onOutgoingRoomRequestAccepted),
       zimService.onOutgoingRoomRequestRejectedStreamCtrl.stream.listen(onOutgoingRoomRequestRejected),
-      expressService.onMediaPlayerStateUpdateCtrl.stream.listen((event) {
-        // keep for future UI updates
-      }),
+      expressService.onMediaPlayerStateUpdateCtrl.stream.listen(_onMediaPlayerStateUpdate),
     ]);
 
     _musicListener = _onMusicStateChanged;
@@ -75,6 +82,133 @@ class AudioRoomPageState extends State<AudioRoomPage> {
     loginRoom();
 
     initGift();
+  }
+
+  // ✅ NEW: Enhanced media player state update handling
+  void _onMediaPlayerStateUpdate(ZegoPlayerStateChangeEvent event) {
+    debugPrint('AudioRoomPage: Media player state update: ${event.state}, error: ${event.errorCode}');
+    
+    if (event.errorCode != 0) {
+      _handleMediaPlayerError(event.errorCode, 'Media player error: ${event.state.name}');
+    }
+    
+    // Update UI based on state changes
+    if (mounted) {
+      setState(() {
+        switch (event.state) {
+          case ZegoMediaPlayerState.Playing:
+            _isMusicReady = true;
+            _isMusicPlayerError = false;
+            _lastErrorMessage = null;
+            break;
+          case ZegoMediaPlayerState.Pausing:
+            _isMusicReady = true;
+            break;
+          case ZegoMediaPlayerState.PlayEnded:
+            _isMusicReady = false;
+            break;
+          case ZegoMediaPlayerState.NoPlay:
+            _isMusicReady = false;
+            break;
+          default:
+            break;
+        }
+      });
+    }
+  }
+
+  // ✅ NEW: Comprehensive error handling
+  void _handleMediaPlayerError(int errorCode, String message) {
+    debugPrint('AudioRoomPage: Media player error: $message (code: $errorCode)');
+    
+    if (mounted) {
+      setState(() {
+        _isMusicPlayerError = true;
+        _lastErrorMessage = message;
+        _isMusicReady = false;
+      });
+    }
+    
+    // Show error to user
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Audio Error: $message'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
+    
+    // Attempt recovery if possible
+    _attemptRecovery();
+  }
+
+  // ✅ NEW: Recovery mechanism
+  void _attemptRecovery() {
+    if (_retryCount < _maxRetries) {
+      _retryCount++;
+      debugPrint('AudioRoomPage: Attempting recovery (attempt $_retryCount/$_maxRetries)');
+      
+      _retryTimer?.cancel();
+      _retryTimer = Timer(const Duration(seconds: 2), () async {
+        await _recreateMusicPlayer();
+      });
+    } else {
+      debugPrint('AudioRoomPage: Max retry attempts reached, manual intervention required');
+      _showRecoveryDialog();
+    }
+  }
+
+  // ✅ NEW: Recreate music player
+  Future<void> _recreateMusicPlayer() async {
+    try {
+      debugPrint('AudioRoomPage: Recreating music player...');
+      await _destroyMusicPlayer();
+      await Future.delayed(const Duration(milliseconds: 500));
+      await _ensureMusicPlayer();
+      
+      if (mounted) {
+        setState(() {
+          _isMusicPlayerError = false;
+          _lastErrorMessage = null;
+        });
+      }
+      
+      debugPrint('AudioRoomPage: Music player recreated successfully');
+    } catch (e) {
+      debugPrint('AudioRoomPage: Failed to recreate music player: $e');
+      _handleMediaPlayerError(-1, 'Failed to recreate music player: $e');
+    }
+  }
+
+  // ✅ NEW: Recovery dialog
+  void _showRecoveryDialog() {
+    if (!mounted) return;
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Audio Playback Error'),
+        content: Text('Audio playback has encountered persistent errors. Would you like to try to fix it?'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+            },
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.of(context).pop();
+              _retryCount = 0;
+              await _recreateMusicPlayer();
+            },
+            child: const Text('Try Again'),
+          ),
+        ],
+      ),
+    );
   }
 
   void loginRoom() {
@@ -99,6 +233,7 @@ class AudioRoomPageState extends State<AudioRoomPage> {
     ZegoLiveAudioRoomManager().logoutRoom();
     _destroyMusicPlayer();
     ZegoLiveAudioRoomManager().musicStateNoti.removeListener(_musicListener);
+    _retryTimer?.cancel();
     for (final subscription in subscriptions) {
       subscription.cancel();
     }
@@ -119,81 +254,221 @@ class AudioRoomPageState extends State<AudioRoomPage> {
 
   // ===== Music Player host-only controls and sync =====
   Future<void> _ensureMusicPlayer() async {
-    if (_musicPlayer != null) return;
-    _musicPlayer = await ZegoExpressEngine.instance.createMediaPlayer();
-    _musicPlayer?.setVolume(60);
-    _isMusicReady = false;
+    if (_musicPlayer != null && !_isMusicPlayerError) return;
+    
+    if (_isMusicPlayerInitializing) return;
+    
+    try {
+      _isMusicPlayerInitializing = true;
+      
+      // Clean up existing player if there's an error
+      if (_musicPlayer != null && _isMusicPlayerError) {
+        await _destroyMusicPlayer();
+      }
+      
+      // Create new player with error handling
+      _musicPlayer = await ZegoExpressEngine.instance.createMediaPlayer();
+      if (_musicPlayer == null) {
+        throw Exception('Failed to create media player');
+      }
+      
+      // Configure player
+      _musicPlayer!.setVolume(60);
+      
+      // Note: Event handling is done through the express service stream controller
+      // which is already set up in initState()
+      
+      _isMusicReady = false;
+      _isMusicPlayerError = false;
+      _lastErrorMessage = null;
+      
+      debugPrint('AudioRoomPage: Music player created successfully');
+    } catch (e) {
+      debugPrint('AudioRoomPage: Error creating music player: $e');
+      _handleMediaPlayerError(-1, 'Failed to create music player: $e');
+    } finally {
+      _isMusicPlayerInitializing = false;
+    }
   }
 
   Future<void> _destroyMusicPlayer() async {
-    if (_musicPlayer != null) {
-      await ZegoExpressEngine.instance.destroyMediaPlayer(_musicPlayer!);
-      _musicPlayer = null;
-    }
-    if (_musicPlayerViewID != -1) {
-      await ZegoExpressEngine.instance.destroyCanvasView(_musicPlayerViewID);
-      _musicPlayerViewID = -1;
+    try {
+      if (_musicPlayer != null) {
+        await _musicPlayer!.stop();
+        await ZegoExpressEngine.instance.destroyMediaPlayer(_musicPlayer!);
+        _musicPlayer = null;
+      }
+      if (_musicPlayerViewID != -1) {
+        await ZegoExpressEngine.instance.destroyCanvasView(_musicPlayerViewID);
+        _musicPlayerViewID = -1;
+      }
+      
+      _isMusicReady = false;
+      _isMusicPlayerError = false;
+      _lastErrorMessage = null;
+      
+      debugPrint('AudioRoomPage: Music player destroyed successfully');
+    } catch (e) {
+      debugPrint('AudioRoomPage: Error destroying music player: $e');
     }
   }
 
   Future<void> _hostPlayUrl(String url) async {
     if (ZegoLiveAudioRoomManager().roleNoti.value != ZegoLiveAudioRoomRole.host) return;
-    await _ensureMusicPlayer();
-    final source = ZegoMediaPlayerResource.defaultConfig()
-      ..filePath = url;
-    final result = await _musicPlayer!.loadResourceWithConfig(source);
-    if (result.errorCode == 0) {
+    
+    try {
+      await _ensureMusicPlayer();
+      
+      if (_musicPlayer == null) {
+        throw Exception('Music player not available');
+      }
+      
+      // Validate URL
+      if (url.isEmpty) {
+        throw Exception('Invalid URL provided');
+      }
+      
+      debugPrint('AudioRoomPage: Loading audio resource: $url');
+      
+      final source = ZegoMediaPlayerResource.defaultConfig()
+        ..filePath = url;
+      
+      final result = await _musicPlayer!.loadResourceWithConfig(source);
+      
+      if (result.errorCode != 0) {
+        throw Exception('Failed to load audio resource: ${result.errorCode}');
+      }
+      
       _isMusicReady = true;
-      _musicPlayer!.start();
-      await ZegoLiveAudioRoomManager().setMusicState(MusicPlaybackState(trackUrl: url, isPlaying: true, positionMs: 0));
+      _isMusicPlayerError = false;
+      _lastErrorMessage = null;
+      
+      // Start playback
+      await _musicPlayer!.start();
+      
+      // Sync state to room
+      await ZegoLiveAudioRoomManager().setMusicState(
+        MusicPlaybackState(trackUrl: url, isPlaying: true, positionMs: 0)
+      );
+      
+      debugPrint('AudioRoomPage: Audio playback started successfully');
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Audio playback started'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+      
+    } catch (e) {
+      debugPrint('AudioRoomPage: Error playing URL: $e');
+      _handleMediaPlayerError(-1, 'Failed to play audio: $e');
     }
   }
 
   Future<void> _hostPause() async {
-    if (_musicPlayer == null) return;
-    _musicPlayer!.pause();
-    final cur = ZegoLiveAudioRoomManager().musicStateNoti.value;
-    await ZegoLiveAudioRoomManager().setMusicState((cur ?? MusicPlaybackState.empty()).copyWith(isPlaying: false));
+    if (_musicPlayer == null || _isMusicPlayerError) return;
+    
+    try {
+      await _musicPlayer!.pause();
+      final cur = ZegoLiveAudioRoomManager().musicStateNoti.value;
+      await ZegoLiveAudioRoomManager().setMusicState(
+        (cur ?? MusicPlaybackState.empty()).copyWith(isPlaying: false)
+      );
+      
+      debugPrint('AudioRoomPage: Audio paused successfully');
+    } catch (e) {
+      debugPrint('AudioRoomPage: Error pausing audio: $e');
+      _handleMediaPlayerError(-1, 'Failed to pause audio: $e');
+    }
   }
 
   Future<void> _hostResume() async {
-    if (_musicPlayer == null) return;
-    _musicPlayer!.resume();
-    final cur = ZegoLiveAudioRoomManager().musicStateNoti.value;
-    await ZegoLiveAudioRoomManager().setMusicState((cur ?? MusicPlaybackState.empty()).copyWith(isPlaying: true));
+    if (_musicPlayer == null || _isMusicPlayerError) return;
+    
+    try {
+      await _musicPlayer!.resume();
+      final cur = ZegoLiveAudioRoomManager().musicStateNoti.value;
+      await ZegoLiveAudioRoomManager().setMusicState(
+        (cur ?? MusicPlaybackState.empty()).copyWith(isPlaying: true)
+      );
+      
+      debugPrint('AudioRoomPage: Audio resumed successfully');
+    } catch (e) {
+      debugPrint('AudioRoomPage: Error resuming audio: $e');
+      _handleMediaPlayerError(-1, 'Failed to resume audio: $e');
+    }
   }
 
   Future<void> _hostStop() async {
     if (_musicPlayer == null) return;
-    _musicPlayer!.stop();
-    await ZegoLiveAudioRoomManager().setMusicState(MusicPlaybackState.stopped());
+    
+    try {
+      await _musicPlayer!.stop();
+      await ZegoLiveAudioRoomManager().setMusicState(MusicPlaybackState.stopped());
+      
+      _isMusicReady = false;
+      
+      debugPrint('AudioRoomPage: Audio stopped successfully');
+    } catch (e) {
+      debugPrint('AudioRoomPage: Error stopping audio: $e');
+      _handleMediaPlayerError(-1, 'Failed to stop audio: $e');
+    }
   }
 
   // Apply incoming music state for non-hosts
   void _onMusicStateChanged() {
     final state = ZegoLiveAudioRoomManager().musicStateNoti.value;
     if (state == null) return;
+    
     final isHost = ZegoLiveAudioRoomManager().roleNoti.value == ZegoLiveAudioRoomRole.host;
     if (isHost) return; // host drives the player
 
     () async {
-      await _ensureMusicPlayer();
-      if (state.trackUrl == null || state.trackUrl!.isEmpty) {
-        _musicPlayer?.stop();
-        return;
-      }
-      if (!_isMusicReady) {
-        final source = ZegoMediaPlayerResource.defaultConfig()
-          ..filePath = state.trackUrl!;
-        final result = await _musicPlayer!.loadResourceWithConfig(source);
-        if (result.errorCode == 0) {
-          _isMusicReady = true;
+      try {
+        await _ensureMusicPlayer();
+        
+        if (_musicPlayer == null) {
+          debugPrint('AudioRoomPage: Music player not available for state sync');
+          return;
         }
-      }
-      if (state.isPlaying) {
-        _musicPlayer?.start();
-      } else {
-        _musicPlayer?.pause();
+        
+        if (state.trackUrl == null || state.trackUrl!.isEmpty) {
+          _musicPlayer?.stop();
+          _isMusicReady = false;
+          return;
+        }
+        
+        // Load new resource if not ready
+        if (!_isMusicReady) {
+          final source = ZegoMediaPlayerResource.defaultConfig()
+            ..filePath = state.trackUrl!;
+          
+          final result = await _musicPlayer!.loadResourceWithConfig(source);
+          if (result.errorCode == 0) {
+            _isMusicReady = true;
+            _isMusicPlayerError = false;
+            _lastErrorMessage = null;
+          } else {
+            throw Exception('Failed to load audio resource: ${result.errorCode}');
+          }
+        }
+        
+        // Control playback based on state
+        if (state.isPlaying) {
+          await _musicPlayer!.start();
+        } else {
+          await _musicPlayer!.pause();
+        }
+        
+        debugPrint('AudioRoomPage: Music state synced successfully');
+        
+      } catch (e) {
+        debugPrint('AudioRoomPage: Error syncing music state: $e');
+        _handleMediaPlayerError(-1, 'Failed to sync music state: $e');
       }
     }();
   }
@@ -296,39 +571,189 @@ class AudioRoomPageState extends State<AudioRoomPage> {
   Widget _hostMusicControls() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 10),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          ElevatedButton(
-            onPressed: () async {
-              _currentIndex = 0;
-              await _hostPlayUrl(_playlistUrls[_currentIndex]);
-            },
-            child: const Icon(Icons.play_arrow),
+          // ✅ NEW: Status indicator
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: _isMusicPlayerError ? Colors.red.shade100 : Colors.green.shade100,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: _isMusicPlayerError ? Colors.red : Colors.green,
+                width: 1,
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  _isMusicPlayerError ? Icons.error : Icons.music_note,
+                  size: 16,
+                  color: _isMusicPlayerError ? Colors.red : Colors.green,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  _isMusicPlayerError 
+                    ? 'Audio Error' 
+                    : (_isMusicReady ? 'Audio Ready' : 'Audio Loading...'),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: _isMusicPlayerError ? Colors.red : Colors.green,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(width: 8),
-          ElevatedButton(
-            onPressed: _hostPause,
-            child: const Icon(Icons.pause),
+          const SizedBox(height: 8),
+          
+          // ✅ NEW: Error message display
+          if (_lastErrorMessage != null)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              margin: const EdgeInsets.only(bottom: 8),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.red.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.warning, size: 16, color: Colors.red.shade600),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      _lastErrorMessage!,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.red.shade600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          
+          // ✅ NEW: Enhanced music controls
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              ElevatedButton(
+                onPressed: _isMusicPlayerError || _isMusicPlayerInitializing 
+                  ? null 
+                  : () async {
+                      _currentIndex = 0;
+                      await _hostPlayUrl(_playlistUrls[_currentIndex]);
+                    },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: Colors.grey.shade300,
+                ),
+                child: const Icon(Icons.play_arrow),
+              ),
+              const SizedBox(width: 8),
+              ElevatedButton(
+                onPressed: _isMusicPlayerError || _isMusicPlayerInitializing || _musicPlayer == null
+                  ? null 
+                  : _hostPause,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.orange,
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: Colors.grey.shade300,
+                ),
+                child: const Icon(Icons.pause),
+              ),
+              const SizedBox(width: 8),
+              ElevatedButton(
+                onPressed: _isMusicPlayerError || _isMusicPlayerInitializing || _musicPlayer == null
+                  ? null 
+                  : _hostResume,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue,
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: Colors.grey.shade300,
+                ),
+                child: const Icon(Icons.play_circle),
+              ),
+              const SizedBox(width: 8),
+              ElevatedButton(
+                onPressed: _isMusicPlayerError || _isMusicPlayerInitializing 
+                  ? null 
+                  : () async {
+                      _currentIndex = (_currentIndex + 1) % _playlistUrls.length;
+                      await _hostPlayUrl(_playlistUrls[_currentIndex]);
+                    },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.purple,
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: Colors.grey.shade300,
+                ),
+                child: const Icon(Icons.skip_next),
+              ),
+              const SizedBox(width: 8),
+              ElevatedButton(
+                onPressed: _isMusicPlayerError || _isMusicPlayerInitializing || _musicPlayer == null
+                  ? null 
+                  : _hostStop,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: Colors.grey.shade300,
+                ),
+                child: const Icon(Icons.stop),
+              ),
+            ],
           ),
-          const SizedBox(width: 8),
-          ElevatedButton(
-            onPressed: _hostResume,
-            child: const Icon(Icons.play_circle),
-          ),
-          const SizedBox(width: 8),
-          ElevatedButton(
-            onPressed: () async {
-              _currentIndex = (_currentIndex + 1) % _playlistUrls.length;
-              await _hostPlayUrl(_playlistUrls[_currentIndex]);
-            },
-            child: const Icon(Icons.skip_next),
-          ),
-          const SizedBox(width: 8),
-          ElevatedButton(
-            onPressed: _hostStop,
-            child: const Icon(Icons.stop),
-          ),
+          
+          // ✅ NEW: Recovery button when errors occur
+          if (_isMusicPlayerError)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: ElevatedButton.icon(
+                onPressed: _isMusicPlayerInitializing ? null : () async {
+                  _retryCount = 0;
+                  await _recreateMusicPlayer();
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.amber,
+                  foregroundColor: Colors.white,
+                ),
+                icon: const Icon(Icons.refresh, size: 16),
+                label: Text(_isMusicPlayerInitializing ? 'Recovering...' : 'Recover Audio'),
+              ),
+            ),
+          
+          // ✅ NEW: Current track info
+          if (_isMusicReady && ZegoLiveAudioRoomManager().musicStateNoti.value?.trackUrl != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.blue.shade200),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.music_note, size: 16, color: Colors.blue.shade600),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Track ${_currentIndex + 1}/${_playlistUrls.length}',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.blue.shade600,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
         ],
       ),
     );
