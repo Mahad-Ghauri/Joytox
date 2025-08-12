@@ -86,6 +86,7 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
   AnimationController? _animationController;
 
   Subscription? subscription;
+  Subscription? messagesSubscription;
   LiveQuery liveQuery = LiveQuery();
   var coHostsList = [];
   bool following = false;
@@ -93,6 +94,7 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
   Controller showGiftSendersController = Get.put(Controller());
   final selectedGiftItemNotifier = ValueNotifier<GiftsModel?>(null);
   Timer? removeGiftTimer;
+  Timer? announcementPollingTimer;
 
   // Announcement state
   final List<AnnouncementData> _announcements = [];
@@ -160,12 +162,14 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
   @override
   void initState() {
     super.initState();
+    print("🚀🚀🚀 [ANNOUNCEMENT DEBUG] ===== INITSTATE CALLED =====");
     print("📢 [ANNOUNCEMENT DEBUG] initState() called");
     print(
         "📢 [ANNOUNCEMENT DEBUG] User role: ${widget.isHost! ? 'HOST' : 'AUDIENCE'}");
     print("📢 [ANNOUNCEMENT DEBUG] User ID: ${widget.currentUser?.objectId}");
     print(
         "📢 [ANNOUNCEMENT DEBUG] Room ID: ${widget.liveStreaming?.getStreamingChannel}");
+    print("🚀🚀🚀 [ANNOUNCEMENT DEBUG] ===== STARTING SETUP =====");
 
     WakelockPlus.enable();
     initSharedPref();
@@ -215,15 +219,25 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
 
     // Initialize seat states for per-seat management
     // Total seats = total chairs (including host seat at index 0)
+    print("🪑 INITIALIZING SEAT STATES for $totalChairs seats");
     showGiftSendersController.initializeSeatStates(totalChairs);
+
+    // Validate initialization
+    print("🪑 POST-INITIALIZATION VALIDATION:");
+    showGiftSendersController.validateSeatStates();
 
     // Assign host to seat 0 if this user is the host
     if (widget.isHost!) {
+      print("🪑 Assigning host to seat 0");
       showGiftSendersController.updateSeatState(
           0, 'userId', widget.currentUser!.objectId!);
       showGiftSendersController.updateSeatState(
           0, 'userName', widget.currentUser!.getFullName!);
       print("🪑 Host assigned to seat 0: ${widget.currentUser!.getFullName}");
+
+      // Validate host assignment
+      print("🪑 POST-HOST-ASSIGNMENT VALIDATION:");
+      showGiftSendersController.validateSeatStates();
     }
 
     // Debug: Print seat configuration
@@ -294,11 +308,249 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
     }
     setupLiveGifts();
     setupStreamingLiveQuery();
+    loadExistingAnnouncements(); // Load existing announcements first
+    setupLiveMessagesQuery(); // Set up live messages query for announcements
+    _startAnnouncementPolling(); // Add polling as backup for live query
     _initThemeSync(); // Theme synchronization using room properties
     _animationController = AnimationController.unbounded(vsync: this);
     _musicListener = _onMusicStateChanged;
     ZegoLiveAudioRoomManager().musicStateNoti.addListener(_musicListener);
     print("📢 [ANNOUNCEMENT DEBUG] initState() completed successfully");
+
+    // Add a test announcement after a delay to verify the system works
+    Future.delayed(Duration(seconds: 3), () {
+      if (mounted) {
+        _addTestAnnouncement();
+      }
+    });
+
+    // Test Parse query functionality
+    Future.delayed(Duration(seconds: 5), () {
+      if (mounted) {
+        _testParseQuery();
+      }
+    });
+
+    // Force a manual poll after 8 seconds to test the system
+    Future.delayed(Duration(seconds: 8), () {
+      if (mounted) {
+        print("📢 [ANNOUNCEMENT DEBUG] MANUAL TEST: Forcing announcement poll");
+        _pollForNewAnnouncements();
+      }
+    });
+  }
+
+  void _addTestAnnouncement() {
+    print("📢 [ANNOUNCEMENT DEBUG] Adding test announcement for debugging");
+    final testAnnouncement = AnnouncementData(
+      id: 'test_${DateTime.now().millisecondsSinceEpoch}',
+      title: 'Test Announcement',
+      message: 'This is a test announcement to verify the system works',
+      priority: 'Medium',
+      duration: 10,
+      authorName: 'System',
+      timestamp: DateTime.now(),
+    );
+
+    if (mounted) {
+      setState(() {
+        _announcements.add(testAnnouncement);
+        _announcementsNotifier.value = List.from(_announcements);
+      });
+      print("📢 [ANNOUNCEMENT DEBUG] Test announcement added successfully");
+      print(
+          "📢 [ANNOUNCEMENT DEBUG] Total announcements: ${_announcements.length}");
+    }
+  }
+
+  void _testParseQuery() async {
+    print("📢 [ANNOUNCEMENT DEBUG] Testing basic Parse query functionality");
+
+    try {
+      // Test basic LiveMessagesModel query
+      QueryBuilder<LiveMessagesModel> testQuery =
+          QueryBuilder<LiveMessagesModel>(
+        LiveMessagesModel(),
+      );
+
+      testQuery.whereEqualTo(
+        LiveMessagesModel.keyLiveStreamingId,
+        widget.liveStreaming!.objectId,
+      );
+
+      // Don't filter by message type first, get all messages
+      testQuery.setLimit(5);
+
+      ParseResponse response = await testQuery.query();
+
+      print(
+          "📢 [ANNOUNCEMENT DEBUG] Test query - Success: ${response.success}");
+      print(
+          "📢 [ANNOUNCEMENT DEBUG] Test query - Results count: ${response.results?.length ?? 0}");
+      print(
+          "📢 [ANNOUNCEMENT DEBUG] Test query - Error: ${response.error?.message ?? 'None'}");
+
+      if (response.success && response.results != null) {
+        List<LiveMessagesModel> messages =
+            response.results!.cast<LiveMessagesModel>();
+        for (var message in messages) {
+          print(
+              "📢 [ANNOUNCEMENT DEBUG] Found message - Type: ${message.getMessageType}, Message: ${message.getMessage}");
+        }
+
+        // Now test with announcement filter
+        QueryBuilder<LiveMessagesModel> announcementQuery =
+            QueryBuilder<LiveMessagesModel>(
+          LiveMessagesModel(),
+        );
+
+        announcementQuery.whereEqualTo(
+          LiveMessagesModel.keyLiveStreamingId,
+          widget.liveStreaming!.objectId,
+        );
+        announcementQuery.whereEqualTo(
+          LiveMessagesModel.keyMessageType,
+          LiveMessagesModel.messageTypeAnnouncement,
+        );
+
+        ParseResponse announcementResponse = await announcementQuery.query();
+        print(
+            "📢 [ANNOUNCEMENT DEBUG] Announcement query - Success: ${announcementResponse.success}");
+        print(
+            "📢 [ANNOUNCEMENT DEBUG] Announcement query - Results count: ${announcementResponse.results?.length ?? 0}");
+      }
+    } catch (e) {
+      print("📢 [ANNOUNCEMENT DEBUG] Test query error: $e");
+    }
+  }
+
+  void _startAnnouncementPolling() {
+    print("📢 [ANNOUNCEMENT DEBUG] Starting announcement polling as backup");
+    print(
+        "📢 [ANNOUNCEMENT DEBUG] User role: ${widget.isHost! ? 'HOST' : 'AUDIENCE'}");
+    print("📢 [ANNOUNCEMENT DEBUG] Room ID: ${widget.liveStreaming!.objectId}");
+
+    // Do an immediate poll first
+    Future.delayed(Duration(seconds: 2), () {
+      if (mounted) {
+        print("📢 [ANNOUNCEMENT DEBUG] Performing initial poll");
+        _pollForNewAnnouncements();
+      }
+    });
+
+    // Poll every 10 seconds for new announcements
+    announcementPollingTimer =
+        Timer.periodic(Duration(seconds: 10), (timer) async {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+
+      print(
+          "📢 [ANNOUNCEMENT DEBUG] Timer triggered - polling for announcements");
+      await _pollForNewAnnouncements();
+    });
+
+    print("📢 [ANNOUNCEMENT DEBUG] Polling timer created successfully");
+  }
+
+  DateTime? _lastAnnouncementCheck;
+
+  Future<void> _pollForNewAnnouncements() async {
+    try {
+      print("📢 [ANNOUNCEMENT DEBUG] 🔄 POLLING for new announcements");
+      print(
+          "📢 [ANNOUNCEMENT DEBUG] Room ID: ${widget.liveStreaming!.objectId}");
+      print("📢 [ANNOUNCEMENT DEBUG] Last check: $_lastAnnouncementCheck");
+
+      QueryBuilder<LiveMessagesModel> query = QueryBuilder<LiveMessagesModel>(
+        LiveMessagesModel(),
+      );
+
+      query.whereEqualTo(
+        LiveMessagesModel.keyLiveStreamingId,
+        widget.liveStreaming!.objectId,
+      );
+      query.whereEqualTo(
+        LiveMessagesModel.keyMessageType,
+        LiveMessagesModel.messageTypeAnnouncement,
+      );
+
+      // Only get announcements newer than our last check
+      if (_lastAnnouncementCheck != null) {
+        query.whereGreaterThan(
+            LiveMessagesModel.keyCreatedAt, _lastAnnouncementCheck!);
+        print(
+            "📢 [ANNOUNCEMENT DEBUG] Filtering for messages after: $_lastAnnouncementCheck");
+      } else {
+        print(
+            "📢 [ANNOUNCEMENT DEBUG] No last check time - getting all announcements");
+      }
+
+      query.includeObject([LiveMessagesModel.keySenderAuthor]);
+      query.orderByDescending(LiveMessagesModel.keyCreatedAt);
+      query.setLimit(5);
+
+      print("📢 [ANNOUNCEMENT DEBUG] Executing polling query...");
+      ParseResponse response = await query.query();
+
+      print("📢 [ANNOUNCEMENT DEBUG] Polling query response:");
+      print("📢 [ANNOUNCEMENT DEBUG] - Success: ${response.success}");
+      print(
+          "📢 [ANNOUNCEMENT DEBUG] - Results count: ${response.results?.length ?? 0}");
+      print(
+          "📢 [ANNOUNCEMENT DEBUG] - Error: ${response.error?.message ?? 'None'}");
+
+      if (response.success && response.results != null) {
+        List<LiveMessagesModel> messages =
+            response.results!.cast<LiveMessagesModel>();
+
+        if (messages.isNotEmpty) {
+          print(
+              "📢 [ANNOUNCEMENT DEBUG] ✅ Found ${messages.length} new announcements via polling");
+
+          List<AnnouncementData> newAnnouncements = [];
+
+          for (LiveMessagesModel message in messages) {
+            print(
+                "📢 [ANNOUNCEMENT DEBUG] Processing message: ${message.objectId}");
+            print(
+                "📢 [ANNOUNCEMENT DEBUG] - Title: ${message.getAnnouncementTitle}");
+            print("📢 [ANNOUNCEMENT DEBUG] - Message: ${message.getMessage}");
+            print("📢 [ANNOUNCEMENT DEBUG] - Created: ${message.createdAt}");
+
+            // Skip if we already have this announcement
+            if (_announcements.any((a) => a.id == message.objectId)) {
+              print(
+                  "📢 [ANNOUNCEMENT DEBUG] - Skipping duplicate: ${message.objectId}");
+              continue;
+            }
+
+            if (message.getAuthor != null) {
+              await message.getAuthor!.fetch();
+            }
+
+            final announcementData = AnnouncementData.fromLiveMessage(message);
+            newAnnouncements.add(announcementData);
+            print(
+                "📢 [ANNOUNCEMENT DEBUG] New announcement via polling: ${announcementData.title}");
+          }
+
+          if (mounted && newAnnouncements.isNotEmpty) {
+            setState(() {
+              _announcements.addAll(newAnnouncements);
+              _announcementsNotifier.value = List.from(_announcements);
+            });
+            print(
+                "📢 [ANNOUNCEMENT DEBUG] Added ${newAnnouncements.length} announcements via polling");
+          }
+        }
+      }
+
+      _lastAnnouncementCheck = DateTime.now();
+    } catch (e) {
+      print("📢 [ANNOUNCEMENT DEBUG] Error polling for announcements: $e");
+    }
   }
 
   @override
@@ -310,6 +562,16 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
       liveQuery.client.unSubscribe(subscription!);
     }
     subscription = null;
+
+    if (messagesSubscription != null) {
+      LiveQuery().client.unSubscribe(messagesSubscription!);
+    }
+    messagesSubscription = null;
+
+    // Cancel announcement polling timer
+    announcementPollingTimer?.cancel();
+    announcementPollingTimer = null;
+
     _avatarWidgetsCache.clear();
     _destroyMusicPlayer();
     ZegoLiveAudioRoomManager().musicStateNoti.removeListener(_musicListener);
@@ -1094,10 +1356,40 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
             ),
           ),
 
+          // Debug overlay to show announcement count
+          Positioned(
+            top: 100,
+            right: 10,
+            child: Container(
+              padding: EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.red.withOpacity(0.8),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: ValueListenableBuilder<List<AnnouncementData>>(
+                valueListenable: _announcementsNotifier,
+                builder: (context, announcements, child) {
+                  return Text(
+                    "📢 ${announcements.length}",
+                    style: TextStyle(color: Colors.white, fontSize: 12),
+                  );
+                },
+              ),
+            ),
+          ),
+
           // Announcement Overlay
           ValueListenableBuilder<List<AnnouncementData>>(
             valueListenable: _announcementsNotifier,
             builder: (context, announcements, child) {
+              print(
+                  "📢 [ANNOUNCEMENT DEBUG] Building announcement overlay with ${announcements.length} announcements");
+              print(
+                  "📢 [ANNOUNCEMENT DEBUG] User role: ${widget.isHost! ? 'HOST' : 'AUDIENCE'}");
+              for (var announcement in announcements) {
+                print(
+                    "📢 [ANNOUNCEMENT DEBUG] - ${announcement.title}: ${announcement.message}");
+              }
               return AnnouncementOverlayWidget(
                 announcements: announcements,
                 onDismiss: _onAnnouncementDismiss,
@@ -1444,27 +1736,13 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
       ParseResponse response = await announcementMessage.save();
 
       if (response.success) {
-        // Add to local announcements list
-        final announcementData = AnnouncementData.fromLiveMessage(
-          announcementMessage,
-        );
-        setState(() {
-          _announcements.add(announcementData);
-          _announcementsNotifier.value = List.from(_announcements);
-        });
+        print(
+            "📢 [ANNOUNCEMENT DEBUG] Announcement saved successfully to database");
 
-        // Send via ZIM for real-time delivery
-        final zimMessage = {
-          'type': 'announcement',
-          'title': title,
-          'message': message,
-          'priority': priority,
-          'duration': duration,
-          'authorName': widget.currentUser!.getFullName!,
-          'timestamp': DateTime.now().millisecondsSinceEpoch,
-        };
+        // Note: We don't add to local list here anymore since the live query will handle it
+        // This prevents duplicates for hosts and ensures consistent behavior for all users
 
-        // Use existing ZIM infrastructure
+        // Send via ZIM for real-time delivery (optional, for immediate chat notification)
         sendMessage("📢 $title: $message");
 
         QuickHelp.showAppNotificationAdvanced(
@@ -1572,6 +1850,250 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
     });
   }
 
+  loadExistingAnnouncements() async {
+    print(
+        "📢 [ANNOUNCEMENT DEBUG] Loading existing announcements from database");
+    print(
+        "📢 [ANNOUNCEMENT DEBUG] User role: ${widget.isHost! ? 'HOST' : 'AUDIENCE'}");
+    print("📢 [ANNOUNCEMENT DEBUG] Room ID: ${widget.liveStreaming!.objectId}");
+
+    try {
+      QueryBuilder<LiveMessagesModel> query = QueryBuilder<LiveMessagesModel>(
+        LiveMessagesModel(),
+      );
+
+      // Query for existing announcement messages in this live stream
+      query.whereEqualTo(
+        LiveMessagesModel.keyLiveStreamingId,
+        widget.liveStreaming!.objectId,
+      );
+      query.whereEqualTo(
+        LiveMessagesModel.keyMessageType,
+        LiveMessagesModel.messageTypeAnnouncement,
+      );
+
+      // Include author information
+      query.includeObject([
+        LiveMessagesModel.keySenderAuthor,
+      ]);
+
+      // Order by creation date (newest first)
+      query.orderByDescending(LiveMessagesModel.keyCreatedAt);
+
+      // Limit to recent announcements (last 10)
+      query.setLimit(10);
+
+      ParseResponse response = await query.query();
+
+      print(
+          "📢 [ANNOUNCEMENT DEBUG] Query response - Success: ${response.success}");
+      print(
+          "📢 [ANNOUNCEMENT DEBUG] Query response - Results count: ${response.results?.length ?? 0}");
+      print(
+          "📢 [ANNOUNCEMENT DEBUG] Query response - Error: ${response.error?.message ?? 'None'}");
+
+      if (response.success && response.results != null) {
+        List<LiveMessagesModel> messages =
+            response.results!.cast<LiveMessagesModel>();
+        print(
+            "📢 [ANNOUNCEMENT DEBUG] Found ${messages.length} existing announcements");
+
+        List<AnnouncementData> existingAnnouncements = [];
+
+        for (LiveMessagesModel message in messages) {
+          // Fetch author information if needed
+          if (message.getAuthor != null) {
+            await message.getAuthor!.fetch();
+          }
+
+          final announcementData = AnnouncementData.fromLiveMessage(message);
+          existingAnnouncements.add(announcementData);
+          print(
+              "📢 [ANNOUNCEMENT DEBUG] Loaded announcement: ${announcementData.title}");
+        }
+
+        if (mounted && existingAnnouncements.isNotEmpty) {
+          setState(() {
+            _announcements.addAll(existingAnnouncements);
+            _announcementsNotifier.value = List.from(_announcements);
+          });
+          print(
+              "📢 [ANNOUNCEMENT DEBUG] Added ${existingAnnouncements.length} existing announcements to local list");
+          print(
+              "📢 [ANNOUNCEMENT DEBUG] Total announcements after loading existing: ${_announcements.length}");
+          print(
+              "📢 [ANNOUNCEMENT DEBUG] Notifier updated with ${_announcementsNotifier.value.length} items");
+        } else if (mounted) {
+          print(
+              "📢 [ANNOUNCEMENT DEBUG] No existing announcements to add, but widget is mounted");
+        } else {
+          print(
+              "📢 [ANNOUNCEMENT DEBUG] Widget not mounted, skipping existing announcements");
+        }
+      } else {
+        print(
+            "📢 [ANNOUNCEMENT DEBUG] No existing announcements found or query failed");
+      }
+    } catch (e) {
+      print("📢 [ANNOUNCEMENT DEBUG] Error loading existing announcements: $e");
+    }
+  }
+
+  setupLiveMessagesQuery() async {
+    print(
+        "📢 [ANNOUNCEMENT DEBUG] Setting up live messages query for announcements");
+    print(
+        "📢 [ANNOUNCEMENT DEBUG] User role: ${widget.isHost! ? 'HOST' : 'AUDIENCE'}");
+    print("📢 [ANNOUNCEMENT DEBUG] Room ID: ${widget.liveStreaming!.objectId}");
+
+    QueryBuilder<LiveMessagesModel> messagesQuery =
+        QueryBuilder<LiveMessagesModel>(
+      LiveMessagesModel(),
+    );
+
+    // Query for announcement messages in this live stream
+    messagesQuery.whereEqualTo(
+      LiveMessagesModel.keyLiveStreamingId,
+      widget.liveStreaming!.objectId,
+    );
+    messagesQuery.whereEqualTo(
+      LiveMessagesModel.keyMessageType,
+      LiveMessagesModel.messageTypeAnnouncement,
+    );
+
+    // Include author information
+    messagesQuery.includeObject([
+      LiveMessagesModel.keySenderAuthor,
+    ]);
+
+    // Order by creation date (newest first)
+    messagesQuery.orderByDescending(LiveMessagesModel.keyCreatedAt);
+
+    try {
+      // Add a small delay to ensure Parse is ready
+      await Future.delayed(Duration(milliseconds: 500));
+
+      print("📢 [ANNOUNCEMENT DEBUG] Attempting to subscribe to live query...");
+      messagesSubscription = await LiveQuery().client.subscribe(messagesQuery);
+      print(
+          "📢 [ANNOUNCEMENT DEBUG] Successfully subscribed to live messages query");
+      print(
+          "📢 [ANNOUNCEMENT DEBUG] Subscription ID: ${messagesSubscription?.hashCode}");
+      print(
+          "📢 [ANNOUNCEMENT DEBUG] Query details - LiveStreamingId: ${widget.liveStreaming!.objectId}");
+      print(
+          "📢 [ANNOUNCEMENT DEBUG] Query details - MessageType: ${LiveMessagesModel.messageTypeAnnouncement}");
+
+      // Test the subscription immediately
+      print("📢 [ANNOUNCEMENT DEBUG] Testing live query subscription...");
+
+      // Handle new announcement messages
+      messagesSubscription!.on(LiveQueryEvent.create,
+          (LiveMessagesModel newMessage) async {
+        print(
+            "📢 [ANNOUNCEMENT DEBUG] ✅ LIVE QUERY TRIGGERED - New announcement received!");
+        print("📢 [ANNOUNCEMENT DEBUG] Message ID: ${newMessage.objectId}");
+        print(
+            "📢 [ANNOUNCEMENT DEBUG] Title: ${newMessage.getAnnouncementTitle}");
+        print("📢 [ANNOUNCEMENT DEBUG] Message: ${newMessage.getMessage}");
+        print(
+            "📢 [ANNOUNCEMENT DEBUG] Priority: ${newMessage.getAnnouncementPriority}");
+        print(
+            "📢 [ANNOUNCEMENT DEBUG] Duration: ${newMessage.getAnnouncementDuration}");
+        print(
+            "📢 [ANNOUNCEMENT DEBUG] Author: ${newMessage.getAuthor?.getFullName}");
+
+        // Fetch author information if needed
+        if (newMessage.getAuthor != null) {
+          await newMessage.getAuthor!.fetch();
+          print(
+              "📢 [ANNOUNCEMENT DEBUG] Author fetched: ${newMessage.getAuthor!.getFullName}");
+        }
+
+        // All users (including hosts) should receive announcements through live query
+        // This ensures consistent behavior and prevents timing issues
+
+        // Convert to AnnouncementData and add to local list
+        final announcementData = AnnouncementData.fromLiveMessage(newMessage);
+        print(
+            "📢 [ANNOUNCEMENT DEBUG] Converted to AnnouncementData: ${announcementData.title}");
+
+        if (mounted) {
+          setState(() {
+            _announcements.add(announcementData);
+            _announcementsNotifier.value = List.from(_announcements);
+          });
+          print(
+              "📢 [ANNOUNCEMENT DEBUG] ✅ Added announcement to local list: ${announcementData.title}");
+          print(
+              "📢 [ANNOUNCEMENT DEBUG] Total announcements now: ${_announcements.length}");
+          print(
+              "📢 [ANNOUNCEMENT DEBUG] Notifier value updated with ${_announcementsNotifier.value.length} items");
+
+          // Force a rebuild to ensure UI updates
+          if (mounted) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) setState(() {});
+            });
+          }
+        } else {
+          print(
+              "📢 [ANNOUNCEMENT DEBUG] ❌ Widget not mounted, skipping announcement addition");
+        }
+      });
+
+      // Handle updated announcement messages
+      messagesSubscription!.on(LiveQueryEvent.update,
+          (LiveMessagesModel updatedMessage) async {
+        print(
+            "📢 [ANNOUNCEMENT DEBUG] Announcement updated: ${updatedMessage.getAnnouncementTitle}");
+
+        // Fetch author information if needed
+        if (updatedMessage.getAuthor != null) {
+          await updatedMessage.getAuthor!.fetch();
+        }
+
+        // Find and update the existing announcement
+        final announcementData =
+            AnnouncementData.fromLiveMessage(updatedMessage);
+
+        if (mounted) {
+          setState(() {
+            final index =
+                _announcements.indexWhere((a) => a.id == announcementData.id);
+            if (index != -1) {
+              _announcements[index] = announcementData;
+              _announcementsNotifier.value = List.from(_announcements);
+              print(
+                  "📢 [ANNOUNCEMENT DEBUG] Updated announcement in local list: ${announcementData.title}");
+            }
+          });
+        }
+      });
+
+      // Handle deleted announcement messages
+      messagesSubscription!.on(LiveQueryEvent.delete,
+          (LiveMessagesModel deletedMessage) {
+        print(
+            "📢 [ANNOUNCEMENT DEBUG] Announcement deleted: ${deletedMessage.objectId}");
+
+        if (mounted) {
+          setState(() {
+            _announcements.removeWhere((a) => a.id == deletedMessage.objectId);
+            _announcementsNotifier.value = List.from(_announcements);
+            print(
+                "📢 [ANNOUNCEMENT DEBUG] Removed announcement from local list");
+          });
+        }
+      });
+
+      print(
+          "📢 [ANNOUNCEMENT DEBUG] Live messages query setup completed successfully");
+    } catch (e) {
+      print("📢 [ANNOUNCEMENT DEBUG] Error setting up live messages query: $e");
+    }
+  }
+
   sendGift(GiftsModel giftsModel, UserModel mUser) async {
     GiftsSentModel giftsSentModel = new GiftsSentModel();
     giftsSentModel.setAuthor = widget.currentUser!;
@@ -1665,26 +2187,68 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
             onActionSelected: handleSeatAction,
           ),
 
-        // Red debug button for hosts
+        // Debug buttons for hosts - Test individual seat locking
         if (widget.isHost!)
           Positioned(
             top: 100,
             left: 20,
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.red,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: MaterialButton(
-                onPressed: () {
-                  print("Debug button pressed");
-                  handleSeatAction('lock', 0); // Test lock action on seat 0
-                },
-                child: Text(
-                  "TEST SEAT",
-                  style: TextStyle(color: Colors.white, fontSize: 12),
+            child: Column(
+              children: [
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.red,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: MaterialButton(
+                    onPressed: () {
+                      print("🧪 DEBUG: Testing lock seat 1");
+                      showGiftSendersController.validateSeatStates();
+                      handleSeatAction('lock', 1); // Test lock action on seat 1
+                    },
+                    child: Text(
+                      "LOCK SEAT 1",
+                      style: TextStyle(color: Colors.white, fontSize: 10),
+                    ),
+                  ),
                 ),
-              ),
+                SizedBox(height: 5),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.green,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: MaterialButton(
+                    onPressed: () {
+                      print("🧪 DEBUG: Testing unlock seat 1");
+                      showGiftSendersController.validateSeatStates();
+                      handleSeatAction(
+                          'unlock', 1); // Test unlock action on seat 1
+                    },
+                    child: Text(
+                      "UNLOCK SEAT 1",
+                      style: TextStyle(color: Colors.white, fontSize: 10),
+                    ),
+                  ),
+                ),
+                SizedBox(height: 5),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.blue,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: MaterialButton(
+                    onPressed: () {
+                      print("🧪 DEBUG: Testing lock seat 2");
+                      showGiftSendersController.validateSeatStates();
+                      handleSeatAction('lock', 2); // Test lock action on seat 2
+                    },
+                    child: Text(
+                      "LOCK SEAT 2",
+                      style: TextStyle(color: Colors.white, fontSize: 10),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
 
@@ -1920,18 +2484,38 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
 
   Future<void> lockSeat(int seatIndex) async {
     try {
+      print("🔒 MAIN.lockSeat($seatIndex) - Starting lock process");
+      print(
+          "🔒 MAIN.lockSeat($seatIndex) - Current seat state BEFORE: ${showGiftSendersController.getSeatState(seatIndex)}");
+
       QuickHelp.showLoadingDialog(context);
 
-      // Update local state
+      // Validate current state
+      showGiftSendersController.validateSeatStates();
+
+      // Update local state FIRST
+      print("🔒 MAIN.lockSeat($seatIndex) - Updating local state");
       showGiftSendersController.lockSeat(seatIndex);
 
-      // Update backend - Add specific user to locked seats list
-      String seatUserId = "seat_$seatIndex";
-      widget.liveStreaming!.addRemovedUserIds = seatUserId;
+      print(
+          "🔒 MAIN.lockSeat($seatIndex) - Current seat state AFTER local update: ${showGiftSendersController.getSeatState(seatIndex)}");
+
+      // Update backend - Use a more specific identifier for seat locking
+      String seatLockId =
+          "SEAT_LOCK_${seatIndex}_${widget.liveStreaming!.objectId}";
+      print("🔒 MAIN.lockSeat($seatIndex) - Adding '$seatLockId' to backend");
+      widget.liveStreaming!.addRemovedUserIds = seatLockId;
 
       ParseResponse response = await widget.liveStreaming!.save();
       if (response.success) {
         QuickHelp.hideLoadingDialog(context);
+        print("🔒 MAIN.lockSeat($seatIndex) - Backend save SUCCESS");
+        print(
+            "🔒 MAIN.lockSeat($seatIndex) - Final seat state: ${showGiftSendersController.getSeatState(seatIndex)}");
+
+        // Validate all seats after successful lock
+        showGiftSendersController.validateSeatStates();
+
         QuickHelp.showAppNotificationAdvanced(
           context: context,
           title: "success".tr(),
@@ -1939,6 +2523,8 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
         );
       } else {
         QuickHelp.hideLoadingDialog(context);
+        print(
+            "🔒 MAIN.lockSeat($seatIndex) - Backend save FAILED: ${response.error}");
         showGiftSendersController.unlockSeat(seatIndex); // Revert local state
         QuickHelp.showAppNotificationAdvanced(
           context: context,
@@ -1949,6 +2535,7 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
       }
     } catch (e) {
       QuickHelp.hideLoadingDialog(context);
+      print("🔒 MAIN.lockSeat($seatIndex) - EXCEPTION: $e");
       showGiftSendersController.unlockSeat(seatIndex); // Revert local state
       print("Error locking seat: $e");
     }
@@ -1956,18 +2543,39 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
 
   Future<void> unlockSeat(int seatIndex) async {
     try {
+      print("🔓 MAIN.unlockSeat($seatIndex) - Starting unlock process");
+      print(
+          "🔓 MAIN.unlockSeat($seatIndex) - Current seat state BEFORE: ${showGiftSendersController.getSeatState(seatIndex)}");
+
       QuickHelp.showLoadingDialog(context);
 
-      // Update local state
+      // Validate current state
+      showGiftSendersController.validateSeatStates();
+
+      // Update local state FIRST
+      print("🔓 MAIN.unlockSeat($seatIndex) - Updating local state");
       showGiftSendersController.unlockSeat(seatIndex);
 
-      // Update backend - Remove from locked seats list
-      String seatUserId = "seat_$seatIndex";
-      widget.liveStreaming!.removeRemovedUserIds = seatUserId;
+      print(
+          "🔓 MAIN.unlockSeat($seatIndex) - Current seat state AFTER local update: ${showGiftSendersController.getSeatState(seatIndex)}");
+
+      // Update backend - Use the same specific identifier used for locking
+      String seatLockId =
+          "SEAT_LOCK_${seatIndex}_${widget.liveStreaming!.objectId}";
+      print(
+          "🔓 MAIN.unlockSeat($seatIndex) - Removing '$seatLockId' from backend");
+      widget.liveStreaming!.removeRemovedUserIds = seatLockId;
 
       ParseResponse response = await widget.liveStreaming!.save();
       if (response.success) {
         QuickHelp.hideLoadingDialog(context);
+        print("🔓 MAIN.unlockSeat($seatIndex) - Backend save SUCCESS");
+        print(
+            "🔓 MAIN.unlockSeat($seatIndex) - Final seat state: ${showGiftSendersController.getSeatState(seatIndex)}");
+
+        // Validate all seats after successful unlock
+        showGiftSendersController.validateSeatStates();
+
         QuickHelp.showAppNotificationAdvanced(
           context: context,
           title: "success".tr(),
@@ -1975,6 +2583,8 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
         );
       } else {
         QuickHelp.hideLoadingDialog(context);
+        print(
+            "🔓 MAIN.unlockSeat($seatIndex) - Backend save FAILED: ${response.error}");
         showGiftSendersController.lockSeat(seatIndex); // Revert local state
         QuickHelp.showAppNotificationAdvanced(
           context: context,
@@ -1985,6 +2595,7 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
       }
     } catch (e) {
       QuickHelp.hideLoadingDialog(context);
+      print("🔓 MAIN.unlockSeat($seatIndex) - EXCEPTION: $e");
       showGiftSendersController.lockSeat(seatIndex); // Revert local state
       print("Error unlocking seat: $e");
     }

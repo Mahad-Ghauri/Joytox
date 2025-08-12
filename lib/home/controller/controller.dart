@@ -62,7 +62,10 @@ class Controller extends GetxController {
   }
 
   void updateSeatState(int seatIndex, String key, dynamic value) {
+    print("🔧 updateSeatState($seatIndex, '$key', $value)");
+
     if (!seatStates.containsKey(seatIndex)) {
+      print("🔧 Creating new seat state for index $seatIndex");
       seatStates[seatIndex] = {
         'isLocked': false,
         'isMuted': false,
@@ -70,20 +73,59 @@ class Controller extends GetxController {
         'userName': null,
       };
     }
-    seatStates[seatIndex]![key] = value;
+
+    print("🔧 BEFORE update: ${seatStates[seatIndex]}");
+
+    // Create a new map to ensure reactivity
+    Map<String, dynamic> newSeatState = Map.from(seatStates[seatIndex]!);
+    newSeatState[key] = value;
+    seatStates[seatIndex] = newSeatState;
+
+    print("🔧 AFTER update: ${seatStates[seatIndex]}");
+    print("🔧 Triggering refresh for seat $seatIndex only");
+
+    // Force update for this specific seat
     seatStates.refresh();
   }
 
   Map<String, dynamic>? getSeatState(int seatIndex) {
-    return seatStates[seatIndex];
+    final state = seatStates[seatIndex];
+    print("🔍 getSeatState($seatIndex): $state");
+    return state;
+  }
+
+  // Add method to check if seat is locked
+  bool isSeatLocked(int seatIndex) {
+    final state = getSeatState(seatIndex);
+    final isLocked = state?['isLocked'] ?? false;
+    print("🔍 isSeatLocked($seatIndex): $isLocked");
+    return isLocked;
+  }
+
+  // Add method to validate seat states
+  void validateSeatStates() {
+    print("🔍 SEAT STATES VALIDATION:");
+    seatStates.forEach((index, state) {
+      print("🔍 Seat $index: $state");
+    });
   }
 
   void lockSeat(int seatIndex) {
+    print(
+        "🔒 Controller.lockSeat($seatIndex) - BEFORE: ${seatStates[seatIndex]}");
     updateSeatState(seatIndex, 'isLocked', true);
+    print(
+        "🔒 Controller.lockSeat($seatIndex) - AFTER: ${seatStates[seatIndex]}");
+    print("🔒 All seat states: $seatStates");
   }
 
   void unlockSeat(int seatIndex) {
+    print(
+        "🔓 Controller.unlockSeat($seatIndex) - BEFORE: ${seatStates[seatIndex]}");
     updateSeatState(seatIndex, 'isLocked', false);
+    print(
+        "🔓 Controller.unlockSeat($seatIndex) - AFTER: ${seatStates[seatIndex]}");
+    print("🔓 All seat states: $seatStates");
   }
 
   void muteSeat(int seatIndex) {

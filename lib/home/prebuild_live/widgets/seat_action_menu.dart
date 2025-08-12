@@ -66,11 +66,21 @@ class SeatActionMenu extends StatelessWidget {
             // Actions
             Obx(() {
               final seatState = controller.getSeatState(seatIndex);
-              if (seatState == null) return SizedBox();
+              print(
+                  "🎭 SeatActionMenu.build() - Seat $seatIndex state: $seatState");
+
+              if (seatState == null) {
+                print(
+                    "🎭 SeatActionMenu.build() - Seat $seatIndex state is NULL!");
+                return SizedBox();
+              }
 
               final isLocked = seatState['isLocked'] ?? false;
               final isMuted = seatState['isMuted'] ?? false;
               final hasUser = seatState['userId'] != null;
+
+              print(
+                  "🎭 SeatActionMenu.build() - Seat $seatIndex: locked=$isLocked, muted=$isMuted, hasUser=$hasUser");
 
               return Column(
                 children: [
@@ -81,8 +91,12 @@ class SeatActionMenu extends StatelessWidget {
                     subtitle: isLocked
                         ? "Allow users to join this seat"
                         : "Prevent users from joining this seat",
-                    onTap: () => onActionSelected(
-                        isLocked ? 'unlock' : 'lock', seatIndex),
+                    onTap: () {
+                      final action = isLocked ? 'unlock' : 'lock';
+                      print(
+                          "🎭 SeatActionMenu - Action '$action' selected for seat $seatIndex");
+                      onActionSelected(action, seatIndex);
+                    },
                   ),
 
                   // Mute/Unmute Action (only if seat has user)
