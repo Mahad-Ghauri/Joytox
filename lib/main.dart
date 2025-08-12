@@ -104,7 +104,7 @@ GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {}
 
-// Constantes para o Parse Server
+// Constants para o Parse Server
 const String kParseApplicationId = "trace-app-id";
 const String kParseServerUrl = "https://parseapi.back4app.com/";
 const String kParseClientKey = "trace-client-key";
@@ -268,13 +268,13 @@ class _AppState extends State<App> with WidgetsBindingObserver {
         currentUser!.setACL(acl);
         await currentUser!.save();
 
-        // Após obter o usuário atual, pré-carrega o feed
+        // Após obter o usuário actual, pré-carrega o feed
         _preloadFeed();
 
         return currentUser;
       }
     } catch (e) {
-      print("Erro ao obter usuário atual: $e");
+      print("Error ao obter usuário actual: $e");
     }
     return null;
   }
@@ -298,7 +298,7 @@ class _AppState extends State<App> with WidgetsBindingObserver {
         feedController.setCurrentUser(currentUser!);
         print("Pré-carregando feed em segundo plano");
       } catch (e) {
-        print("Erro ao definir usuário atual no feed: $e");
+        print("Error ao definir usuário actual no feed: $e");
       }
 
       // Define um timeout para garantir que o carregamento seja concluído
@@ -306,7 +306,7 @@ class _AppState extends State<App> with WidgetsBindingObserver {
         _initializingFeed = false;
       });
     } catch (e) {
-      print("Erro ao pré-carregar feed: $e");
+      print("Error ao pré-carregar feed: $e");
       _initializingFeed = false;
     }
   }
@@ -329,16 +329,16 @@ class _AppState extends State<App> with WidgetsBindingObserver {
 
     getCurrentUser().then((user) {
       if (user != null) {
-        print("Usuário atual encontrado: ${user.objectId}");
+        print("Usuário actual encontrado: ${user.objectId}");
         try {
           FeedController feedController = Get.find<FeedController>();
           feedController.setCurrentUser(user);
           print("CurrentUser definido no FeedController");
         } catch (e) {
-          print("Erro ao definir CurrentUser: $e");
+          print("Error ao definir CurrentUser: $e");
         }
       } else {
-        print("Nenhum usuário atual encontrado");
+        print("Nenhum usuário actual encontrado");
       }
     });
 
