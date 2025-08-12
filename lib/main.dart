@@ -119,9 +119,19 @@ void main() async {
   //  Initialize the ZEGO UI kit and setting the navigation key
   ZegoUIKitPrebuiltCallInvitationService().setNavigatorKey(navigatorKey);
   //  Initialize the Firebase Application backend on current platform specific
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  } catch (e) {
+    // Firebase is already initialized, which is fine
+    if (e.toString().contains('duplicate-app')) {
+      print('Firebase already initialized, continuing...');
+    } else {
+      // Re-throw if it's a different error
+      rethrow;
+    }
+  }
   //  Initialization of easy location services
   await EasyLocalization.ensureInitialized();
   //  Using the quick help to check the platform type and initializing the ads services
