@@ -11,6 +11,7 @@ import 'package:trace/app/setup.dart';
 import 'package:trace/auth/dispache_screen.dart';
 import 'package:trace/auth/forgot_screen.dart';
 import 'package:trace/auth/responsive_welcome_screen.dart';
+import 'package:trace/firebase_options.dart';
 import 'package:trace/home/reels/reels_home_screen.dart';
 import 'package:trace/home/message/message_list_screen.dart';
 import 'package:trace/home/coins/refill_coins_screen.dart';
@@ -104,31 +105,35 @@ GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {}
 
-// Constantes para o Parse Server
+// Constants para o Parse Server
 const String kParseApplicationId = "trace-app-id";
 const String kParseServerUrl = "https://parseapi.back4app.com/";
 const String kParseClientKey = "trace-client-key";
 const bool kDebugMode = true;
 
 void main() async {
+  //  Initialize the Widgets Binding
   WidgetsFlutterBinding.ensureInitialized();
+  //  Initialize the storage
   await GetStorage.init();
-
+  //  Initialize the ZEGO UI kit and setting the navigation key
   ZegoUIKitPrebuiltCallInvitationService().setNavigatorKey(navigatorKey);
-
-  await Firebase.initializeApp();
-
+  //  Initialize the Firebase Application backend on current platform specific
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+  //  Initialization of easy location services
   await EasyLocalization.ensureInitialized();
-
+  //  Using the quick help to check the platform type and initializing the ads services
   if (QuickHelp.isMobile()) {
     MobileAds.instance.initialize();
   }
-
+  //  Initialize the platform state
   initPlatformState();
-
+  //  Enabling the system chrome UI mode
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual,
       overlays: [SystemUiOverlay.bottom, SystemUiOverlay.top]);
-
+  //  Sub Class Maps
   Map<String, ParseObjectConstructor> subClassMap =
       <String, ParseObjectConstructor>{
     PictureModel.keyTableName: () => PictureModel(),
@@ -170,7 +175,7 @@ void main() async {
     PostReactionsModel.keyTableName: () => PostReactionsModel(),
     VideoInteractionModel.keyTableName: () => VideoInteractionModel(),
   };
-
+  //  Initialize the application id, server url, client id and etc
   await Parse().initialize(
     Config.appId,
     Config.serverUrl,
@@ -186,16 +191,16 @@ void main() async {
         UserModel(username, password, email),
     registeredSubClassMap: subClassMap,
   );
-
   // Registrar e iniciar serviços essenciais
   final postsService = PostsService();
   Get.put(postsService, permanent: true);
   Get.put(ShortsCachedController());
-
+  //  Initialize the logs for zego kit user interface
   ZegoUIKit().initLog().then((value) {
     ZegoUIKitPrebuiltCallInvitationService().useSystemCallingUI(
       [ZegoUIKitSignalingPlugin()],
     );
+    //  Run the application
     runApp(
       EasyLocalization(
         supportedLocales: QuickHelp.getLanguages(Setup.languages),
@@ -268,13 +273,13 @@ class _AppState extends State<App> with WidgetsBindingObserver {
         currentUser!.setACL(acl);
         await currentUser!.save();
 
-        // Após obter o usuário atual, pré-carrega o feed
+        // Após obter o usuário actual, pré-carrega o feed
         _preloadFeed();
 
         return currentUser;
       }
     } catch (e) {
-      print("Erro ao obter usuário atual: $e");
+      print("Error ao obter usuário actual: $e");
     }
     return null;
   }
@@ -298,7 +303,7 @@ class _AppState extends State<App> with WidgetsBindingObserver {
         feedController.setCurrentUser(currentUser!);
         print("Pré-carregando feed em segundo plano");
       } catch (e) {
-        print("Erro ao definir usuário atual no feed: $e");
+        print("Error ao definir usuário actual no feed: $e");
       }
 
       // Define um timeout para garantir que o carregamento seja concluído
@@ -306,7 +311,7 @@ class _AppState extends State<App> with WidgetsBindingObserver {
         _initializingFeed = false;
       });
     } catch (e) {
-      print("Erro ao pré-carregar feed: $e");
+      print("Error ao pré-carregar feed: $e");
       _initializingFeed = false;
     }
   }
@@ -329,16 +334,16 @@ class _AppState extends State<App> with WidgetsBindingObserver {
 
     getCurrentUser().then((user) {
       if (user != null) {
-        print("Usuário atual encontrado: ${user.objectId}");
+        print("Usuário actual encontrado: ${user.objectId}");
         try {
           FeedController feedController = Get.find<FeedController>();
           feedController.setCurrentUser(user);
           print("CurrentUser definido no FeedController");
         } catch (e) {
-          print("Erro ao definir CurrentUser: $e");
+          print("Error ao definir CurrentUser: $e");
         }
       } else {
-        print("Nenhum usuário atual encontrado");
+        print("Nenhum usuário actual encontrado");
       }
     });
 
