@@ -169,7 +169,6 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
 
     WakelockPlus.enable();
     initSharedPref();
-    _resetSeatCounter(); // Reset seat indexing
     showGiftSendersController.isPrivateLive.value =
         widget.liveStreaming!.getPrivate!;
     Future.delayed(Duration(minutes: 2)).then((value) {
@@ -187,18 +186,90 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
     // Initialize room theme
     showGiftSendersController.selectedRoomTheme.value =
         widget.liveStreaming!.getRoomTheme ?? 'theme_default';
-    if (widget.liveStreaming!.getNumberOfChairs == 20) {
-      numberOfSeats = (widget.liveStreaming!.getNumberOfChairs! ~/ 5) + 1;
-    } else if (widget.liveStreaming!.getNumberOfChairs == 24) {
-      numberOfSeats = (widget.liveStreaming!.getNumberOfChairs! ~/ 6) + 1;
+
+    // Calculate number of seat rows based on user seats (excluding host)
+    // The configuration number represents USER seats, host is always additional
+    int userSeats = widget.liveStreaming!.getNumberOfChairs ?? 8;
+    int totalChairs = userSeats + 1; // Add 1 for host seat
+
+    if (userSeats == 8) {
+      numberOfSeats =
+          3; // 1 host row + 2 rows of 4 seats each = 1 + 8 = 9 total
+    } else if (userSeats == 12) {
+      numberOfSeats =
+          4; // 1 host row + 3 rows of 4 seats each = 1 + 12 = 13 total
+    } else if (userSeats == 16) {
+      numberOfSeats =
+          5; // 1 host row + 4 rows of 4 seats each = 1 + 16 = 17 total
+    } else if (userSeats == 20) {
+      numberOfSeats =
+          5; // 1 host row + 4 rows of 5 seats each = 1 + 20 = 21 total
+    } else if (userSeats == 24) {
+      numberOfSeats =
+          5; // 1 host row + 4 rows of 6 seats each = 1 + 24 = 25 total
     } else {
-      numberOfSeats = (widget.liveStreaming!.getNumberOfChairs! ~/ 4) + 1;
+      // Default: calculate rows needed for user seats
+      numberOfSeats =
+          ((userSeats - 1) ~/ 4) + 2; // 1 host row + rows for user seats
     }
 
     // Initialize seat states for per-seat management
-    showGiftSendersController.initializeSeatStates(
-      widget.liveStreaming!.getNumberOfChairs ?? 0,
-    );
+    // Total seats = total chairs (including host seat at index 0)
+    showGiftSendersController.initializeSeatStates(totalChairs);
+
+    // Assign host to seat 0 if this user is the host
+    if (widget.isHost!) {
+      showGiftSendersController.updateSeatState(
+          0, 'userId', widget.currentUser!.objectId!);
+      showGiftSendersController.updateSeatState(
+          0, 'userName', widget.currentUser!.getFullName!);
+      print("🪑 Host assigned to seat 0: ${widget.currentUser!.getFullName}");
+    }
+
+    // Debug: Print seat configuration
+    print("🪑 SEAT CONFIGURATION:");
+    print("🪑 User seats requested: $userSeats");
+    print("🪑 Total chairs (including host): $totalChairs");
+    print("🪑 Number of seat rows: $numberOfSeats");
+    print(
+        "🪑 Seat 0 (Host): ${widget.isHost! ? 'OCCUPIED by ${widget.currentUser!.getFullName}' : 'RESERVED for host'}");
+    print("🪑 Available seats for users: $userSeats (seats 1-$userSeats)");
+    print("🪑 SEAT LAYOUT:");
+    if (userSeats == 8) {
+      print(
+          "🪑 8 user seats: Row 0 (1 host) + Rows 1-2 (4 seats each) = 1 + 8 = 9 total");
+    } else if (userSeats == 12) {
+      print(
+          "🪑 12 user seats: Row 0 (1 host) + Rows 1-3 (4 seats each) = 1 + 12 = 13 total");
+    } else if (userSeats == 16) {
+      print(
+          "🪑 16 user seats: Row 0 (1 host) + Rows 1-4 (4 seats each) = 1 + 16 = 17 total");
+    } else if (userSeats == 20) {
+      print(
+          "🪑 20 user seats: Row 0 (1 host) + Rows 1-4 (5 seats each) = 1 + 20 = 21 total");
+    } else if (userSeats == 24) {
+      print(
+          "🪑 24 user seats: Row 0 (1 host) + Rows 1-4 (6 seats each) = 1 + 24 = 25 total");
+    } else {
+      print(
+          "🪑 $userSeats user seats: Row 0 (1 host) + ${numberOfSeats - 1} rows = 1 + $userSeats = $totalChairs total");
+    }
+
+    // Calculate expected total seats for verification
+    int expectedTotalSeats = 1; // Host seat
+    if (userSeats == 8) {
+      expectedTotalSeats += 8; // 2 rows × 4 seats
+    } else if (userSeats == 12) {
+      expectedTotalSeats += 12; // 3 rows × 4 seats
+    } else if (userSeats == 16) {
+      expectedTotalSeats += 16; // 4 rows × 4 seats
+    } else if (userSeats == 20) {
+      expectedTotalSeats += 20; // 4 rows × 5 seats
+    } else if (userSeats == 24) {
+      expectedTotalSeats += 24; // 4 rows × 6 seats
+    }
+    print("🪑 EXPECTED TOTAL SEATS: $expectedTotalSeats");
+    print("🪑 ZEGO WILL GENERATE: $numberOfSeats rows");
 
     // Initialize announcement-related debug state
     print("📢 [ANNOUNCEMENT DEBUG] Initializing announcement state");
@@ -240,10 +311,8 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
     }
     subscription = null;
     _avatarWidgetsCache.clear();
-    _resetSeatCounter();
     _destroyMusicPlayer();
-    ZegoLiveAudioRoomManager().musicStateNoti.removeListener(
-        _musicListener); // Clear seat mappings and reset counter
+    ZegoLiveAudioRoomManager().musicStateNoti.removeListener(_musicListener);
     _announcementsNotifier.dispose(); // Clean up announcement notifier
 
     // Optional: clear theme listener if you registered one
@@ -254,6 +323,39 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
 
   final isSeatClosedNotifier = ValueNotifier<bool>(false);
   final isRequestingNotifier = ValueNotifier<bool>(false);
+
+  // Calculate seat index based on user ID and seat layout
+  int _calculateSeatIndex(String? userId) {
+    if (userId == null) return -1;
+
+    // Host always gets seat index 0
+    if (userId == widget.liveStreaming!.getAuthorId) {
+      return 0;
+    }
+
+    // For other users, we need to determine their seat index
+    final seatStates = showGiftSendersController.seatStates;
+    for (int i = 1; i < seatStates.length; i++) {
+      final seatState = seatStates[i];
+      if (seatState != null && seatState['userId'] == userId) {
+        return i;
+      }
+    }
+
+    // If user not found in any seat, return -1
+    return -1;
+  }
+
+  // Validate if a user can occupy a specific seat
+  bool _canUserOccupySeat(int seatIndex, String userId) {
+    // Seat 0 is reserved for host/admin only
+    if (seatIndex == 0) {
+      return userId == widget.liveStreaming!.getAuthorId;
+    }
+
+    // Other seats can be occupied by any user (subject to other restrictions)
+    return true;
+  }
 
   // Initialize and sync room background theme using Zego room properties
   Future<void> _initThemeSync() async {
@@ -607,12 +709,27 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
                   "🪑 Seat avatar builder called for user: ${user?.id ?? 'empty'}, extraInfo: $extraInfo",
                 );
 
-                // Get seat index from extraInfo or calculate it
-                int? seatIndex = extraInfo['seatIndex'] as int?;
+                // Get seat index from extraInfo (Zego uses 'index' key)
+                int seatIndex = extraInfo['index'] as int? ?? -1;
+                print(
+                    "🪑 Avatar builder - seat index: $seatIndex for user: ${user?.id ?? 'empty'}");
+
+                // Handle special case: if user is host and seat index is invalid, assign to seat 0
+                if (seatIndex < 0 &&
+                    user != null &&
+                    user.id == widget.liveStreaming!.getAuthorId) {
+                  print(
+                      "🪑 Host user detected with invalid index, assigning to seat 0");
+                  seatIndex = 0;
+                } else if (seatIndex < 0) {
+                  print("⚠️ Invalid seat index: $seatIndex");
+                  seatIndex = 0; // Fallback to host seat
+                }
 
                 Widget avatarWidget;
                 if (user == null) {
                   // Empty seat
+                  print("🪑 Empty seat at index: $seatIndex");
                   avatarWidget = Container(
                     width: size.width,
                     height: size.height,
@@ -632,6 +749,15 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
                   );
                 } else {
                   // User in seat - show avatar
+                  print("🪑 User ${user.id} in seat $seatIndex");
+
+                  // Verify host is in seat 0
+                  if (seatIndex == 0 &&
+                      user.id != widget.liveStreaming!.getAuthorId) {
+                    print(
+                        "⚠️ WARNING: Non-host user ${user.id} in host seat 0!");
+                  }
+
                   avatarWidget = FutureBuilder<String?>(
                     future: avatarService.fetchUserAvatar(user.id),
                     builder: (context, snapshot) {
@@ -652,20 +778,28 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
                   "🎯 Seat foreground builder called for user: ${user?.id ?? 'empty'}, extraInfo: $extraInfo",
                 );
 
-                // Only show clickable overlay for hosts
-                if (!widget.isHost!) return SizedBox.shrink();
+                // Get seat index from extraInfo (Zego uses 'index' key)
+                int seatIndex = extraInfo['index'] as int? ?? -1;
+                print(
+                    "📍 Foreground builder - seat index: $seatIndex for user: ${user?.id ?? 'empty'}");
 
-                // Calculate seat index using our method
-                final int seatIndex = _calculateSeatIndex(user?.id);
-                print("📍 Calculated seat index: $seatIndex");
-
-                // Don't make host seat (index 0) clickable
-                if (seatIndex == 0) {
-                  print("🚫 Host seat - not clickable");
+                // Validate seat index
+                if (seatIndex < 0) {
+                  print(
+                      "⚠️ Invalid seat index in foreground builder: $seatIndex");
                   return SizedBox.shrink();
                 }
 
-                // Return invisible clickable overlay (no visual indicators)
+                // Host seat (index 0) should have no foreground/options
+                if (seatIndex == 0) {
+                  print("🚫 Host seat (index 0) - no foreground options");
+                  return SizedBox.shrink();
+                }
+
+                // Only show clickable overlay for hosts on non-host seats
+                if (!widget.isHost!) return SizedBox.shrink();
+
+                // Return invisible clickable overlay for seat management
                 return Positioned.fill(
                   child: GestureDetector(
                     onTap: () {
@@ -688,13 +822,41 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
                   ),
                 );
               }
+              ..seat.layout.rowSpacing = 10
               ..seat.layout.rowConfigs = List.generate(numberOfSeats, (
                 index,
               ) {
+                print(
+                    "🪑 Generating row $index for ${widget.liveStreaming!.getNumberOfChairs} user seats");
                 if (index == 0) {
+                  print("🪑 Row $index: Host row with 1 seat");
                   return ZegoLiveAudioRoomLayoutRowConfig(
                     count: 1,
                     alignment: ZegoLiveAudioRoomLayoutAlignment.center,
+                  );
+                }
+
+                if (widget.liveStreaming!.getNumberOfChairs == 8) {
+                  return ZegoLiveAudioRoomLayoutRowConfig(
+                    count: 4,
+                    alignment: ZegoLiveAudioRoomLayoutAlignment.spaceEvenly,
+                  );
+                }
+
+                if (widget.liveStreaming!.getNumberOfChairs == 12) {
+                  return ZegoLiveAudioRoomLayoutRowConfig(
+                    count: 4,
+                    alignment: ZegoLiveAudioRoomLayoutAlignment.spaceEvenly,
+                  );
+                }
+
+                if (widget.liveStreaming!.getNumberOfChairs == 16) {
+                  // For 16 user seats: distribute as 4+4+4+4
+                  print(
+                      "🪑 Row $index: User row with 4 seats (16-seat config)");
+                  return ZegoLiveAudioRoomLayoutRowConfig(
+                    count: 4,
+                    alignment: ZegoLiveAudioRoomLayoutAlignment.spaceEvenly,
                   );
                 }
 
@@ -712,6 +874,7 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
                   );
                 }
 
+                print("🪑 Row $index: Default user row with 4 seats");
                 return ZegoLiveAudioRoomLayoutRowConfig(
                   count: 4,
                   alignment: ZegoLiveAudioRoomLayoutAlignment.spaceEvenly,
@@ -1711,32 +1874,7 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
     }
   }
 
-  // Track seat assignments using sequential indexing
-  int _seatBuildCount = 0;
-  final Map<String, int> _userSeatMap = {};
-
-  // Helper method to calculate seat index based on build order
-  int _calculateSeatIndex(String? userId) {
-    final currentSeatIndex = _seatBuildCount++;
-
-    print("🪑 Seat build #$currentSeatIndex for user: ${userId ?? 'empty'}");
-
-    // First seat (index 0) is typically the host - skip for non-hosts
-    if (currentSeatIndex == 0) {
-      print("🪑 Host seat detected (index 0) - skipping management");
-      return 0;
-    }
-
-    // For other seats, use sequential indexing (1, 2, 3, etc.)
-    print("🪑 Regular seat assigned index: $currentSeatIndex");
-    return currentSeatIndex;
-  }
-
-  // Reset seat counter when needed
-  void _resetSeatCounter() {
-    _seatBuildCount = 0;
-    _userSeatMap.clear();
-  }
+  // Seat indexing is handled directly by Zego via extraInfo['index']
 
   // Seat action handlers
   void handleSeatClick(int seatIndex) {

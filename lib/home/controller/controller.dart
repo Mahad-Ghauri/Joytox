@@ -53,7 +53,7 @@ class Controller extends GetxController {
     seatStates.clear();
     for (int i = 0; i < totalSeats; i++) {
       seatStates[i] = {
-        'isLocked': false,
+        'isLocked': i == 0, // Host seat (index 0) is locked by default
         'isMuted': false,
         'userId': null,
         'userName': null,
