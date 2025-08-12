@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:parse_server_sdk/parse_server_sdk.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:trace/app/config.dart';
 import 'package:trace/app/setup.dart';
 import 'package:trace/auth/dispache_screen.dart';
 import 'package:trace/helpers/quick_actions.dart';
@@ -16,7 +17,6 @@ import 'package:trace/ui/container_with_corner.dart';
 import 'package:trace/ui/text_with_tap.dart';
 import 'package:trace/utils/colors.dart';
 import 'package:wechat_assets_picker/wechat_assets_picker.dart';
-import '../../app/Config.dart';
 import '../../models/FanClubModel.dart';
 import '../../ui/button_with_icon.dart';
 import 'package:calendar_date_picker2/calendar_date_picker2.dart';
@@ -29,8 +29,7 @@ class ProfileCompleteEdit extends StatefulWidget {
 
   UserModel? currentUser;
 
-  ProfileCompleteEdit({Key? key, this.currentUser})
-      : super(key: key);
+  ProfileCompleteEdit({Key? key, this.currentUser}) : super(key: key);
 
   @override
   _ProfileCompleteEditState createState() => _ProfileCompleteEditState();
@@ -39,14 +38,15 @@ class ProfileCompleteEdit extends StatefulWidget {
 class _ProfileCompleteEditState extends State<ProfileCompleteEdit> {
   TextEditingController fullNameEditingController = TextEditingController();
   TextEditingController aboutYouTitleEditingController =
-  TextEditingController();
+      TextEditingController();
   TextEditingController birthdayEditingController = TextEditingController();
 
   TextEditingController nickNameTextEdit = TextEditingController();
 
   String countryIsoCode = Config.initialCountry;
   String countryDialCode = QuickHelp.getCountryDialCode(Config.initialCountry);
-  List<String> languagesIso =  QuickHelp.getLanguageByCountryIso(code: Config.initialCountry);
+  List<String> languagesIso =
+      QuickHelp.getLanguageByCountryIso(code: Config.initialCountry);
 
   String typeName = "name";
   String typeBirthday = "birthday";
@@ -109,7 +109,7 @@ class _ProfileCompleteEditState extends State<ProfileCompleteEdit> {
     }
 
     userGender = widget.currentUser!.getGender != null &&
-        widget.currentUser!.getGender!.isNotEmpty
+            widget.currentUser!.getGender!.isNotEmpty
         ? QuickHelp.getGender(widget.currentUser!)
         : "profile_screen.gender_invalid".tr();
 
@@ -163,7 +163,8 @@ class _ProfileCompleteEditState extends State<ProfileCompleteEdit> {
       QuickHelp.showAppNotificationAdvanced(
         context: context,
         title: "personal_data.error_".tr(),
-        message: "profile_screen.mim_age_required".tr(namedArgs: {'age': Setup.minimumAgeToRegister.toString()}),
+        message: "profile_screen.mim_age_required"
+            .tr(namedArgs: {'age': Setup.minimumAgeToRegister.toString()}),
         isError: true,
         user: widget.currentUser!,
       );
@@ -184,7 +185,6 @@ class _ProfileCompleteEditState extends State<ProfileCompleteEdit> {
 
   @override
   Widget build(BuildContext context) {
-
     bool isDarkMode = QuickHelp.isDarkMode(context);
     Size size = MediaQuery.of(context).size;
 
@@ -292,8 +292,9 @@ class _ProfileCompleteEditState extends State<ProfileCompleteEdit> {
                   onCountryChanged: (country) {
                     countryIsoCode = country.isoCode;
                     countryDialCode = country.dialCode;
-                    languagesIso =  country.languagesIso;
-                    countryName = QuickHelp.getCountryName(code: countryIsoCode);
+                    languagesIso = country.languagesIso;
+                    countryName =
+                        QuickHelp.getCountryName(code: countryIsoCode);
                   },
                 ),
                 const SizedBox(
@@ -303,7 +304,7 @@ class _ProfileCompleteEditState extends State<ProfileCompleteEdit> {
                   mainAxisSize: MainAxisSize.min,
                   children: List.generate(
                       genders.length,
-                          (index) => genderSelector(
+                      (index) => genderSelector(
                           caption: genders[index], male: isMale[index])),
                 ),
                 ButtonWithIcon(
@@ -318,7 +319,8 @@ class _ProfileCompleteEditState extends State<ProfileCompleteEdit> {
                   text: "personal_data.submit_".tr(),
                   fontWeight: FontWeight.normal,
                   onTap: () {
-                    if(parseFile == null && widget.currentUser!.getAvatar == null){
+                    if (parseFile == null &&
+                        widget.currentUser!.getAvatar == null) {
                       QuickHelp.showAppNotificationAdvanced(
                         context: context,
                         title: "error".tr(),
@@ -326,7 +328,7 @@ class _ProfileCompleteEditState extends State<ProfileCompleteEdit> {
                         isError: true,
                         user: widget.currentUser!,
                       );
-                    }else if (!isValidGender) {
+                    } else if (!isValidGender) {
                       QuickHelp.showAppNotificationAdvanced(
                         context: context,
                         title: "profile_screen.complete_profile".tr(),
@@ -357,15 +359,18 @@ class _ProfileCompleteEditState extends State<ProfileCompleteEdit> {
       borderRadius: 50,
       color: male
           ? mySelectedGender == UserModel.keyGenderMale
-          ? Colors.blueAccent.withOpacity(0.3) : Colors.blueAccent.withOpacity(0.05)
-          : mySelectedGender == UserModel.keyGenderFemale ? Colors.redAccent.withOpacity(0.3) : Colors.redAccent.withOpacity(0.05),
+              ? Colors.blueAccent.withOpacity(0.3)
+              : Colors.blueAccent.withOpacity(0.05)
+          : mySelectedGender == UserModel.keyGenderFemale
+              ? Colors.redAccent.withOpacity(0.3)
+              : Colors.redAccent.withOpacity(0.05),
       marginRight: 15,
-      onTap: (){
+      onTap: () {
         setState(() {
-          if(male) {
+          if (male) {
             isValidGender = true;
             mySelectedGender = UserModel.keyGenderMale;
-          }else{
+          } else {
             isValidGender = true;
             mySelectedGender = UserModel.keyGenderFemale;
           }
@@ -417,7 +422,7 @@ class _ProfileCompleteEditState extends State<ProfileCompleteEdit> {
               border: InputBorder.none,
               hintText: "personal_data.nickname_".tr(),
               hintStyle:
-              TextStyle(color: kGrayColor.withOpacity(0.5), fontSize: 13),
+                  TextStyle(color: kGrayColor.withOpacity(0.5), fontSize: 13),
             ),
             validator: (value) {
               if (value == null || value.isEmpty) {}
@@ -441,7 +446,7 @@ class _ProfileCompleteEditState extends State<ProfileCompleteEdit> {
         builder: (BuildContext context) {
           return AlertDialog(
             backgroundColor:
-            isDarkMode ? kContentColorLightTheme : Colors.white,
+                isDarkMode ? kContentColorLightTheme : Colors.white,
             insetPadding: EdgeInsets.only(left: 10, right: 10),
             content: ContainerCorner(
               height: 400,
@@ -469,9 +474,11 @@ class _ProfileCompleteEditState extends State<ProfileCompleteEdit> {
                   QuickHelp.hideLoadingDialog(context);
                 },
                 onOkTapped: () {
-                  _validateBirthday("${dateTime.day}/${dateTime.month}/${dateTime.year}");
+                  _validateBirthday(
+                      "${dateTime.day}/${dateTime.month}/${dateTime.year}");
                   QuickHelp.hideLoadingDialog(context);
-                }, value: [],
+                },
+                value: [],
               ),
             ),
           );
@@ -536,7 +543,7 @@ class _ProfileCompleteEditState extends State<ProfileCompleteEdit> {
     widget.currentUser!.setCountryDialCode = countryDialCode;
     widget.currentUser!.setCountryLanguages = languagesIso;
 
-    if(widget.currentUser!.getUid == 00000000) {
+    if (widget.currentUser!.getUid == 00000000) {
       widget.currentUser!.setUid = QuickHelp.generateUId();
     }
 
@@ -544,14 +551,13 @@ class _ProfileCompleteEditState extends State<ProfileCompleteEdit> {
       widget.currentUser!.setAboutYou = aboutYouTitleEditingController.text;
     }
 
-    if(widget.currentUser!.getCredits == 0) {
+    if (widget.currentUser!.getCredits == 0) {
       widget.currentUser!.addCredit = Setup.welcomeCredit;
     }
 
     ParseResponse userResult = await widget.currentUser!.save();
 
     if (userResult.success) {
-
       widget.currentUser = userResult.results!.first as UserModel;
 
       QuickHelp.hideLoadingDialog(context);
@@ -626,7 +632,7 @@ class _ProfileCompleteEditState extends State<ProfileCompleteEdit> {
             ].request();
 
             if (statuses[Permission.camera]!.isGranted &&
-                statuses[Permission.photos]!.isGranted ||
+                    statuses[Permission.photos]!.isGranted ||
                 statuses[Permission.storage]!.isGranted) {
               _choosePhoto(isAvatar);
             }
@@ -676,8 +682,7 @@ class _ProfileCompleteEditState extends State<ProfileCompleteEdit> {
       DateTime date = DateTime.now();
 
       for (int i = 0; i < images!.length; i++) {
-        String imageName =
-            'avatar${date.second}_${date.millisecond}.jpg';
+        String imageName = 'avatar${date.second}_${date.millisecond}.jpg';
 
         File tempFile = File('${tempDir.path}/$imageName');
         await tempFile.writeAsBytes(await images[i].readAsBytes());
@@ -692,7 +697,6 @@ class _ProfileCompleteEditState extends State<ProfileCompleteEdit> {
       print("Photos null");
     }
   }
-
 
   uploadFile() async {
     QuickHelp.showLoadingDialog(context);
@@ -720,7 +724,6 @@ class _ProfileCompleteEditState extends State<ProfileCompleteEdit> {
             ? widget.currentUser!.getAvatar!.url!
             : "";
       });
-
     } else {
       QuickHelp.hideLoadingDialog(context);
       QuickHelp.showAppNotificationAdvanced(
@@ -731,7 +734,7 @@ class _ProfileCompleteEditState extends State<ProfileCompleteEdit> {
     }
   }
 
-  createFanClub() async{
+  createFanClub() async {
     FanClubModel fanClubModel = FanClubModel();
     fanClubModel.setAuthorId = widget.currentUser!.objectId!;
     fanClubModel.setAuthor = widget.currentUser!;

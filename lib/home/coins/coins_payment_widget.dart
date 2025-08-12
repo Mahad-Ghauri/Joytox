@@ -1,4 +1,4 @@
-// ignore_for_file: deprecated_member_use
+// ignore_for_file: deprecated_member_use, unused_local_variable
 
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
@@ -16,7 +16,10 @@ import 'package:trace/ui/container_with_corner.dart';
 import 'package:trace/ui/text_with_tap.dart';
 import 'package:trace/utils/colors.dart';
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> fdde1238cce4b06a0c6eb5543ed6240e6877f0b4
 class CoinsFlowPayment {
   CoinsFlowPayment(
       {required BuildContext context,
@@ -73,9 +76,7 @@ class _CoinsFlowWidgetState extends State<_CoinsFlowWidget>
   bool _loading = true;
   InAppPurchaseModel? _inAppPurchaseModel;
 
-
   List<InAppPurchaseModel> getInAppList() {
-
     List<Package> myProductList = offerings.current!.availablePackages;
 
     List<InAppPurchaseModel> inAppPurchaseList = [];
@@ -128,8 +129,7 @@ class _CoinsFlowWidgetState extends State<_CoinsFlowWidget>
     return _showGiftAndGetCoinsBottomSheet();
   }
 
-  _purchaseProduct(InAppPurchaseModel inAppPurchaseModel) async{
-
+  _purchaseProduct(InAppPurchaseModel inAppPurchaseModel) async {
     QuickHelp.showLoadingDialog(context);
 
     try {
@@ -147,26 +147,20 @@ class _CoinsFlowWidgetState extends State<_CoinsFlowWidget>
         message: "in_app_purchases.coins_added_to_account".tr(),
         isError: false,
       );
-
     } on PlatformException catch (e) {
-
       var errorCode = PurchasesErrorHelper.getErrorCode(e);
 
       if (errorCode != PurchasesErrorCode.purchaseCancelledError) {
-
         QuickHelp.hideLoadingDialog(context);
 
         QuickHelp.showAppNotificationAdvanced(
-          context:context,
+          context: context,
           user: widget.currentUser,
           title: "in_app_purchases.purchase_cancelled_title".tr(),
           message: "in_app_purchases.purchase_cancelled".tr(),
         );
-
       } else if (errorCode != PurchasesErrorCode.invalidReceiptError) {
-
         _handleInvalidPurchase();
-
       } else {
         handleError(e);
       }
@@ -174,14 +168,13 @@ class _CoinsFlowWidgetState extends State<_CoinsFlowWidget>
   }
 
   void _handleInvalidPurchase() {
-
-    QuickHelp.showAppNotification(context:context, title: "in_app_purchases.invalid_purchase".tr());
+    QuickHelp.showAppNotification(
+        context: context, title: "in_app_purchases.invalid_purchase".tr());
     QuickHelp.hideLoadingDialog(context);
   }
 
-
-  void registerPayment(CustomerInfo customerInfo, InAppPurchaseModel productDetails) async {
-
+  void registerPayment(
+      CustomerInfo customerInfo, InAppPurchaseModel productDetails) async {
     // Save all payment information
     PaymentsModel paymentsModel = PaymentsModel();
     paymentsModel.setAuthor = widget.currentUser;
@@ -193,16 +186,19 @@ class _CoinsFlowWidgetState extends State<_CoinsFlowWidget>
     paymentsModel.setTransactionId = customerInfo.originalPurchaseDate!;
     paymentsModel.setCurrency = productDetails.currency!.toUpperCase();
     paymentsModel.setPrice = productDetails.price.toString();
-    paymentsModel.setMethod = QuickHelp.isAndroidPlatform()? "Google Play" : QuickHelp.isIOSPlatform() ? "App Store" : "";
+    paymentsModel.setMethod = QuickHelp.isAndroidPlatform()
+        ? "Google Play"
+        : QuickHelp.isIOSPlatform()
+            ? "App Store"
+            : "";
     paymentsModel.setStatus = PaymentsModel.paymentStatusCompleted;
 
     await paymentsModel.save();
   }
 
   void handleError(PlatformException error) {
-
     QuickHelp.hideLoadingDialog(context);
-    QuickHelp.showAppNotification(context:context, title: error.message);
+    QuickHelp.showAppNotification(context: context, title: error.message);
   }
 
   showPendingUI() {
@@ -211,7 +207,6 @@ class _CoinsFlowWidgetState extends State<_CoinsFlowWidget>
   }
 
   Widget _showGiftAndGetCoinsBottomSheet() {
-
     return StatefulBuilder(builder: (context, setState) {
       return Container(
         decoration: BoxDecoration(
@@ -224,15 +219,15 @@ class _CoinsFlowWidgetState extends State<_CoinsFlowWidget>
         child: ContainerCorner(
           color: kTransparentColor,
           child: IndexedStack(
-            index: widget.showOnlyCoinsPurchase!
-                ? 1
-                : bottomSheetCurrentIndex,
+            index: widget.showOnlyCoinsPurchase! ? 1 : bottomSheetCurrentIndex,
             children: [
               Scaffold(
                 backgroundColor: kTransparentColor,
                 appBar: AppBar(
                   automaticallyImplyLeading: false,
-                  leading: BackButton(color: Colors.white,),
+                  leading: BackButton(
+                    color: Colors.white,
+                  ),
                   actions: [
                     ContainerCorner(
                       height: 30,
@@ -356,11 +351,9 @@ class _CoinsFlowWidgetState extends State<_CoinsFlowWidget>
   }
 
   Widget getGifts(String category, StateSetter setState) {
-
     QueryBuilder<GiftsModel> giftQuery = QueryBuilder<GiftsModel>(GiftsModel());
     giftQuery.whereValueExists(GiftsModel.keyGiftCategories, true);
-    giftQuery.whereEqualTo(
-        GiftsModel.keyGiftCategories, GiftsModel.gifStatus);
+    giftQuery.whereEqualTo(GiftsModel.keyGiftCategories, GiftsModel.gifStatus);
 
     return ContainerCorner(
       color: kTransparentColor,
@@ -464,7 +457,6 @@ class _CoinsFlowWidgetState extends State<_CoinsFlowWidget>
   }
 
   Widget getBody() {
-
     if (_loading) {
       return QuickHelp.appLoading();
     } else if (_isAvailable) {
@@ -478,7 +470,7 @@ class _CoinsFlowWidgetState extends State<_CoinsFlowWidget>
           mainAxisSpacing: 10,
           children: List.generate(
             getInAppList().length,
-                (index) {
+            (index) {
               InAppPurchaseModel inApp = getInAppList()[index];
 
               return ContainerCorner(

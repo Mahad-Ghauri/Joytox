@@ -5,8 +5,8 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:trace/app/config.dart';
 
-import '../app/Config.dart';
 import '../helpers/quick_help.dart';
 import '../ui/container_with_corner.dart';
 import '../ui/text_with_tap.dart';
@@ -18,14 +18,15 @@ class ResponsiveForgetPasswordScreen extends StatefulWidget {
   ResponsiveForgetPasswordScreen({this.preferences, super.key});
 
   @override
-  State<ResponsiveForgetPasswordScreen> createState() => _ResponsiveForgetPasswordScreenState();
+  State<ResponsiveForgetPasswordScreen> createState() =>
+      _ResponsiveForgetPasswordScreenState();
 }
 
-class _ResponsiveForgetPasswordScreenState extends State<ResponsiveForgetPasswordScreen> {
+class _ResponsiveForgetPasswordScreenState
+    extends State<ResponsiveForgetPasswordScreen> {
   GlobalKey<FormState> formKey = GlobalKey<FormState>();
   TextEditingController passwordTextController = TextEditingController();
   TextEditingController usernameTextController = TextEditingController();
-
 
   bool isPasswordHidden = true;
   bool passwordError = false;
@@ -52,7 +53,9 @@ class _ResponsiveForgetPasswordScreenState extends State<ResponsiveForgetPasswor
       appBar: AppBar(
         automaticallyImplyLeading: false,
         backgroundColor: kTransparentColor,
-        leading: BackButton(color: Colors.white,),
+        leading: BackButton(
+          color: Colors.white,
+        ),
       ),
       body: ContainerCorner(
         borderWidth: 0,
@@ -66,7 +69,7 @@ class _ResponsiveForgetPasswordScreenState extends State<ResponsiveForgetPasswor
               height: size.height,
               color: kBlueDarker,
               child: Lottie.asset(
-                  "assets/lotties/password_recover.json",
+                "assets/lotties/password_recover.json",
               ),
             ),
             Flexible(
@@ -81,7 +84,11 @@ class _ResponsiveForgetPasswordScreenState extends State<ResponsiveForgetPasswor
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      TextWithTap("Recuperar palavra pass", color: Colors.white, fontSize: 30,),
+                      TextWithTap(
+                        "Recuperar palavra pass",
+                        color: Colors.white,
+                        fontSize: 30,
+                      ),
                       Padding(
                         padding: const EdgeInsets.only(left: 20, right: 20),
                         child: Form(
@@ -101,7 +108,8 @@ class _ResponsiveForgetPasswordScreenState extends State<ResponsiveForgetPasswor
                                 height: 50,
                                 borderRadius: 8,
                                 child: Padding(
-                                  padding: const EdgeInsets.only(left: 10, right: 10),
+                                  padding: const EdgeInsets.only(
+                                      left: 10, right: 10),
                                   child: Center(
                                     child: TextFormField(
                                       controller: usernameTextController,
@@ -112,7 +120,8 @@ class _ResponsiveForgetPasswordScreenState extends State<ResponsiveForgetPasswor
                                         errorMaxLines: 1,
                                         errorStyle: TextStyle(fontSize: 10),
                                         border: InputBorder.none,
-                                        hintText: "edit_data_screen.username_".tr(),
+                                        hintText:
+                                            "edit_data_screen.username_".tr(),
                                         hintStyle: TextStyle(
                                             color: kGrayColor.withOpacity(0.7),
                                             fontSize: 13),
@@ -120,9 +129,10 @@ class _ResponsiveForgetPasswordScreenState extends State<ResponsiveForgetPasswor
                                       validator: (value) {
                                         if (value == null || value.isEmpty) {
                                           setState(
-                                                () {
+                                            () {
                                               usernameErrorText =
-                                                  "edit_data_screen.username_".tr();
+                                                  "edit_data_screen.username_"
+                                                      .tr();
                                             },
                                           );
                                           return "";
@@ -135,7 +145,8 @@ class _ResponsiveForgetPasswordScreenState extends State<ResponsiveForgetPasswor
                                       },
                                       style: TextStyle(
                                         color: Colors.black,
-                                        decorationStyle: TextDecorationStyle.solid,
+                                        decorationStyle:
+                                            TextDecorationStyle.solid,
                                       ),
                                     ),
                                   ),
@@ -174,12 +185,14 @@ class _ResponsiveForgetPasswordScreenState extends State<ResponsiveForgetPasswor
                                         errorMaxLines: 1,
                                         errorStyle: TextStyle(fontSize: 0),
                                         border: InputBorder.none,
-                                        hintText: "login_screen.password_hint".tr(),
+                                        hintText:
+                                            "login_screen.password_hint".tr(),
                                         hintStyle: TextStyle(
                                             color: kGrayColor.withOpacity(0.7),
                                             fontSize: 13),
                                         suffix: IconButton(
-                                          onPressed: () => togglePasswordVisibility(),
+                                          onPressed: () =>
+                                              togglePasswordVisibility(),
                                           icon: Icon(
                                             isPasswordHidden
                                                 ? Icons.visibility
@@ -192,7 +205,8 @@ class _ResponsiveForgetPasswordScreenState extends State<ResponsiveForgetPasswor
                                         if (value == null || value.isEmpty) {
                                           setState(() {
                                             passwordErrorText =
-                                                "login_screen.password_required".tr();
+                                                "login_screen.password_required"
+                                                    .tr();
                                           });
                                           return "";
                                         } else {
@@ -204,7 +218,8 @@ class _ResponsiveForgetPasswordScreenState extends State<ResponsiveForgetPasswor
                                       },
                                       style: TextStyle(
                                         color: Colors.black,
-                                        decorationStyle: TextDecorationStyle.solid,
+                                        decorationStyle:
+                                            TextDecorationStyle.solid,
                                       ),
                                     ),
                                   ),
@@ -225,8 +240,7 @@ class _ResponsiveForgetPasswordScreenState extends State<ResponsiveForgetPasswor
                                 marginBottom: 30,
                                 child: TextButton(
                                   onPressed: () {
-                                    if (formKey.currentState!.validate()) {
-                                    }
+                                    if (formKey.currentState!.validate()) {}
                                   },
                                   child: TextWithTap(
                                     "connect_".tr(),
@@ -284,8 +298,8 @@ class _ResponsiveForgetPasswordScreenState extends State<ResponsiveForgetPasswor
                     }),
               WidgetSpan(
                   child: SizedBox(
-                    width: 7,
-                  )),
+                width: 7,
+              )),
               TextSpan(
                 style: TextStyle(
                     color: Colors.white,
@@ -295,8 +309,8 @@ class _ResponsiveForgetPasswordScreenState extends State<ResponsiveForgetPasswor
               ),
               WidgetSpan(
                   child: SizedBox(
-                    width: 7,
-                  )),
+                width: 7,
+              )),
               TextSpan(
                   style: TextStyle(
                     fontSize: 11,

@@ -1,8 +1,7 @@
 import 'package:get/get.dart';
+import 'package:trace/app/config.dart';
 import 'package:trace/models/GiftsModel.dart';
 import 'package:trace/models/UserModel.dart';
-
-import '../../app/Config.dart';
 
 class Controller extends GetxController {
   var countryCode = Config.initialCountry.obs;
@@ -22,7 +21,7 @@ class Controller extends GetxController {
 
   // Per-seat state management
   var selectedSeatIndex = (-1).obs;
-  
+
   var showSeatMenu = false.obs;
 
   var receivedGiftList = <GiftsModel>[].obs;
@@ -31,6 +30,15 @@ class Controller extends GetxController {
 
   // Seat management state
   var seatStates = <int, Map<String, dynamic>>{}.obs;
+
+  // Announcement management state
+  var activeAnnouncements = <String>[].obs;
+  var pinnedAnnouncements = <String>[].obs;
+
+  // Room theme management state
+  var selectedRoomTheme = 'theme_default'.obs;
+  var availableThemes =
+      <String>['theme_default', 'theme_forest', 'theme_gradient'].obs;
 
   updateCountryCode(String code) {
     countryCode.value = code;
@@ -94,5 +102,57 @@ class Controller extends GetxController {
   void closeSeatMenu() {
     showSeatMenu.value = false;
     selectedSeatIndex.value = -1;
+  }
+
+  // Theme management methods
+  void updateRoomTheme(String theme) {
+    if (availableThemes.contains(theme)) {
+      selectedRoomTheme.value = theme;
+    }
+  }
+
+  String getThemePath(String theme) {
+    // Check if it's a jpg or png file
+    if (theme == 'theme_gradient') {
+      return "assets/images/backgrounds/$theme.jpg";
+    }
+    return "assets/images/backgrounds/$theme.png";
+  }
+
+  void addNewTheme(String themeName) {
+    if (!availableThemes.contains(themeName)) {
+      availableThemes.add(themeName);
+    }
+  }
+
+  // Announcement management methods
+  void addAnnouncement(String announcementId) {
+    if (!activeAnnouncements.contains(announcementId)) {
+      activeAnnouncements.add(announcementId);
+    }
+  }
+
+  void removeAnnouncement(String announcementId) {
+    activeAnnouncements.remove(announcementId);
+    pinnedAnnouncements.remove(announcementId);
+  }
+
+  void pinAnnouncement(String announcementId) {
+    if (!pinnedAnnouncements.contains(announcementId)) {
+      pinnedAnnouncements.add(announcementId);
+    }
+  }
+
+  void unpinAnnouncement(String announcementId) {
+    pinnedAnnouncements.remove(announcementId);
+  }
+
+  bool isAnnouncementPinned(String announcementId) {
+    return pinnedAnnouncements.contains(announcementId);
+  }
+
+  void clearAllAnnouncements() {
+    activeAnnouncements.clear();
+    pinnedAnnouncements.clear();
   }
 }

@@ -28,7 +28,7 @@ if (keystorePropertiesFile.exists()) {
 android {
     namespace 'com.trace.appsdabanda'
     compileSdkVersion 36
-    ndkVersion "27.0.12077973"
+    ndkVersion  "27.0.12077973"
 
     defaultConfig {
         applicationId "com.trace.appsdabanda"
@@ -53,14 +53,14 @@ android {
     // }
 
 
-    buildTypes {
-        release {
-            // signingConfig signingConfigs.release
-            minifyEnabled false
-            shrinkResources false
-            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-        }
+  buildTypes {
+    release {
+        minifyEnabled true
+        shrinkResources true
+        proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
     }
+}
+
 
 
 

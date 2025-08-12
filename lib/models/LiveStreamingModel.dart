@@ -132,6 +132,7 @@ class LiveStreamingModel extends ParseObject implements ParseCloneable {
   static final String keyNumberOfChairs = "number_of_chairs";
 
   static final String keyPartyTheme = "party_theme";
+  static final String keyRoomTheme = "room_theme";
   static final String keyShareMedia = "share_media";
 
   // Per-seat management keys
@@ -280,6 +281,9 @@ class LiveStreamingModel extends ParseObject implements ParseCloneable {
   ParseFileBase? get getPartyTheme => get<ParseFileBase>(keyPartyTheme);
   set setPartyTheme(ParseFileBase file) =>
       set<ParseFileBase>(keyPartyTheme, file);
+
+  String? get getRoomTheme => get<String>(keyRoomTheme) ?? 'theme_default';
+  set setRoomTheme(String theme) => set<String>(keyRoomTheme, theme);
 
   int? get getNumberOfChairs {
     int? number = get<int>(keyNumberOfChairs);

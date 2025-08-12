@@ -1,7 +1,8 @@
 // Flutter imports:
-// ignore_for_file: must_be_immutable, unnecessary_null_comparison, deprecated_member_use
+// ignore_for_file: must_be_immutable, unnecessary_null_comparison, deprecated_member_use, unused_local_variable
 
 import 'dart:async';
+import 'package:zego_express_engine/zego_express_engine.dart';
 
 import 'package:easy_localization/easy_localization.dart';
 import 'package:fade_shimmer/fade_shimmer.dart';
@@ -17,7 +18,6 @@ import 'package:text_scroll/text_scroll.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:zego_uikit_prebuilt_live_audio_room/zego_uikit_prebuilt_live_audio_room.dart';
 import 'package:zego_uikit_prebuilt_live_streaming/zego_uikit_prebuilt_live_streaming.dart';
-
 import '../../app/constants.dart';
 import '../../app/setup.dart';
 import '../../helpers/quick_actions.dart';
@@ -27,6 +27,7 @@ import '../../helpers/users_avatars_service.dart';
 import '../../models/GiftsModel.dart';
 import '../../models/GiftsSentModel.dart';
 import '../../models/LeadersModel.dart';
+import '../../models/LiveMessagesModel.dart';
 import '../../models/LiveStreamingModel.dart';
 import '../../models/LiveViewersModel.dart';
 import '../../models/NotificationsModel.dart';
@@ -45,6 +46,13 @@ import 'global_user_profil_sheet.dart';
 import 'widgets/seat_action_menu.dart';
 import 'widgets/invite_friends_sheet.dart';
 import 'widgets/seat_management_fab.dart';
+import 'widgets/announcement_dialog.dart';
+import 'widgets/announcement_overlay_widget.dart';
+import 'room_theme_selector.dart';
+import '../streaming/live_audio_room_manager.dart';
+import '../streaming/pages/audio_room/audio_room_page.dart';
+import 'package:zego_uikit_signaling_plugin/zego_uikit_signaling_plugin.dart';
+import 'package:zego_uikit_prebuilt_live_audio_room/zego_uikit_prebuilt_live_audio_room.dart';
 
 class PrebuildAudioRoomScreen extends StatefulWidget {
   UserModel? currentUser;
@@ -65,6 +73,15 @@ class PrebuildAudioRoomScreen extends StatefulWidget {
 
 class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
     with TickerProviderStateMixin {
+  ZegoMediaPlayer? _musicPlayer;
+  int _musicPlayerViewID = -1;
+  bool _isMusicReady = false;
+  late final VoidCallback _musicListener;
+  final List<String> _playlistUrls = [
+    'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
+    'https://www.soundjay.com/misc/sounds/bell-ringing-05.wav',
+  ];
+  int _currentMusicIndex = 0;
   int numberOfSeats = 0;
   AnimationController? _animationController;
 
@@ -76,6 +93,11 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
   Controller showGiftSendersController = Get.put(Controller());
   final selectedGiftItemNotifier = ValueNotifier<GiftsModel?>(null);
   Timer? removeGiftTimer;
+
+  // Announcement state
+  final List<AnnouncementData> _announcements = [];
+  final ValueNotifier<List<AnnouncementData>> _announcementsNotifier =
+      ValueNotifier([]);
 
   void startRemovingGifts() {
     removeGiftTimer = Timer.periodic(Duration(seconds: 10), (timer) {
@@ -133,9 +155,18 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
     );
   }
 
+  StreamSubscription? _themePropertySubscription; // from dart:async
+
   @override
   void initState() {
     super.initState();
+    print("📢 [ANNOUNCEMENT DEBUG] initState() called");
+    print(
+        "📢 [ANNOUNCEMENT DEBUG] User role: ${widget.isHost! ? 'HOST' : 'AUDIENCE'}");
+    print("📢 [ANNOUNCEMENT DEBUG] User ID: ${widget.currentUser?.objectId}");
+    print(
+        "📢 [ANNOUNCEMENT DEBUG] Room ID: ${widget.liveStreaming?.getStreamingChannel}");
+
     WakelockPlus.enable();
     initSharedPref();
     _resetSeatCounter(); // Reset seat indexing
@@ -145,12 +176,17 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
       widget.currentUser!.addUserPoints = widget.isHost! ? 350 : 200;
       widget.currentUser!.save();
     });
-    following = widget.currentUser!.getFollowing!
-        .contains(widget.liveStreaming!.getAuthorId!);
+    following = widget.currentUser!.getFollowing!.contains(
+      widget.liveStreaming!.getAuthorId!,
+    );
     showGiftSendersController.diamondsCounter.value =
         widget.liveStreaming!.getDiamonds!.toString();
     showGiftSendersController.shareMediaFiles.value =
         widget.liveStreaming!.getSharingMedia!;
+
+    // Initialize room theme
+    showGiftSendersController.selectedRoomTheme.value =
+        widget.liveStreaming!.getRoomTheme ?? 'theme_default';
     if (widget.liveStreaming!.getNumberOfChairs == 20) {
       numberOfSeats = (widget.liveStreaming!.getNumberOfChairs! ~/ 5) + 1;
     } else if (widget.liveStreaming!.getNumberOfChairs == 24) {
@@ -160,15 +196,38 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
     }
 
     // Initialize seat states for per-seat management
-    showGiftSendersController
-        .initializeSeatStates(widget.liveStreaming!.getNumberOfChairs ?? 0);
+    showGiftSendersController.initializeSeatStates(
+      widget.liveStreaming!.getNumberOfChairs ?? 0,
+    );
+
+    // Initialize announcement-related debug state
+    print("📢 [ANNOUNCEMENT DEBUG] Initializing announcement state");
+    print(
+        "📢 [ANNOUNCEMENT DEBUG] Initial announcements count: ${_announcements.length}");
 
     if (widget.isHost!) {
       addOrUpdateLiveViewers();
+      print(
+          "📢 [ANNOUNCEMENT DEBUG] Host permissions granted - announcement features enabled");
+      print(
+          "📢 [ANNOUNCEMENT DEBUG] ✅ HOST UI CONFIG: [Announcement, MediaSharing] buttons");
+      print(
+          "📢 [ANNOUNCEMENT DEBUG] ❌ HOST UI CONFIG: Gift button REMOVED (hosts don't gift themselves)");
+    } else {
+      print(
+          "📢 [ANNOUNCEMENT DEBUG] Audience mode - read-only announcement features");
+      print(
+          "📢 [ANNOUNCEMENT DEBUG] ✅ AUDIENCE UI CONFIG: [Announcement, Gift] buttons");
+      print(
+          "📢 [ANNOUNCEMENT DEBUG] ✅ SPEAKER UI CONFIG: [Announcement, Gift] buttons");
     }
     setupLiveGifts();
     setupStreamingLiveQuery();
+    _initThemeSync(); // Theme synchronization using room properties
     _animationController = AnimationController.unbounded(vsync: this);
+    _musicListener = _onMusicStateChanged;
+    ZegoLiveAudioRoomManager().musicStateNoti.addListener(_musicListener);
+    print("📢 [ANNOUNCEMENT DEBUG] initState() completed successfully");
   }
 
   @override
@@ -181,7 +240,14 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
     }
     subscription = null;
     _avatarWidgetsCache.clear();
-    _resetSeatCounter(); // Clear seat mappings and reset counter
+    _resetSeatCounter();
+    _destroyMusicPlayer();
+    ZegoLiveAudioRoomManager().musicStateNoti.removeListener(
+        _musicListener); // Clear seat mappings and reset counter
+    _announcementsNotifier.dispose(); // Clean up announcement notifier
+
+    // Optional: clear theme listener if you registered one
+    _themePropertySubscription?.cancel();
   }
 
   var userAvatar;
@@ -189,13 +255,178 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
   final isSeatClosedNotifier = ValueNotifier<bool>(false);
   final isRequestingNotifier = ValueNotifier<bool>(false);
 
+  // Initialize and sync room background theme using Zego room properties
+  Future<void> _initThemeSync() async {
+    try {
+      final roomID = widget.liveStreaming!.getStreamingChannel!;
+      final ctrl = Get.find<Controller>();
+
+      // 1) Fetch current room properties to get theme on join
+      Map<String, String> props = {};
+      try {
+        final result = await ZegoUIKitSignalingPlugin().queryRoomProperties(
+          roomID: roomID,
+        );
+        props = Map<String, String>.from(result.properties ?? {});
+      } catch (e) {
+        debugPrint('queryRoomProperties failed: $e');
+      }
+      final themeFromRoom = props['theme'];
+      if (themeFromRoom != null && themeFromRoom.isNotEmpty) {
+        ctrl.updateRoomTheme(themeFromRoom);
+      } else {
+        // Fallback to backend value; host seeds the room property
+        final backendTheme =
+            widget.liveStreaming!.getRoomTheme ?? 'theme_default';
+        ctrl.updateRoomTheme(backendTheme);
+        if (widget.isHost == true) {
+          try {
+            await ZegoUIKitSignalingPlugin().updateRoomProperties(
+              roomID: roomID,
+              roomProperties: {'theme': backendTheme},
+              isForce: true,
+            );
+          } catch (e) {
+            debugPrint('setRoomProperty (seed) failed: $e');
+          }
+        }
+      }
+
+      // 2) Subscribe to updates
+      _themePropertySubscription = ZegoUIKitSignalingPlugin()
+          .getRoomPropertiesUpdatedEventStream()
+          .listen((event) {
+        if (event.roomID != roomID) return;
+        final setProps = event.setProperties as Map? ?? {};
+        final newTheme = setProps['theme'];
+        if (newTheme != null && newTheme is String && newTheme.isNotEmpty) {
+          ctrl.updateRoomTheme(newTheme);
+        }
+      });
+    } catch (e) {
+      debugPrint('_initThemeSync error: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final AvatarService avatarService = AvatarService();
     var size = MediaQuery.of(context).size;
+
+    // Define buttons inline to avoid any class definition issues
+    final announcementButton = ElevatedButton(
+      style: ElevatedButton.styleFrom(
+        fixedSize: const Size(40, 40),
+        shape: const CircleBorder(),
+        backgroundColor: Colors.black26,
+      ),
+      onPressed: () {
+        print("📢 Announcement button pressed! isHost: ${widget.isHost}");
+        if (widget.isHost!) {
+          print("📢 Host confirmed - showing announcement dialog");
+          _showAnnouncementDialog();
+        } else {
+          print("📢 Audience - showing announcement history");
+          _showAnnouncementHistory();
+        }
+      },
+      child: Padding(
+        padding: const EdgeInsets.all(3.0),
+        child: Icon(Icons.campaign, color: kPrimaryColor, size: 24),
+      ),
+    );
+
+    final giftButton = ElevatedButton(
+      style: ElevatedButton.styleFrom(
+        fixedSize: const Size(40, 40),
+        shape: const CircleBorder(),
+        backgroundColor: Colors.black26,
+      ),
+      onPressed: () {
+        print("🎁 Gift button pressed!");
+        if (coHostsList.isNotEmpty) {
+          openUserToReceiveCoins();
+          return;
+        }
+        CoinsFlowPayment(
+          context: context,
+          currentUser: widget.currentUser!,
+          onCoinsPurchased: (coins) {
+            print(
+              "onCoinsPurchased: $coins new: ${widget.currentUser!.getCredits}",
+            );
+          },
+          onGiftSelected: (gift) {
+            print("onGiftSelected called ${gift.getCoins}");
+            sendGift(gift, widget.liveStreaming!.getAuthor!);
+
+            QuickHelp.showAppNotificationAdvanced(
+              context: context,
+              user: widget.currentUser,
+              title: "live_streaming.gift_sent_title".tr(),
+              message: "live_streaming.gift_sent_explain".tr(
+                namedArgs: {
+                  "name": widget.liveStreaming!.getAuthor!.getFirstName!,
+                },
+              ),
+              isError: false,
+            );
+          },
+        );
+      },
+      child: Padding(
+        padding: const EdgeInsets.all(3.0),
+        child: Lottie.asset("assets/lotties/ic_gift.json", height: 29),
+      ),
+    );
+
+    final themeButton = ElevatedButton(
+      style: ElevatedButton.styleFrom(
+        fixedSize: const Size(40, 40),
+        shape: const CircleBorder(),
+        backgroundColor: Colors.black26,
+      ),
+      onPressed: () {
+        print("🎨 Theme button pressed!");
+        showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
+          builder: (_) {
+            return RoomThemeSelector(
+              currentUser: widget.currentUser!,
+              liveStreaming: widget.liveStreaming!,
+              onThemeSelected: (theme) {
+                // Update local controller immediately; remote users will update via room property
+                Get.find<Controller>().updateRoomTheme(theme);
+              },
+            );
+          },
+        );
+      },
+      child: Padding(
+        padding: const EdgeInsets.all(3.0),
+        child: Icon(Icons.palette, color: kPrimaryColor, size: 24),
+      ),
+    );
+
+    final Controller controller = Get.find<Controller>();
+
     return Scaffold(
       body: Stack(
+        fit: StackFit.expand,
         children: [
+          // Background image reacting to theme changes
+          Obx(() {
+            final bgPath =
+                controller.getThemePath(controller.selectedRoomTheme.value);
+            return Image.asset(
+              bgPath,
+              fit: BoxFit.cover,
+              errorBuilder: (c, e, s) => Container(color: Colors.black),
+            );
+          }),
+
           ZegoUIKitPrebuiltLiveAudioRoom(
             appID: Setup.zegoLiveStreamAppID,
             appSign: Setup.zegoLiveStreamAppSign,
@@ -203,89 +434,89 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
             userName: widget.currentUser!.getFullName!,
             roomID: widget.liveStreaming!.getStreamingChannel!,
             events: ZegoUIKitPrebuiltLiveAudioRoomEvents(
-                onLeaveConfirmation: (
-                  event,
-                  defaultAction,
-                ) async {
-                  if (widget.isHost!) {
-                    return await showDialog(
-                      context: context,
-                      builder: (BuildContext context) {
-                        return AlertDialog(
-                          backgroundColor: QuickHelp.isDarkMode(context)
-                              ? kContentColorLightTheme
-                              : kContentColorDarkTheme,
-                          title: TextWithTap(
-                            "account_settings.logout_user_sure".tr(),
+              onLeaveConfirmation: (event, defaultAction) async {
+                if (widget.isHost!) {
+                  return await showDialog(
+                    context: context,
+                    builder: (BuildContext context) {
+                      return AlertDialog(
+                        backgroundColor: QuickHelp.isDarkMode(context)
+                            ? kContentColorLightTheme
+                            : kContentColorDarkTheme,
+                        title: TextWithTap(
+                          "account_settings.logout_user_sure".tr(),
+                          fontWeight: FontWeight.bold,
+                        ),
+                        content: Text('live_streaming.finish_live_ask'.tr()),
+                        actions: [
+                          TextWithTap(
+                            "cancel".tr(),
                             fontWeight: FontWeight.bold,
+                            marginRight: 10,
+                            marginLeft: 10,
+                            marginBottom: 10,
+                            onTap: () => Navigator.of(context).pop(false),
                           ),
-                          content: Text('live_streaming.finish_live_ask'.tr()),
-                          actions: [
-                            TextWithTap(
-                              "cancel".tr(),
-                              fontWeight: FontWeight.bold,
-                              marginRight: 10,
-                              marginLeft: 10,
-                              marginBottom: 10,
-                              onTap: () => Navigator.of(context).pop(false),
-                            ),
-                            TextWithTap(
-                              "confirm_".tr(),
-                              fontWeight: FontWeight.bold,
-                              marginRight: 10,
-                              marginLeft: 10,
-                              marginBottom: 10,
-                              onTap: () async {
-                                if (widget.isHost!) {
-                                  QuickHelp.showLoadingDialog(context);
-                                  onViewerLeave();
-                                  widget.liveStreaming!.setStreaming = false;
-                                  ParseResponse response =
-                                      await widget.liveStreaming!.save();
-                                  if (response.success &&
-                                      response.result != null) {
-                                    QuickHelp.hideLoadingDialog(context);
-                                    QuickHelp.goToNavigatorScreen(
-                                      context,
-                                      LiveEndReportScreen(
-                                        currentUser: widget.currentUser,
-                                        live: widget.liveStreaming,
-                                      ),
-                                    );
-                                    //onViewerLeave();
-                                  } else {
-                                    QuickHelp.hideLoadingDialog(context);
-                                    QuickHelp.showAppNotificationAdvanced(
-                                      title: "try_again_later".tr(),
-                                      message: "not_connected".tr(),
-                                      context: context,
-                                    );
-                                  }
+                          TextWithTap(
+                            "confirm_".tr(),
+                            fontWeight: FontWeight.bold,
+                            marginRight: 10,
+                            marginLeft: 10,
+                            marginBottom: 10,
+                            onTap: () async {
+                              if (widget.isHost!) {
+                                QuickHelp.showLoadingDialog(context);
+                                onViewerLeave();
+                                widget.liveStreaming!.setStreaming = false;
+                                ParseResponse response =
+                                    await widget.liveStreaming!.save();
+                                if (response.success &&
+                                    response.result != null) {
+                                  QuickHelp.hideLoadingDialog(context);
+                                  QuickHelp.goToNavigatorScreen(
+                                    context,
+                                    LiveEndReportScreen(
+                                      currentUser: widget.currentUser,
+                                      live: widget.liveStreaming,
+                                    ),
+                                  );
+                                  //onViewerLeave();
                                 } else {
-                                  QuickHelp.goBackToPreviousPage(context);
-                                  QuickHelp.goBackToPreviousPage(context);
+                                  QuickHelp.hideLoadingDialog(context);
+                                  QuickHelp.showAppNotificationAdvanced(
+                                    title: "try_again_later".tr(),
+                                    message: "not_connected".tr(),
+                                    context: context,
+                                  );
                                 }
-                              },
-                            ),
-                          ],
-                        );
-                      },
-                    );
-                  } else {
-                    return defaultAction.call();
-                  }
-                },
-                user: ZegoLiveAudioRoomUserEvents(onEnter: (user) {
+                              } else {
+                                QuickHelp.goBackToPreviousPage(context);
+                                QuickHelp.goBackToPreviousPage(context);
+                              }
+                            },
+                          ),
+                        ],
+                      );
+                    },
+                  );
+                } else {
+                  return defaultAction.call();
+                }
+              },
+              user: ZegoLiveAudioRoomUserEvents(
+                onEnter: (user) {
                   if (user.id != widget.liveStreaming!.getAuthorId) {
                     addOrUpdateLiveViewers();
                     sendMessage("has_entered_the_room".tr());
                   }
-                }, onLeave: (user) {
+                },
+                onLeave: (user) {
                   sendMessage("has_left_the_room".tr());
                   onViewerLeave();
-                }),
-                memberList:
-                    ZegoLiveAudioRoomMemberListEvents(onClicked: (user) {
+                },
+              ),
+              memberList: ZegoLiveAudioRoomMemberListEvents(
+                onClicked: (user) {
                   if (user.id != widget.currentUser!.objectId) {
                     QuickHelp.hideLoadingDialog(context);
                     showUserProfileBottomSheet(
@@ -294,19 +525,20 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
                       context: context,
                     );
                   }
-                }),
-                inRoomMessage: ZegoLiveAudioRoomInRoomMessageEvents(
-                  onClicked: (message) {
-                    if (message.user.id != widget.currentUser!.objectId) {
-                      showUserProfileBottomSheet(
-                        currentUser: widget.currentUser!,
-                        userId: message.user.id,
-                        context: context,
-                      );
-                    }
-                  },
-                )
-                /*onEnded: (event, defaultAction,) {
+                },
+              ),
+              inRoomMessage: ZegoLiveAudioRoomInRoomMessageEvents(
+                onClicked: (message) {
+                  if (message.user.id != widget.currentUser!.objectId) {
+                    showUserProfileBottomSheet(
+                      currentUser: widget.currentUser!,
+                      userId: message.user.id,
+                      context: context,
+                    );
+                  }
+                },
+              ),
+              /*onEnded: (event, defaultAction,) {
               QuickHelp.goToNavigatorScreen(
                   context,
                   LiveEndScreen(
@@ -316,7 +548,7 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
                   ),
               );
             }*/
-                ),
+            ),
             config: widget.isHost!
                 ? (ZegoUIKitPrebuiltLiveAudioRoomConfig.host()
                   ..confirmDialogInfo = ZegoLiveAudioRoomDialogInfo(
@@ -324,14 +556,56 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
                     message: 'live_streaming.finish_live_ask'.tr(),
                     cancelButtonName: "cancel".tr(),
                     confirmButtonName: "confirm_".tr(),
-                  ))
-                : ZegoUIKitPrebuiltLiveAudioRoomConfig.audience()
-              ..bottomMenuBar.audienceExtendButtons = [giftButton]
-              ..bottomMenuBar.speakerExtendButtons = [giftButton]
-              ..seat.avatarBuilder = (BuildContext context, Size size,
-                  ZegoUIKitUser? user, Map extraInfo) {
+                  )
+                  ..bottomMenuBar.hostExtendButtons = [
+                    announcementButton, // Host can create announcements
+                    themeButton, // Host can change room theme
+                    // Gift button removed from host - hosts don't send gifts to themselves
+                    Obx(() {
+                      print(
+                          "📢 [ANNOUNCEMENT DEBUG] Host media sharing button rendered");
+                      return ContainerCorner(
+                        color: Colors.white,
+                        borderRadius: 50,
+                        height: 38,
+                        width: 38,
+                        onTap: () {
+                          print(
+                              "📢 [ANNOUNCEMENT DEBUG] Host media sharing button pressed");
+                          toggleSharingMedia();
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.all(5.0),
+                          child: SvgPicture.asset(
+                            showGiftSendersController.shareMediaFiles.value
+                                ? "assets/svg/stop_sharing_media.svg"
+                                : "assets/svg/start_sharing_media.svg",
+                          ),
+                        ),
+                      );
+                    }),
+                  ])
+                : (ZegoUIKitPrebuiltLiveAudioRoomConfig.audience()
+                  ..bottomMenuBar.audienceExtendButtons = [
+                    announcementButton, // Audience can view announcements
+                    giftButton,
+                    // Audience can send gifts
+                  ]
+                  ..bottomMenuBar.speakerExtendButtons = [
+                    announcementButton, // Speakers can view announcements
+                    giftButton,
+                    // Speakers can send gifts
+                  ])
+              // Continue with your other config options...
+              ..seat.avatarBuilder = (
+                BuildContext context,
+                Size size,
+                ZegoUIKitUser? user,
+                Map extraInfo,
+              ) {
                 print(
-                    "🪑 Seat avatar builder called for user: ${user?.id ?? 'empty'}, extraInfo: $extraInfo");
+                  "🪑 Seat avatar builder called for user: ${user?.id ?? 'empty'}, extraInfo: $extraInfo",
+                );
 
                 // Get seat index from extraInfo or calculate it
                 int? seatIndex = extraInfo['seatIndex'] as int?;
@@ -346,7 +620,9 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
                       color: Colors.grey.withOpacity(0.3),
                       shape: BoxShape.circle,
                       border: Border.all(
-                          color: Colors.grey.withOpacity(0.5), width: 2),
+                        color: Colors.grey.withOpacity(0.5),
+                        width: 2,
+                      ),
                     ),
                     child: Icon(
                       Icons.person_add,
@@ -366,10 +642,15 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
 
                 return avatarWidget;
               }
-              ..seat.foregroundBuilder = (BuildContext context, Size size,
-                  ZegoUIKitUser? user, Map extraInfo) {
+              ..seat.foregroundBuilder = (
+                BuildContext context,
+                Size size,
+                ZegoUIKitUser? user,
+                Map extraInfo,
+              ) {
                 print(
-                    "🎯 Seat foreground builder called for user: ${user?.id ?? 'empty'}, extraInfo: $extraInfo");
+                  "🎯 Seat foreground builder called for user: ${user?.id ?? 'empty'}, extraInfo: $extraInfo",
+                );
 
                 // Only show clickable overlay for hosts
                 if (!widget.isHost!) return SizedBox.shrink();
@@ -389,7 +670,8 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
                   child: GestureDetector(
                     onTap: () {
                       print(
-                          "🔥 SEAT FOREGROUND CLICKED! User: ${user?.id ?? 'empty'}");
+                        "🔥 SEAT FOREGROUND CLICKED! User: ${user?.id ?? 'empty'}",
+                      );
                       print("🎯 Using seat index: $seatIndex");
 
                       showSeatActionMenu(
@@ -406,33 +688,44 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
                   ),
                 );
               }
-              ..seat.layout.rowConfigs = List.generate(numberOfSeats, (index) {
+              ..seat.layout.rowConfigs = List.generate(numberOfSeats, (
+                index,
+              ) {
                 if (index == 0) {
                   return ZegoLiveAudioRoomLayoutRowConfig(
-                      count: 1,
-                      alignment: ZegoLiveAudioRoomLayoutAlignment.center);
+                    count: 1,
+                    alignment: ZegoLiveAudioRoomLayoutAlignment.center,
+                  );
                 }
 
                 if (widget.liveStreaming!.getNumberOfChairs == 20) {
                   return ZegoLiveAudioRoomLayoutRowConfig(
-                      count: 5,
-                      alignment: ZegoLiveAudioRoomLayoutAlignment.start);
+                    count: 5,
+                    alignment: ZegoLiveAudioRoomLayoutAlignment.start,
+                  );
                 }
 
                 if (widget.liveStreaming!.getNumberOfChairs == 24) {
                   return ZegoLiveAudioRoomLayoutRowConfig(
-                      count: 6,
-                      alignment: ZegoLiveAudioRoomLayoutAlignment.start);
+                    count: 6,
+                    alignment: ZegoLiveAudioRoomLayoutAlignment.start,
+                  );
                 }
 
                 return ZegoLiveAudioRoomLayoutRowConfig(
-                    count: 4,
-                    alignment: ZegoLiveAudioRoomLayoutAlignment.spaceEvenly);
+                  count: 4,
+                  alignment: ZegoLiveAudioRoomLayoutAlignment.spaceEvenly,
+                );
               })
               ..foreground = customUiComponents()
               ..inRoomMessage.visible = true
               ..inRoomMessage.showAvatar = true
               ..bottomMenuBar.hostExtendButtons = [
+                announcementButton,
+                themeButton,
+                _buildMusicControlButton(),
+
+                //giftButton,
                 Obx(() {
                   return ContainerCorner(
                     color: Colors.white,
@@ -453,12 +746,26 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
                   );
                 }),
               ]
-              ..background = Image.asset(
-                "assets/images/audio_bg_start.png",
-                height: size.height,
-                width: size.width,
-                fit: BoxFit.fill,
-              ),
+              ..bottomMenuBar.audienceExtendButtons = [
+                announcementButton,
+                giftButton,
+              ]
+              ..background = Obx(() => Image.asset(
+                    showGiftSendersController.getThemePath(
+                        showGiftSendersController.selectedRoomTheme.value),
+                    height: size.height,
+                    width: size.width,
+                    fit: BoxFit.fill,
+                    errorBuilder: (context, error, stackTrace) {
+                      // Fallback to default theme if current theme fails to load
+                      return Image.asset(
+                        "assets/images/backgrounds/theme_default.png",
+                        height: size.height,
+                        width: size.width,
+                        fit: BoxFit.fill,
+                      );
+                    },
+                  )),
           ),
           Positioned(
             top: 30,
@@ -516,10 +823,12 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
                                             .getFullName!,
                                         mode: TextScrollMode.endless,
                                         velocity: Velocity(
-                                            pixelsPerSecond: Offset(30, 0)),
+                                          pixelsPerSecond: Offset(30, 0),
+                                        ),
                                         delayBefore: Duration(seconds: 1),
-                                        pauseBetween:
-                                            Duration(milliseconds: 150),
+                                        pauseBetween: Duration(
+                                          milliseconds: 150,
+                                        ),
                                         style: TextStyle(
                                           color: Colors.white,
                                           fontSize: 10,
@@ -536,8 +845,9 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
                                           Padding(
-                                            padding:
-                                                const EdgeInsets.only(left: 5),
+                                            padding: const EdgeInsets.only(
+                                              left: 5,
+                                            ),
                                             child: Image.asset(
                                               "assets/images/grade_welfare.png",
                                               height: 12,
@@ -562,7 +872,7 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
                                       ),
                                     ),
                                   ],
-                                )
+                                ),
                               ],
                             ),
                             ContainerCorner(
@@ -575,7 +885,8 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
                               child: Padding(
                                 padding: const EdgeInsets.all(3.0),
                                 child: Lottie.asset(
-                                    "assets/lotties/ic_live_animation.json"),
+                                  "assets/lotties/ic_live_animation.json",
+                                ),
                               ),
                             ),
                           ],
@@ -614,10 +925,22 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
                     height: 40,
                     marginRight: 5,
                     child: getTopGifters(),
-                  )
+                  ),
                 ],
               ),
             ),
+          ),
+
+          // Announcement Overlay
+          ValueListenableBuilder<List<AnnouncementData>>(
+            valueListenable: _announcementsNotifier,
+            builder: (context, announcements, child) {
+              return AnnouncementOverlayWidget(
+                announcements: announcements,
+                onDismiss: _onAnnouncementDismiss,
+                onPin: _onAnnouncementPin,
+              );
+            },
           ),
         ],
       ),
@@ -636,12 +959,13 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
               unPrivatiseLive();
             } else {
               PrivateLivePriceWidget(
-                  context: context,
-                  onCancel: () => QuickHelp.hideLoadingDialog(context),
-                  onGiftSelected: (gift) {
-                    QuickHelp.hideLoadingDialog(context);
-                    privatiseLive(gift);
-                  });
+                context: context,
+                onCancel: () => QuickHelp.hideLoadingDialog(context),
+                onGiftSelected: (gift) {
+                  QuickHelp.hideLoadingDialog(context);
+                  privatiseLive(gift);
+                },
+              );
             }
           },
           icon: Obx(
@@ -706,11 +1030,17 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
         QueryBuilder<LiveViewersModel>(LiveViewersModel());
 
     queryLiveViewers.whereEqualTo(
-        LiveViewersModel.keyAuthorId, widget.currentUser!.objectId);
+      LiveViewersModel.keyAuthorId,
+      widget.currentUser!.objectId,
+    );
     queryLiveViewers.whereEqualTo(
-        LiveViewersModel.keyLiveAuthorId, widget.liveStreaming!.getAuthorId!);
+      LiveViewersModel.keyLiveAuthorId,
+      widget.liveStreaming!.getAuthorId!,
+    );
     queryLiveViewers.whereEqualTo(
-        LiveViewersModel.keyLiveId, widget.liveStreaming!.objectId!);
+      LiveViewersModel.keyLiveId,
+      widget.liveStreaming!.objectId!,
+    );
 
     ParseResponse parseResponse = await queryLiveViewers.query();
     if (parseResponse.success) {
@@ -729,11 +1059,17 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
         QueryBuilder<LiveViewersModel>(LiveViewersModel());
 
     queryLiveViewers.whereEqualTo(
-        LiveViewersModel.keyAuthorId, widget.currentUser!.objectId);
+      LiveViewersModel.keyAuthorId,
+      widget.currentUser!.objectId,
+    );
     queryLiveViewers.whereEqualTo(
-        LiveViewersModel.keyLiveId, widget.liveStreaming!.objectId!);
+      LiveViewersModel.keyLiveId,
+      widget.liveStreaming!.objectId!,
+    );
     queryLiveViewers.whereEqualTo(
-        LiveViewersModel.keyLiveAuthorId, widget.liveStreaming!.getAuthorId!);
+      LiveViewersModel.keyLiveAuthorId,
+      widget.liveStreaming!.getAuthorId!,
+    );
 
     ParseResponse parseResponse = await queryLiveViewers.query();
     if (parseResponse.success) {
@@ -761,17 +1097,18 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
   }
 
   Widget getTopGifters() {
-    QueryBuilder<LiveViewersModel> query =
-        QueryBuilder<LiveViewersModel>(LiveViewersModel());
+    QueryBuilder<LiveViewersModel> query = QueryBuilder<LiveViewersModel>(
+      LiveViewersModel(),
+    );
 
     //query.whereNotEqualTo(LiveViewersModel.keyAuthorId, widget.liveStreaming!.getAuthorId);
     query.whereEqualTo(
-        LiveViewersModel.keyLiveId, widget.liveStreaming!.objectId);
+      LiveViewersModel.keyLiveId,
+      widget.liveStreaming!.objectId,
+    );
     query.whereEqualTo(LiveViewersModel.keyWatching, true);
     query.orderByDescending(LiveViewersModel.keyUpdatedAt);
-    query.includeObject([
-      LiveViewersModel.keyAuthor,
-    ]);
+    query.includeObject([LiveViewersModel.keyAuthor]);
     //query.setLimit(3);
 
     return ParseLiveListWidget<LiveViewersModel>(
@@ -781,8 +1118,10 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
       shrinkWrap: true,
       scrollDirection: Axis.horizontal,
       duration: const Duration(milliseconds: 200),
-      childBuilder: (BuildContext context,
-          ParseLiveListElementSnapshot<LiveViewersModel> snapshot) {
+      childBuilder: (
+        BuildContext context,
+        ParseLiveListElementSnapshot<LiveViewersModel> snapshot,
+      ) {
         if (snapshot.hasData) {
           LiveViewersModel viewer = snapshot.loadedData!;
 
@@ -842,8 +1181,9 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
     widget.liveStreaming!.save();
 
     ParseResponse parseResponse = await QuickCloudCode.followUser(
-        author: widget.currentUser!,
-        receiver: widget.liveStreaming!.getAuthor!);
+      author: widget.currentUser!,
+      receiver: widget.liveStreaming!.getAuthor!,
+    );
 
     if (parseResponse.success) {
       sendMessage("start_following".tr());
@@ -855,61 +1195,164 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
     }
   }
 
-  ZegoLiveStreamingMenuBarExtendButton get giftButton =>
-      ZegoLiveStreamingMenuBarExtendButton(
-        index: 0,
-        child: ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            shape: const CircleBorder(),
-            backgroundColor: Colors.black26,
-          ),
-          onPressed: () {
-            if (coHostsList.isNotEmpty) {
-              openUserToReceiveCoins();
-              return;
-            }
-            CoinsFlowPayment(
-              context: context,
-              currentUser: widget.currentUser!,
-              onCoinsPurchased: (coins) {
-                print(
-                    "onCoinsPurchased: $coins new: ${widget.currentUser!.getCredits}");
-              },
-              onGiftSelected: (gift) {
-                print("onGiftSelected called ${gift.getCoins}");
-                sendGift(gift, widget.liveStreaming!.getAuthor!);
-
-                //QuickHelp.goBackToPreviousPage(context);
-                QuickHelp.showAppNotificationAdvanced(
-                  context: context,
-                  user: widget.currentUser,
-                  title: "live_streaming.gift_sent_title".tr(),
-                  message: "live_streaming.gift_sent_explain".tr(
-                    namedArgs: {
-                      "name": widget.liveStreaming!.getAuthor!.getFirstName!
-                    },
+  void _showAnnouncementHistory() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: QuickHelp.isDarkMode(context)
+            ? kContentColorLightTheme
+            : kContentColorDarkTheme,
+        title: TextWithTap("Announcements", fontWeight: FontWeight.bold),
+        content: Container(
+          height: 300,
+          width: double.maxFinite,
+          child: _announcements.isEmpty
+              ? Center(
+                  child: TextWithTap(
+                    "No announcements yet",
+                    color: Colors.grey,
                   ),
-                  isError: false,
-                );
-              },
-            );
-          },
-          child: Padding(
-            padding: const EdgeInsets.all(3.0),
-            child: Lottie.asset(
-              "assets/lotties/ic_gift.json",
-              height: 29,
-            ),
-          ),
+                )
+              : ListView.builder(
+                  itemCount: _announcements.length,
+                  itemBuilder: (context, index) {
+                    final announcement = _announcements[index];
+                    return Card(
+                      child: ListTile(
+                        title: Text(announcement.title),
+                        subtitle: Text(announcement.message),
+                        trailing: Text(
+                          announcement.priority,
+                          style: TextStyle(
+                            color: announcement.priority == 'high'
+                                ? Colors.red
+                                : announcement.priority == 'medium'
+                                    ? Colors.orange
+                                    : Colors.green,
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text("Close"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAnnouncementDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AnnouncementDialog(
+        onSend: (title, message, priority, duration) {
+          _sendAnnouncement(title, message, priority, duration);
+        },
+      ),
+    );
+  }
+
+  void _sendAnnouncement(
+    String title,
+    String message,
+    String priority,
+    int duration,
+  ) async {
+    try {
+      // Create announcement message
+      LiveMessagesModel announcementMessage = LiveMessagesModel();
+      announcementMessage.setAuthor = widget.currentUser!;
+      announcementMessage.setAuthorId = widget.currentUser!.objectId!;
+      announcementMessage.setLiveStreaming = widget.liveStreaming!;
+      announcementMessage.setLiveStreamingId = widget.liveStreaming!.objectId!;
+      announcementMessage.setMessageType =
+          LiveMessagesModel.messageTypeAnnouncement;
+      announcementMessage.setMessage = message;
+      announcementMessage.setAnnouncementTitle = title;
+      announcementMessage.setAnnouncementPriority = priority;
+      announcementMessage.setAnnouncementDuration = duration;
+
+      // Save to Parse
+      ParseResponse response = await announcementMessage.save();
+
+      if (response.success) {
+        // Add to local announcements list
+        final announcementData = AnnouncementData.fromLiveMessage(
+          announcementMessage,
+        );
+        setState(() {
+          _announcements.add(announcementData);
+          _announcementsNotifier.value = List.from(_announcements);
+        });
+
+        // Send via ZIM for real-time delivery
+        final zimMessage = {
+          'type': 'announcement',
+          'title': title,
+          'message': message,
+          'priority': priority,
+          'duration': duration,
+          'authorName': widget.currentUser!.getFullName!,
+          'timestamp': DateTime.now().millisecondsSinceEpoch,
+        };
+
+        // Use existing ZIM infrastructure
+        sendMessage("📢 $title: $message");
+
+        QuickHelp.showAppNotificationAdvanced(
+          context: context,
+          user: widget.currentUser,
+          title: "announcement_sent_title".tr(),
+          message: "announcement_sent_message".tr(),
+          isError: false,
+        );
+      } else {
+        QuickHelp.showAppNotificationAdvanced(
+          context: context,
+          user: widget.currentUser,
+          title: "error".tr(),
+          message: "announcement_send_failed".tr(),
+          isError: true,
+        );
+      }
+    } catch (e) {
+      print("Error sending announcement: $e");
+      QuickHelp.showAppNotificationAdvanced(
+        context: context,
+        user: widget.currentUser,
+        title: "error".tr(),
+        message: "announcement_send_failed".tr(),
+        isError: true,
       );
+    }
+  }
+
+  void _onAnnouncementDismiss(String announcementId) {
+    setState(() {
+      _announcements.removeWhere((a) => a.id == announcementId);
+      _announcementsNotifier.value = List.from(_announcements);
+    });
+  }
+
+  void _onAnnouncementPin(String announcementId) {
+    // Handle pinning logic if needed
+    print("Announcement pinned: $announcementId");
+  }
 
   setupStreamingLiveQuery() async {
-    QueryBuilder<LiveStreamingModel> query =
-        QueryBuilder<LiveStreamingModel>(LiveStreamingModel());
+    QueryBuilder<LiveStreamingModel> query = QueryBuilder<LiveStreamingModel>(
+      LiveStreamingModel(),
+    );
 
     query.whereEqualTo(
-        LiveStreamingModel.keyObjectId, widget.liveStreaming!.objectId);
+      LiveStreamingModel.keyObjectId,
+      widget.liveStreaming!.objectId,
+    );
     query.includeObject([
       LiveStreamingModel.keyPrivateLiveGift,
       LiveStreamingModel.keyGiftSenders,
@@ -921,8 +1364,9 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
 
     subscription = await liveQuery.client.subscribe(query);
 
-    subscription!.on(LiveQueryEvent.update,
-        (LiveStreamingModel newUpdatedLive) async {
+    subscription!.on(LiveQueryEvent.update, (
+      LiveStreamingModel newUpdatedLive,
+    ) async {
       print('*** UPDATE ***');
       await newUpdatedLive.getAuthor!.fetch();
       widget.liveStreaming = newUpdatedLive;
@@ -941,17 +1385,19 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
 
       if (!newUpdatedLive.getStreaming! && !widget.isHost!) {
         QuickHelp.goToNavigatorScreen(
-            context,
-            LiveEndScreen(
-              currentUser: widget.currentUser,
-              liveAuthor: widget.liveStreaming!.getAuthor,
-            ));
+          context,
+          LiveEndScreen(
+            currentUser: widget.currentUser,
+            liveAuthor: widget.liveStreaming!.getAuthor,
+          ),
+        );
         //onViewerLeave();
       }
     });
 
-    subscription!.on(LiveQueryEvent.enter,
-        (LiveStreamingModel updatedLive) async {
+    subscription!.on(LiveQueryEvent.enter, (
+      LiveStreamingModel updatedLive,
+    ) async {
       print('*** ENTER ***');
       await updatedLive.getAuthor!.fetch();
       widget.liveStreaming = updatedLive;
@@ -978,17 +1424,23 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
     await giftsSentModel.save();
 
     QuickHelp.saveReceivedGifts(
-        receiver: mUser, author: widget.currentUser!, gift: giftsModel);
+      receiver: mUser,
+      author: widget.currentUser!,
+      gift: giftsModel,
+    );
     QuickHelp.saveCoinTransaction(
       receiver: mUser,
       author: widget.currentUser!,
       amountTransacted: giftsModel.getCoins!,
     );
 
-    QueryBuilder<LeadersModel> queryBuilder =
-        QueryBuilder<LeadersModel>(LeadersModel());
+    QueryBuilder<LeadersModel> queryBuilder = QueryBuilder<LeadersModel>(
+      LeadersModel(),
+    );
     queryBuilder.whereEqualTo(
-        LeadersModel.keyAuthorId, widget.currentUser!.objectId!);
+      LeadersModel.keyAuthorId,
+      widget.currentUser!.objectId!,
+    );
     ParseResponse parseResponse = await queryBuilder.query();
 
     if (parseResponse.success) {
@@ -1034,64 +1486,13 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
     }
   }
 
-  Widget advanceMediaPlayer({
-    required bool canControl,
-  }) {
-    Size size = MediaQuery.sizeOf(context);
-    const padding = 20;
-    final playerSize = Size(size.width - padding * 2, size.width * 9 / 16);
-    return ZegoUIKitMediaPlayer(
-      size: playerSize,
-      initPosition: Offset(
-        size.width - playerSize.width - padding,
-        size.height - playerSize.height - padding - 40,
-      ),
-      config: ZegoUIKitMediaPlayerConfig(
-        enableRepeat: true,
-        canControl: canControl,
-        showSurface: true,
-      ),
-    );
-  }
-
   Widget customUiComponents() {
     print(
-        "🔥 customUiComponents CALLED! isHost: ${widget.isHost}, totalSeats: ${widget.liveStreaming!.getNumberOfChairs}");
+      "🔥 customUiComponents CALLED! isHost: ${widget.isHost}, totalSeats: ${widget.liveStreaming!.getNumberOfChairs}",
+    );
 
     return Stack(
       children: [
-        // ALWAYS VISIBLE TEST WIDGET - NO CONDITIONS
-        Positioned(
-          top: 50,
-          left: 50,
-          child: Container(
-            width: 100,
-            height: 60,
-            decoration: BoxDecoration(
-              color: Colors.blue,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: () {
-                  print("🚀 BLUE TEST BUTTON TAPPED!");
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text("TEST BUTTON WORKS!")),
-                  );
-                },
-                child: Center(
-                  child: Text(
-                    "TEST",
-                    style: TextStyle(
-                        color: Colors.white, fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-
         // Seat Management FAB for per-seat actions (only for hosts)
         if (widget.isHost!)
           SeatManagementFAB(
@@ -1214,10 +1615,11 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
                                 child: ClipRRect(
                                   borderRadius: BorderRadius.circular(3),
                                   child: QuickActions.photosWidget(
-                                      showGiftSendersController
-                                          .receivedGiftList[index]
-                                          .getPreview!
-                                          .url),
+                                    showGiftSendersController
+                                        .receivedGiftList[index]
+                                        .getPreview!
+                                        .url,
+                                  ),
                                 ),
                               ),
                               ContainerCorner(
@@ -1239,7 +1641,7 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
                                       fontSize: 10,
                                       marginLeft: 5,
                                       fontWeight: FontWeight.w900,
-                                    )
+                                    ),
                                   ],
                                 ),
                               ),
@@ -1254,7 +1656,7 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
                             textItalic: true,
                           ),
                         ],
-                      )
+                      ),
                     ],
                   ).animate().slideX(
                         duration: Duration(seconds: 2),
@@ -1276,14 +1678,6 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
             return svgaWidget(playData);
           },
         ),
-        Obx(() {
-          return Visibility(
-            visible: showGiftSendersController.shareMediaFiles.value,
-            child: advanceMediaPlayer(
-              canControl: widget.isHost!,
-            ),
-          );
-        }),
       ],
     );
   }
@@ -1480,8 +1874,9 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
         QuickHelp.showAppNotificationAdvanced(
           context: context,
           title: "seat_actions.muted".tr(),
-          message: "seat_actions.seat_muted_success"
-              .tr(namedArgs: {"seat": "${seatIndex + 1}"}),
+          message: "seat_actions.seat_muted_success".tr(
+            namedArgs: {"seat": "${seatIndex + 1}"},
+          ),
         );
       } else {
         QuickHelp.hideLoadingDialog(context);
@@ -1537,7 +1932,7 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
     } catch (e) {
       QuickHelp.hideLoadingDialog(context);
       showGiftSendersController.muteSeat(seatIndex);
-      print("Error unmuting seat: $e");
+      print("Error un-muting seat: $e");
     }
   }
 
@@ -1547,24 +1942,36 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
 
       // Update local seat state to show invited user
       showGiftSendersController.updateSeatState(
-          seatIndex, 'userId', user.objectId);
+        seatIndex,
+        'userId',
+        user.objectId,
+      );
       showGiftSendersController.updateSeatState(
-          seatIndex, 'userName', user.getFullName);
+        seatIndex,
+        'userName',
+        user.getFullName,
+      );
 
       // Send invitation message
-      sendMessage("invite_to_seat".tr(namedArgs: {
-        "name": user.getFirstName ?? "User",
-        "seat": "${seatIndex + 1}"
-      }));
+      sendMessage(
+        "invite_to_seat".tr(
+          namedArgs: {
+            "name": user.getFirstName ?? "User",
+            "seat": "${seatIndex + 1}",
+          },
+        ),
+      );
 
       QuickHelp.hideLoadingDialog(context);
       QuickHelp.showAppNotificationAdvanced(
         context: context,
         title: "invite_friends.invited".tr(),
-        message: "invite_friends.invitation_sent".tr(namedArgs: {
-          "name": user.getFirstName ?? "User",
-          "seat": "${seatIndex + 1}"
-        }),
+        message: "invite_friends.invitation_sent".tr(
+          namedArgs: {
+            "name": user.getFirstName ?? "User",
+            "seat": "${seatIndex + 1}",
+          },
+        ),
       );
     } catch (e) {
       QuickHelp.hideLoadingDialog(context);
@@ -1600,8 +2007,9 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
         QuickHelp.showAppNotificationAdvanced(
           context: context,
           title: "seat_actions.removed".tr(),
-          message: "seat_actions.user_removed_success"
-              .tr(namedArgs: {"seat": "${seatIndex + 1}"}),
+          message: "seat_actions.user_removed_success".tr(
+            namedArgs: {"seat": "${seatIndex + 1}"},
+          ),
         );
       } else {
         QuickHelp.hideLoadingDialog(context);
@@ -1674,48 +2082,48 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
   }
 
   setupLiveGifts() async {
-    QueryBuilder<GiftsSentModel> queryBuilder =
-        QueryBuilder<GiftsSentModel>(GiftsSentModel());
+    QueryBuilder<GiftsSentModel> queryBuilder = QueryBuilder<GiftsSentModel>(
+      GiftsSentModel(),
+    );
     queryBuilder.whereEqualTo(
-        GiftsSentModel.keyLiveId, widget.liveStreaming!.objectId);
+      GiftsSentModel.keyLiveId,
+      widget.liveStreaming!.objectId,
+    );
     queryBuilder.includeObject([GiftsSentModel.keyGift]);
     subscription = await liveQuery.client.subscribe(queryBuilder);
 
-    subscription!.on(
-      LiveQueryEvent.create,
-      (GiftsSentModel giftSent) async {
-        await giftSent.getGift!.fetch();
-        await giftSent.getReceiver!.fetch();
-        await giftSent.getAuthor!.fetch();
+    subscription!.on(LiveQueryEvent.create, (GiftsSentModel giftSent) async {
+      await giftSent.getGift!.fetch();
+      await giftSent.getReceiver!.fetch();
+      await giftSent.getAuthor!.fetch();
 
-        GiftsModel receivedGift = giftSent.getGift!;
-        UserModel receiver = giftSent.getReceiver!;
-        UserModel sender = giftSent.getAuthor!;
+      GiftsModel receivedGift = giftSent.getGift!;
+      UserModel receiver = giftSent.getReceiver!;
+      UserModel sender = giftSent.getAuthor!;
 
-        showGiftSendersController.giftSenderList.add(sender);
-        showGiftSendersController.giftReceiverList.add(receiver);
-        showGiftSendersController.receivedGiftList.add(receivedGift);
+      showGiftSendersController.giftSenderList.add(sender);
+      showGiftSendersController.giftReceiverList.add(receiver);
+      showGiftSendersController.receivedGiftList.add(receivedGift);
 
-        if (removeGiftTimer == null) {
-          startRemovingGifts();
-        }
+      if (removeGiftTimer == null) {
+        startRemovingGifts();
+      }
 
-        selectedGiftItemNotifier.value = receivedGift;
+      selectedGiftItemNotifier.value = receivedGift;
 
-        /// local play
-        ZegoGiftManager().playList.add(receivedGift);
+      /// local play
+      ZegoGiftManager().playList.add(receivedGift);
 
-        ValueListenableBuilder<GiftsModel?>(
-          valueListenable: ZegoGiftManager().playList.playingDataNotifier,
-          builder: (context, playData, _) {
-            if (null == playData) {
-              return const SizedBox.shrink();
-            }
-            return svgaWidget(playData);
-          },
-        );
-      },
-    );
+      ValueListenableBuilder<GiftsModel?>(
+        valueListenable: ZegoGiftManager().playList.playingDataNotifier,
+        builder: (context, playData, _) {
+          if (null == playData) {
+            return const SizedBox.shrink();
+          }
+          return svgaWidget(playData);
+        },
+      );
+    });
   }
 
   void openUserToReceiveCoins() async {
@@ -1733,10 +2141,13 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
   Widget _showUserToReceiveCoins() {
     coHostsList.add(widget.liveStreaming!.getAuthorId);
     Size size = MediaQuery.sizeOf(context);
-    QueryBuilder<UserModel> coHostQuery =
-        QueryBuilder<UserModel>(UserModel.forQuery());
+    QueryBuilder<UserModel> coHostQuery = QueryBuilder<UserModel>(
+      UserModel.forQuery(),
+    );
     coHostQuery.whereNotEqualTo(
-        UserModel.keyObjectId, widget.currentUser!.objectId);
+      UserModel.keyObjectId,
+      widget.currentUser!.objectId,
+    );
     coHostQuery.whereContainedIn(UserModel.keyObjectId, coHostsList);
 
     return ContainerCorner(
@@ -1771,8 +2182,10 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
               listenOnAllSubItems: true,
               duration: Duration(seconds: 0),
               animationController: _animationController,
-              childBuilder: (BuildContext context,
-                  ParseLiveListElementSnapshot<UserModel> snapshot) {
+              childBuilder: (
+                BuildContext context,
+                ParseLiveListElementSnapshot<UserModel> snapshot,
+              ) {
                 UserModel user = snapshot.loadedData!;
                 return GestureDetector(
                   onTap: () {
@@ -1781,7 +2194,8 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
                       currentUser: widget.currentUser!,
                       onCoinsPurchased: (coins) {
                         print(
-                            "onCoinsPurchased: $coins new: ${widget.currentUser!.getCredits}");
+                          "onCoinsPurchased: $coins new: ${widget.currentUser!.getCredits}",
+                        );
                       },
                       onGiftSelected: (gift) {
                         print("onGiftSelected called ${gift.getCoins}");
@@ -1826,7 +2240,266 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
                 child: CircularProgressIndicator(),
               ),
             ),
-          )
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Theme synchronization setup
+  void setupThemeSync() async {
+    if (!widget.isHost!) {
+      // Only non-hosts need to listen for theme changes
+      // Hosts will update themes directly through the UI
+      QueryBuilder<LiveStreamingModel> queryBuilder =
+          QueryBuilder<LiveStreamingModel>(LiveStreamingModel());
+      queryBuilder.whereEqualTo(
+          LiveStreamingModel.keyObjectId, widget.liveStreaming!.objectId!);
+
+      subscription = await liveQuery.client.subscribe(queryBuilder);
+
+      subscription!.on(LiveQueryEvent.update, (value) {
+        print("🎨 [THEME SYNC] Live streaming model updated");
+
+        if (value is LiveStreamingModel) {
+          final newTheme = value.getRoomTheme ?? 'theme_default';
+          final currentTheme =
+              showGiftSendersController.selectedRoomTheme.value;
+
+          if (newTheme != currentTheme) {
+            print(
+                "🎨 [THEME SYNC] Theme changed from $currentTheme to $newTheme");
+            showGiftSendersController.updateRoomTheme(newTheme);
+
+            // Show notification to participants about theme change
+            QuickHelp.showAppNotificationAdvanced(
+              context: context,
+              title: "Theme Changed",
+              message: "The host has changed the room theme!",
+              isError: false,
+            );
+          }
+        }
+      });
+    }
+  }
+
+  // Theme management methods
+  void _showThemeSelector() {
+    if (!widget.isHost!) {
+      QuickHelp.showAppNotificationAdvanced(
+        context: context,
+        title: "Error",
+        message: "Only the host can change the room theme.",
+        isError: true,
+      );
+      return;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => RoomThemeSelector(
+        currentUser: widget.currentUser!,
+        liveStreaming: widget.liveStreaming!,
+        onThemeSelected: _onThemeChanged,
+      ),
+    );
+  }
+
+  void _onThemeChanged(String newTheme) {
+    print("🎨 Theme changed to: $newTheme");
+
+    // Update the controller state
+    showGiftSendersController.updateRoomTheme(newTheme);
+
+    // The UI will automatically update due to Obx wrapper on background
+    print("🎨 Theme applied successfully!");
+  }
+
+  Future<void> _ensureMusicPlayer() async {
+    if (_musicPlayer != null) return;
+    _musicPlayer = await ZegoExpressEngine.instance.createMediaPlayer();
+    _musicPlayer?.setVolume(60);
+    _isMusicReady = false;
+  }
+
+  Future<void> _destroyMusicPlayer() async {
+    if (_musicPlayer != null) {
+      await ZegoExpressEngine.instance.destroyMediaPlayer(_musicPlayer!);
+      _musicPlayer = null;
+    }
+    if (_musicPlayerViewID != -1) {
+      await ZegoExpressEngine.instance.destroyCanvasView(_musicPlayerViewID);
+      _musicPlayerViewID = -1;
+    }
+  }
+
+  Future<void> _hostPlayUrl(String url) async {
+    if (!widget.isHost!) return;
+
+    try {
+      await _ensureMusicPlayer();
+      final source = ZegoMediaPlayerResource.defaultConfig()..filePath = url;
+      final result = await _musicPlayer!.loadResourceWithConfig(source);
+
+      if (result.errorCode == 0) {
+        _isMusicReady = true;
+        _musicPlayer!.start();
+        await ZegoLiveAudioRoomManager().setMusicState(
+            MusicPlaybackState(trackUrl: url, isPlaying: true, positionMs: 0));
+
+        QuickHelp.showAppNotificationAdvanced(
+          context: context,
+          title: "Music Playing",
+          message: "Background music started",
+          isError: false,
+        );
+      }
+    } catch (e) {
+      print("Error playing music: $e");
+    }
+  }
+
+  Future<void> _hostPause() async {
+    if (_musicPlayer == null || !widget.isHost!) return;
+
+    _musicPlayer!.pause();
+    final cur = ZegoLiveAudioRoomManager().musicStateNoti.value;
+    await ZegoLiveAudioRoomManager().setMusicState(
+        (cur ?? MusicPlaybackState.empty()).copyWith(isPlaying: false));
+  }
+
+  Future<void> _hostResume() async {
+    if (_musicPlayer == null || !widget.isHost!) return;
+
+    _musicPlayer!.resume();
+    final cur = ZegoLiveAudioRoomManager().musicStateNoti.value;
+    await ZegoLiveAudioRoomManager().setMusicState(
+        (cur ?? MusicPlaybackState.empty()).copyWith(isPlaying: true));
+  }
+
+  Future<void> _hostStop() async {
+    if (_musicPlayer == null || !widget.isHost!) return;
+
+    _musicPlayer!.stop();
+    await ZegoLiveAudioRoomManager()
+        .setMusicState(MusicPlaybackState.stopped());
+  }
+
+  Future<void> _hostNextTrack() async {
+    if (!widget.isHost!) return;
+
+    _currentMusicIndex = (_currentMusicIndex + 1) % _playlistUrls.length;
+    await _hostPlayUrl(_playlistUrls[_currentMusicIndex]);
+  }
+
+// Apply incoming music state for non-hosts
+  void _onMusicStateChanged() {
+    final state = ZegoLiveAudioRoomManager().musicStateNoti.value;
+    if (state == null || widget.isHost!) return; // Host drives the player
+
+    () async {
+      try {
+        await _ensureMusicPlayer();
+        if (state.trackUrl == null || state.trackUrl!.isEmpty) {
+          _musicPlayer?.stop();
+          return;
+        }
+
+        if (!_isMusicReady) {
+          final source = ZegoMediaPlayerResource.defaultConfig()
+            ..filePath = state.trackUrl!;
+          final result = await _musicPlayer!.loadResourceWithConfig(source);
+          if (result.errorCode == 0) {
+            _isMusicReady = true;
+          }
+        }
+
+        if (state.isPlaying) {
+          _musicPlayer?.start();
+        } else {
+          _musicPlayer?.pause();
+        }
+      } catch (e) {
+        print("Error syncing music state: $e");
+      }
+    }();
+  }
+
+  Widget _buildMusicControlButton() {
+    return ElevatedButton(
+      style: ElevatedButton.styleFrom(
+        fixedSize: const Size(40, 40),
+        shape: const CircleBorder(),
+        backgroundColor: Colors.black26,
+      ),
+      onPressed: () {
+        if (widget.isHost!) {
+          _showMusicControls();
+        }
+      },
+      child: Padding(
+        padding: const EdgeInsets.all(3.0),
+        child: Icon(Icons.music_note, color: kPrimaryColor, size: 24),
+      ),
+    );
+  }
+
+// 8. ADD THIS METHOD to show music controls dialog
+  void _showMusicControls() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: QuickHelp.isDarkMode(context)
+            ? kContentColorLightTheme
+            : kContentColorDarkTheme,
+        title: TextWithTap("Music Controls", fontWeight: FontWeight.bold),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                ElevatedButton(
+                  onPressed: () async {
+                    _currentMusicIndex = 0;
+                    await _hostPlayUrl(_playlistUrls[_currentMusicIndex]);
+                  },
+                  child: Icon(Icons.play_arrow),
+                ),
+                ElevatedButton(
+                  onPressed: _hostPause,
+                  child: Icon(Icons.pause),
+                ),
+                ElevatedButton(
+                  onPressed: _hostResume,
+                  child: Icon(Icons.play_circle),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                ElevatedButton(
+                  onPressed: _hostNextTrack,
+                  child: Icon(Icons.skip_next),
+                ),
+                ElevatedButton(
+                  onPressed: _hostStop,
+                  child: Icon(Icons.stop),
+                ),
+              ],
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text("Close"),
+          ),
         ],
       ),
     );

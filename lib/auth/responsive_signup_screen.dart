@@ -16,10 +16,10 @@ import 'package:pin_code_fields/pin_code_fields.dart';
 import 'package:quickalert/models/quickalert_type.dart';
 import 'package:quickalert/widgets/quickalert_dialog.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:trace/app/config.dart';
 import 'package:trace/ui/text_with_tap.dart';
 import 'package:universal_io/io.dart';
 
-import '../app/Config.dart';
 import '../app/setup.dart';
 import '../helpers/quick_actions.dart';
 import '../helpers/quick_help.dart';
@@ -60,8 +60,9 @@ class _ResponsiveSignUpScreenState extends State<ResponsiveSignUpScreen> {
 
   String countryIsoCode = Config.initialCountry;
   String countryDialCode = QuickHelp.getCountryDialCode(Config.initialCountry);
-  List<String> languagesIso =  QuickHelp.getLanguageByCountryIso(code: Config.initialCountry);
-  bool isEmptyPhoneField =  false;
+  List<String> languagesIso =
+      QuickHelp.getLanguageByCountryIso(code: Config.initialCountry);
+  bool isEmptyPhoneField = false;
 
   // Web confirmation result for OTP.
   ConfirmationResult? _webConfirmationResult;
@@ -127,11 +128,16 @@ class _ResponsiveSignUpScreenState extends State<ResponsiveSignUpScreen> {
 
   StreamController<ErrorAnimationType>? errorController;
 
-
   var genders = ["female_".tr(), "male_".tr()];
 
-  var gendersSelectedImage = ["assets/images/ic_female_gender_selected.webp", "assets/images/ic_mal_gender_selected.webp"];
-  var gendersUnselectedImage = ["assets/images/ic_female_gender_default.webp", "assets/images/ic_male_gender_default.webp"];
+  var gendersSelectedImage = [
+    "assets/images/ic_female_gender_selected.webp",
+    "assets/images/ic_mal_gender_selected.webp"
+  ];
+  var gendersUnselectedImage = [
+    "assets/images/ic_female_gender_default.webp",
+    "assets/images/ic_male_gender_default.webp"
+  ];
 
   var isMale = [true, false];
   var selectedGender = [];
@@ -468,7 +474,9 @@ class _ResponsiveSignUpScreenState extends State<ResponsiveSignUpScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Image.asset(
-                      selectedGender.contains(0) ? gendersSelectedImage[0] : gendersUnselectedImage[0],
+                      selectedGender.contains(0)
+                          ? gendersSelectedImage[0]
+                          : gendersUnselectedImage[0],
                       width: 50,
                     ),
                     Padding(
@@ -477,14 +485,24 @@ class _ResponsiveSignUpScreenState extends State<ResponsiveSignUpScreen> {
                         children: [
                           Icon(
                             Icons.female,
-                            color: selectedGender.contains(0) ? Colors.redAccent : kGrayColor,
+                            color: selectedGender.contains(0)
+                                ? Colors.redAccent
+                                : kGrayColor,
                           ),
-                          TextWithTap(genders[0], color: selectedGender.contains(0) ? Colors.redAccent : kGrayColor)
+                          TextWithTap(genders[0],
+                              color: selectedGender.contains(0)
+                                  ? Colors.redAccent
+                                  : kGrayColor)
                         ],
                       ),
                     ),
-                    Icon(selectedGender.contains(0) ? Icons.check_circle  : Icons.circle_outlined,
-                      color: selectedGender.contains(0) ? earnCashColor : kGrayColor,
+                    Icon(
+                      selectedGender.contains(0)
+                          ? Icons.check_circle
+                          : Icons.circle_outlined,
+                      color: selectedGender.contains(0)
+                          ? earnCashColor
+                          : kGrayColor,
                     )
                   ],
                 ),
@@ -503,7 +521,9 @@ class _ResponsiveSignUpScreenState extends State<ResponsiveSignUpScreen> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Image.asset(
-                        selectedGender.contains(1) ? gendersSelectedImage[1] : gendersUnselectedImage[1],
+                        selectedGender.contains(1)
+                            ? gendersSelectedImage[1]
+                            : gendersUnselectedImage[1],
                         width: 50,
                       ),
                       Padding(
@@ -512,15 +532,26 @@ class _ResponsiveSignUpScreenState extends State<ResponsiveSignUpScreen> {
                           children: [
                             Icon(
                               Icons.male,
-                              color: selectedGender.contains(1) ? Colors.lightBlue : kGrayColor,
+                              color: selectedGender.contains(1)
+                                  ? Colors.lightBlue
+                                  : kGrayColor,
                             ),
-                            TextWithTap(genders[1], color: selectedGender.contains(1) ? Colors.lightBlue : kGrayColor,)
+                            TextWithTap(
+                              genders[1],
+                              color: selectedGender.contains(1)
+                                  ? Colors.lightBlue
+                                  : kGrayColor,
+                            )
                           ],
                         ),
                       ),
                       Icon(
-                        selectedGender.contains(1) ? Icons.check_circle  : Icons.circle_outlined,
-                        color: selectedGender.contains(1) ? earnCashColor : kGrayColor,
+                        selectedGender.contains(1)
+                            ? Icons.check_circle
+                            : Icons.circle_outlined,
+                        color: selectedGender.contains(1)
+                            ? earnCashColor
+                            : kGrayColor,
                       )
                     ],
                   ),
@@ -546,27 +577,29 @@ class _ResponsiveSignUpScreenState extends State<ResponsiveSignUpScreen> {
             child: TextButton(
               onPressed: () {
                 if (thirdFormKey.currentState!.validate()) {
-
                   setState(() {
-                    if(userAvatar.isEmpty) {
-                      avatarErrorText = "profile_edit_complete.select_avatar".tr();
-                    }else{
+                    if (userAvatar.isEmpty) {
+                      avatarErrorText =
+                          "profile_edit_complete.select_avatar".tr();
+                    } else {
                       avatarErrorText = "";
                     }
 
-                    if(!isValidBirthday){
+                    if (!isValidBirthday) {
                       birthdayErrorText = "profile_screen.choose_birthday".tr();
-                    }else{
+                    } else {
                       birthdayErrorText = "";
                     }
 
-                    if(selectedGender.isEmpty) {
+                    if (selectedGender.isEmpty) {
                       genderErrorText = "personal_data.select_gender".tr();
-                    }else{
+                    } else {
                       genderErrorText = "";
                     }
                   });
-                  if(userAvatar.isNotEmpty && isValidBirthday && selectedGender.isNotEmpty) {
+                  if (userAvatar.isNotEmpty &&
+                      isValidBirthday &&
+                      selectedGender.isNotEmpty) {
                     verifyUsername();
                   }
                 }
@@ -596,7 +629,7 @@ class _ResponsiveSignUpScreenState extends State<ResponsiveSignUpScreen> {
     );
   }
 
-  uploadImage() async{
+  uploadImage() async {
     //Image? fromPicker = await ImagePickerWeb.getImageAsWidget();
     //File? image = await ImagePickerWeb.getImageAsFile();
     //File imageFile = await File.(image!);
@@ -607,18 +640,18 @@ class _ResponsiveSignUpScreenState extends State<ResponsiveSignUpScreen> {
     //convertImage(File(imageFile.path));
   }
 
-  cropImage(File? image) async{
+  cropImage(File? image) async {
     CroppedFile? croppedFile = await ImageCropper().cropImage(
       sourcePath: image!.path,
       maxHeight: 400,
       maxWidth: 400,
       uiSettings: [
         AndroidUiSettings(
-            toolbarTitle: 'Cropper',
-            toolbarColor: Colors.deepOrange,
-            toolbarWidgetColor: Colors.white,
-            initAspectRatio: CropAspectRatioPreset.original,
-            lockAspectRatio: false,
+          toolbarTitle: 'Cropper',
+          toolbarColor: Colors.deepOrange,
+          toolbarWidgetColor: Colors.white,
+          initAspectRatio: CropAspectRatioPreset.original,
+          lockAspectRatio: false,
         ),
         IOSUiSettings(
           title: 'Cropper',
@@ -631,14 +664,14 @@ class _ResponsiveSignUpScreenState extends State<ResponsiveSignUpScreen> {
 
     userAvatar = croppedFile!.path;
 
-    File? imageFile =  await File(croppedFile.path);
+    File? imageFile = await File(croppedFile.path);
     print("echo $imageFile");
 
     convertImage(File(croppedFile.path));
     setState(() {});
   }
 
-  convertImage(File? file) async{
+  convertImage(File? file) async {
     //QuickHelp.showLoadingDialog(context);
     DateTime date = DateTime.now();
 
@@ -703,45 +736,45 @@ class _ResponsiveSignUpScreenState extends State<ResponsiveSignUpScreen> {
 
   showCalendar() {
     showDialog(
-        context: context,
-        builder: (BuildContext context) {
-          return AlertDialog(
-            backgroundColor: Colors.white,
-            insetPadding: EdgeInsets.only(left: 10, right: 10),
-            content: ContainerCorner(
-              height: 400,
-              width: 400,
-              child: CalendarDatePicker2WithActionButtons(
-                config: CalendarDatePicker2WithActionButtonsConfig(
-                  firstDayOfWeek: 1,
-                  firstDate: DateTime(1950),
-                  lastDate: DateTime.now(),
-                  calendarType: CalendarDatePicker2Type.single,
-                  selectedDayTextStyle: TextStyle(
-                      color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                  ),
-                  selectedDayHighlightColor: Colors.purple[800],
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: Colors.white,
+          insetPadding: EdgeInsets.only(left: 10, right: 10),
+          content: ContainerCorner(
+            height: 400,
+            width: 400,
+            child: CalendarDatePicker2WithActionButtons(
+              config: CalendarDatePicker2WithActionButtonsConfig(
+                firstDayOfWeek: 1,
+                firstDate: DateTime(1950),
+                lastDate: DateTime.now(),
+                calendarType: CalendarDatePicker2Type.single,
+                selectedDayTextStyle: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
                 ),
-                onValueChanged: (dates) => setState(() {
-                  dateTime = dates[0]!;
-                }),
-                onCancelTapped: () {
-                  setState(() {
-                    dateTime = DateTime(1999);
-                  });
-                  QuickHelp.hideLoadingDialog(context);
-                },
-                onOkTapped: () {
-                  _validateBirthday(
-                      "${dateTime.day}/${dateTime.month}/${dateTime.year}");
-                  QuickHelp.hideLoadingDialog(context);
-                },
-                value: [],
+                selectedDayHighlightColor: Colors.purple[800],
               ),
+              onValueChanged: (dates) => setState(() {
+                dateTime = dates[0]!;
+              }),
+              onCancelTapped: () {
+                setState(() {
+                  dateTime = DateTime(1999);
+                });
+                QuickHelp.hideLoadingDialog(context);
+              },
+              onOkTapped: () {
+                _validateBirthday(
+                    "${dateTime.day}/${dateTime.month}/${dateTime.year}");
+                QuickHelp.hideLoadingDialog(context);
+              },
+              value: [],
             ),
-          );
-        },
+          ),
+        );
+      },
     );
   }
 
@@ -848,7 +881,7 @@ class _ResponsiveSignUpScreenState extends State<ResponsiveSignUpScreen> {
     try {
       if (QuickHelp.isWebPlatform()) {
         _webConfirmationResult = await _auth.signInWithPhoneNumber(
-            countryDialCode+phoneNumberEditingController.text,
+            countryDialCode + phoneNumberEditingController.text,
             RecaptchaVerifier(
               auth: FirebaseAuthPlatform.instance,
               size: RecaptchaVerifierSize.compact,
@@ -879,10 +912,9 @@ class _ResponsiveSignUpScreenState extends State<ResponsiveSignUpScreen> {
                     message: "auth.recaptcha_expired".tr());
               },
             ));
-
       } else {
         await _auth.verifyPhoneNumber(
-            phoneNumber: countryDialCode+phoneNumberEditingController.text,
+            phoneNumber: countryDialCode + phoneNumberEditingController.text,
             timeout: const Duration(seconds: 5),
             verificationCompleted: verificationCompleted,
             verificationFailed: verificationFailed,
@@ -926,15 +958,15 @@ class _ResponsiveSignUpScreenState extends State<ResponsiveSignUpScreen> {
     QuickHelp.showLoadingDialog(context);
 
     QueryBuilder<UserModel> queryPhoneNumber =
-    QueryBuilder<UserModel>(UserModel.forQuery());
+        QueryBuilder<UserModel>(UserModel.forQuery());
 
-    queryPhoneNumber.whereEqualTo(UserModel.keyPhoneNumber, phoneNumberEditingController.text);
     queryPhoneNumber.whereEqualTo(
-        UserModel.keyCountryCode, countryIsoCode);
+        UserModel.keyPhoneNumber, phoneNumberEditingController.text);
+    queryPhoneNumber.whereEqualTo(UserModel.keyCountryCode, countryIsoCode);
     ParseResponse phoneNumberResponse = await queryPhoneNumber.query();
 
     QueryBuilder<UserModel> queryEmail =
-    QueryBuilder<UserModel>(UserModel.forQuery());
+        QueryBuilder<UserModel>(UserModel.forQuery());
 
     queryEmail.whereEqualTo(UserModel.keyEmail, emailTextController.text);
     ParseResponse emailResponse = await queryEmail.query();
@@ -1470,7 +1502,7 @@ class _ResponsiveSignUpScreenState extends State<ResponsiveSignUpScreen> {
           borderColor: isEmptyPhoneField ? kRedColor1 : kTransparentColor,
           errorTextField: TextStyle(fontSize: 0.0),
           validator: (text) {
-            if(text!.isEmpty) {
+            if (text!.isEmpty) {
               isEmptyPhoneField = true;
               setState(() {});
               return "";
@@ -1480,10 +1512,10 @@ class _ResponsiveSignUpScreenState extends State<ResponsiveSignUpScreen> {
             return null;
           },
           onChanged: (text) {
-            if(text.isEmpty) {
+            if (text.isEmpty) {
               isEmptyPhoneField = true;
               setState(() {});
-            }else{
+            } else {
               isEmptyPhoneField = false;
               setState(() {});
             }
@@ -1494,7 +1526,7 @@ class _ResponsiveSignUpScreenState extends State<ResponsiveSignUpScreen> {
           onCountryChanged: (country) {
             countryIsoCode = country.isoCode;
             countryDialCode = country.dialCode;
-            languagesIso =  country.languagesIso;
+            languagesIso = country.languagesIso;
           },
         ),
         TextWithTap(
@@ -1527,7 +1559,7 @@ class _ResponsiveSignUpScreenState extends State<ResponsiveSignUpScreen> {
     );
   }
 
-Widget phoneCodeInput() {
+  Widget phoneCodeInput() {
     return ContainerCorner(
       width: 450,
       height: 450,
@@ -1629,7 +1661,7 @@ Widget phoneCodeInput() {
               text: "next".tr(),
               fontWeight: FontWeight.normal,
               onTap: () {
-                if(secondFormKey.currentState!.validate()) {
+                if (secondFormKey.currentState!.validate()) {
                   verifyCode(_pinCode);
                 }
               },
@@ -1672,7 +1704,8 @@ Widget phoneCodeInput() {
                         decoration: TextDecoration.underline,
                         fontWeight: FontWeight.normal,
                         fontSize: 14,
-                        onTap: () => _showResend ? _sendVerificationCode(true) : null,
+                        onTap: () =>
+                            _showResend ? _sendVerificationCode(true) : null,
                       ),
                     ),
                     TextWithTap(
@@ -1698,8 +1731,8 @@ Widget phoneCodeInput() {
                     ),
                   ],
                 )
-              ],),
-
+              ],
+            ),
           ],
         ),
       ),
@@ -1712,9 +1745,7 @@ Widget phoneCodeInput() {
 
     try {
       if (QuickHelp.isWebPlatform()) {
-
-        userCredential =
-        await _webConfirmationResult!.confirm(_pinCode);
+        userCredential = await _webConfirmationResult!.confirm(_pinCode);
         final User? user = userCredential.user;
 
         if (user != null) {
@@ -1761,16 +1792,17 @@ Widget phoneCodeInput() {
     }
   }
 
-  verifyUsername() async{
+  verifyUsername() async {
     QuickHelp.showLoadingDialog(context);
 
     QueryBuilder queryBuilder = QueryBuilder(UserModel.forQuery());
-    queryBuilder.whereEqualTo(UserModel.keyUsername, usernameTextController.text);
+    queryBuilder.whereEqualTo(
+        UserModel.keyUsername, usernameTextController.text);
     ParseResponse response = await queryBuilder.query();
 
-    if(response.success) {
+    if (response.success) {
       QuickHelp.hideLoadingDialog(context);
-      if(response.results != null && response.results!.isNotEmpty) {
+      if (response.results != null && response.results!.isNotEmpty) {
         QuickAlert.show(
           context: context,
           type: QuickAlertType.error,
@@ -1780,12 +1812,12 @@ Widget phoneCodeInput() {
           width: 350,
           borderRadius: 5,
         );
-      }else{
-        if(!isPasswordHidden) {
+      } else {
+        if (!isPasswordHidden) {
           createAccount();
         }
       }
-    }else{
+    } else {
       QuickHelp.hideLoadingDialog(context);
       QuickAlert.show(
         context: context,
@@ -1799,7 +1831,7 @@ Widget phoneCodeInput() {
     }
   }
 
-  createAccount() async{
+  createAccount() async {
     QuickHelp.showLoadingDialog(context);
 
     String username = usernameTextController.text;
@@ -1819,8 +1851,8 @@ Widget phoneCodeInput() {
     newUser.setCountryDialCode = countryDialCode;
     newUser.setCountryLanguages = languagesIso;
     newUser.setPhoneNumber = phoneNumberEditingController.text;
-    newUser.setPhoneNumberFull = countryIsoCode+phoneNumberEditingController.text;
-
+    newUser.setPhoneNumberFull =
+        countryIsoCode + phoneNumberEditingController.text;
 
     newUser.setUid = QuickHelp.generateUId();
     newUser.setSecondaryPassword = password;
@@ -1832,21 +1864,20 @@ Widget phoneCodeInput() {
     newUser.setBirthday = QuickHelp.getDate(myBirthday);
     newUser.setAvatar = userAvatarPicture!;
 
-
     ParseACL acl = ParseACL();
     acl.setPublicReadAccess(allowed: true);
     acl.setPublicWriteAccess(allowed: false);
     newUser.setACL(acl); // ✅ Correct object
     ParseResponse response = await newUser.save();
-    if(response.success) {
+    if (response.success) {
       QuickHelp.hideLoadingDialog(context);
-      if(response.results != null && response.results!.isNotEmpty) {
+      if (response.results != null && response.results!.isNotEmpty) {
         UserModel currentUser = response.results!.first;
         print("user $currentUser");
-      }else{
+      } else {
         print("Error");
       }
-    }else{
+    } else {
       QuickHelp.hideLoadingDialog(context);
       QuickAlert.show(
         context: context,

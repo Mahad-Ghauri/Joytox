@@ -12,14 +12,14 @@ import '../../models/UserModel.dart';
 import '../../ui/container_with_corner.dart';
 import '../../ui/text_with_tap.dart';
 import 'package:get/get.dart';
+<<<<<<< HEAD
 // ✔ correct path if controller is here
+=======
+>>>>>>> fdde1238cce4b06a0c6eb5543ed6240e6877f0b4
 import 'package:easy_localization/easy_localization.dart';
-
-
 
 // ignore: must_be_immutable
 class ReelsSavedVideosScreen extends StatefulWidget {
-
   static String route = "/home/reels/videos/saved";
 
   UserModel? currentUser;
@@ -30,10 +30,9 @@ class ReelsSavedVideosScreen extends StatefulWidget {
   _ReelsSavedVideosScreenState createState() => _ReelsSavedVideosScreenState();
 }
 
-class _ReelsSavedVideosScreenState extends State<ReelsSavedVideosScreen> with SingleTickerProviderStateMixin {
-
+class _ReelsSavedVideosScreenState extends State<ReelsSavedVideosScreen>
+    with SingleTickerProviderStateMixin {
   AnimationController? _animationController;
-
 
   @override
   void initState() {
@@ -55,7 +54,8 @@ class _ReelsSavedVideosScreenState extends State<ReelsSavedVideosScreen> with Si
 
   Widget loadVideosList() {
     QueryBuilder<PostsModel> queryBuilder = QueryBuilder(PostsModel());
-    queryBuilder.whereContains(PostsModel.keySaves, widget.currentUser!.objectId!);
+    queryBuilder.whereContains(
+        PostsModel.keySaves, widget.currentUser!.objectId!);
     queryBuilder.whereValueExists(PostsModel.keyVideo, true);
     queryBuilder.orderByDescending(keyVarCreatedAt);
 
@@ -72,13 +72,11 @@ class _ReelsSavedVideosScreenState extends State<ReelsSavedVideosScreen> with Si
         PostsModel post = snapshot.loadedData as PostsModel;
 
         return GestureDetector(
-          onTap: (){
+          onTap: () {
             Get.to(() => ReelsSingleScreen(
-              currentUser: widget.currentUser, // ✅ fix
-              post: post,
-            ));
-
-
+                  currentUser: widget.currentUser, // ✅ fix
+                  post: post,
+                ));
           },
           child: Stack(
             children: [
