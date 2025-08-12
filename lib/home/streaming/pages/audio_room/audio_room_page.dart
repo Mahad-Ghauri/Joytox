@@ -13,7 +13,6 @@ import '../../components/components.dart';
 import '../../live_audio_room_manager.dart';
 import '../../utils/zegocloud_token.dart';
 import '../../zego_sdk_key_center.dart';
-import 'package:zego_express_engine/zego_express_engine.dart';
 import '../../zego_live_audio_room_seat_tile.dart';
 
 

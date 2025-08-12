@@ -42,6 +42,11 @@
         android:supportsRtl="true"
         tools:replace="android:icon">
 
+        <!-- Disable Impeller to avoid ink_sparkle shader crash -->
+    <meta-data
+        android:name="io.flutter.embedding.android.EnableImpeller"
+        android:value="false" />
+
         <!-- ✅ Firebase & AdMob -->
         <meta-data android:name="com.google.firebase.messaging.default_notification_channel_id" android:value="high_importance_channel" />
         <meta-data android:name="com.google.android.gms.ads.APPLICATION_ID" android:value="ca-app-pub-2704997258619681~4217360803" />
