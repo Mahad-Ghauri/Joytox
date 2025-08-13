@@ -244,15 +244,15 @@ void showSeatActionMenu({
               onActionSelected('mute', seatIndex);
             },
           ),
-          ListTile(
-            leading: Icon(Icons.mic),
-            title: Text("Unmute Seat"),
-            onTap: () {
-              print("Unmute action selected for seat $seatIndex");
-              Navigator.of(context).pop();
-              onActionSelected('unmute', seatIndex);
-            },
-          ),
+          // ListTile(
+          //   leading: Icon(Icons.mic),
+          //   title: Text("Unmute Seat"),
+          //   onTap: () {
+          //     print("Unmute action selected for seat $seatIndex");
+          //     Navigator.of(context).pop();
+          //     onActionSelected('unmute', seatIndex);
+          //   },
+          // ),
           ListTile(
             leading: Icon(Icons.person_add),
             title: Text("Invite Friends"),
