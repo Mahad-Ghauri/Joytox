@@ -2907,5 +2907,29 @@
     "video_duration_limit": "The video must be at most {duration} seconds",
     "video_too_large": "This file is too large",
     "video_size_limit": "The maximum allowed size is {size}MB"
-  }
+  },
+
+  "seat_invitation": {
+    "title": "Seat Invitation",
+    "host_label": "Host",
+    "message": "{host} has invited you to join seat {seat} in their audio room!",
+    "accept": "Accept",
+    "decline": "Decline",
+    "expires_at": "Expires at {time}",
+    "invitation_sent_success": "Invitation sent to {name} for seat {seat}",
+    "invitation_failed": "Failed to send invitation",
+    "response_failed": "Failed to respond to invitation"
+  },
+
+  "seat_actions": {
+    "muted": "Muted",
+    "unmuted": "Unmuted",
+    "seat_muted_success": "Seat {seat} has been muted successfully",
+    "seat_unmuted_success": "Seat {seat} has been unmuted successfully",
+    "removed": "Removed",
+    "user_removed_success": "User removed from seat {seat} successfully",
+    "action_failed": "Action failed, please try again"
+  },
+
+  "invite_to_seat": "{name} has been invited to join seat {seat}!"
 }

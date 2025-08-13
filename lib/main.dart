@@ -97,6 +97,7 @@ import 'models/LiveStreamingModel.dart';
 import 'models/MessageListModel.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:trace/models/VideoInteractionModel.dart';
+import 'package:trace/models/SeatInvitationModel.dart';
 import 'package:trace/views/video_creation_page.dart';
 import 'package:trace/views/video_editor_screen.dart';
 import 'package:trace/services/posts_service.dart';
@@ -184,6 +185,7 @@ void main() async {
     ReplyModel.keyTableName: () => ReplyModel(),
     PostReactionsModel.keyTableName: () => PostReactionsModel(),
     VideoInteractionModel.keyTableName: () => VideoInteractionModel(),
+    SeatInvitationModel.keyTableName: () => SeatInvitationModel(),
   };
   //  Initialize the application id, server url, client id and etc
   await Parse().initialize(

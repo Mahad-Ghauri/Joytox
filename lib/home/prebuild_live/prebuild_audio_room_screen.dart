@@ -53,6 +53,8 @@ import '../streaming/live_audio_room_manager.dart';
 import '../streaming/pages/audio_room/audio_room_page.dart';
 import 'package:zego_uikit_signaling_plugin/zego_uikit_signaling_plugin.dart';
 import 'package:zego_uikit_prebuilt_live_audio_room/zego_uikit_prebuilt_live_audio_room.dart';
+import '../../services/seat_invitation_service.dart';
+import '../../services/seat_invitation_listener.dart';
 
 class PrebuildAudioRoomScreen extends StatefulWidget {
   UserModel? currentUser;
@@ -95,6 +97,11 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
   final selectedGiftItemNotifier = ValueNotifier<GiftsModel?>(null);
   Timer? removeGiftTimer;
   Timer? announcementPollingTimer;
+
+  // Seat invitation services
+  final SeatInvitationService _seatInvitationService = SeatInvitationService();
+  final SeatInvitationListener _seatInvitationListener =
+      SeatInvitationListener();
 
   // Announcement state
   final List<AnnouncementData> _announcements = [];
@@ -240,6 +247,13 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
       showGiftSendersController.validateSeatStates();
     }
 
+    // Initialize seat invitation listener for real-time invitations
+    print("🎧 Initializing seat invitation listener");
+    _seatInvitationListener.initialize(
+      currentUser: widget.currentUser!,
+      context: context,
+    );
+
     // Debug: Print seat configuration
     print("🪑 SEAT CONFIGURATION:");
     print("🪑 User seats requested: $userSeats");
@@ -315,6 +329,16 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
     _animationController = AnimationController.unbounded(vsync: this);
     _musicListener = _onMusicStateChanged;
     ZegoLiveAudioRoomManager().musicStateNoti.addListener(_musicListener);
+
+    // Initialize seat invitation listener
+    _seatInvitationListener.initialize(
+      currentUser: widget.currentUser!,
+      context: context,
+    );
+
+    // Check for pending invitations
+    _seatInvitationListener.checkPendingInvitations();
+
     print("📢 [ANNOUNCEMENT DEBUG] initState() completed successfully");
 
     // Add a test announcement after a delay to verify the system works
@@ -555,6 +579,9 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
 
   @override
   void dispose() {
+    // Clean up seat invitation listener
+    _seatInvitationListener.dispose();
+
     super.dispose();
     WakelockPlus.disable();
     showGiftSendersController.isPrivateLive.value = false;
@@ -568,13 +595,15 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
     }
     messagesSubscription = null;
 
-    // Cancel announcement polling timer
+    // Cancel timers
+    removeGiftTimer?.cancel();
     announcementPollingTimer?.cancel();
     announcementPollingTimer = null;
 
     _avatarWidgetsCache.clear();
     _destroyMusicPlayer();
     ZegoLiveAudioRoomManager().musicStateNoti.removeListener(_musicListener);
+    _animationController?.dispose();
     _announcementsNotifier.dispose(); // Clean up announcement notifier
 
     // Optional: clear theme listener if you registered one
@@ -670,6 +699,232 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
     } catch (e) {
       debugPrint('_initThemeSync error: $e');
     }
+  }
+
+  // Handle seat management actions with Zego API integration
+  Future<void> _handleSeatAction(String action, int seatIndex) async {
+    print("🎭 [SEAT ACTION] Handling action '$action' for seat $seatIndex");
+
+    try {
+      final controller = ZegoUIKitPrebuiltLiveAudioRoomController();
+      final seatState = showGiftSendersController.getSeatState(seatIndex);
+
+      if (seatState == null) {
+        print("🎭 [SEAT ACTION] ❌ Seat state is null for seat $seatIndex");
+        return;
+      }
+
+      final userId = seatState['userId'] as String?;
+      print(
+          "🎭 [SEAT ACTION] Current user in seat $seatIndex: ${userId ?? 'empty'}");
+
+      switch (action) {
+        case 'lock':
+          print("🔒 [SEAT ACTION] Locking seat $seatIndex");
+          // Update local state
+          showGiftSendersController.lockSeat(seatIndex);
+
+          // Use Zego API to close the seat
+          try {
+            await controller.seat.host.close(targetIndex: seatIndex);
+            print(
+                "🔒 [SEAT ACTION] ✅ Successfully locked seat $seatIndex in Zego");
+          } catch (e) {
+            print("🔒 [SEAT ACTION] ❌ Failed to lock seat in Zego: $e");
+          }
+          break;
+
+        case 'unlock':
+          print("🔓 [SEAT ACTION] Unlocking seat $seatIndex");
+          // Update local state
+          showGiftSendersController.unlockSeat(seatIndex);
+
+          // Use Zego API to open the seat
+          try {
+            await controller.seat.host.open(targetIndex: seatIndex);
+            print(
+                "🔓 [SEAT ACTION] ✅ Successfully unlocked seat $seatIndex in Zego");
+          } catch (e) {
+            print("🔓 [SEAT ACTION] ❌ Failed to unlock seat in Zego: $e");
+          }
+          break;
+
+        case 'mute':
+          if (userId != null) {
+            print("🔇 [SEAT ACTION] Muting user $userId in seat $seatIndex");
+            // Update local state
+            showGiftSendersController.muteSeat(seatIndex);
+
+            // Use Zego API to mute the user
+            try {
+              await controller.seat.host
+                  .mute(targetIndex: seatIndex, muted: true);
+              print(
+                  "🔇 [SEAT ACTION] ✅ Successfully muted seat $seatIndex in Zego");
+            } catch (e) {
+              print("🔇 [SEAT ACTION] ❌ Failed to mute seat in Zego: $e");
+              // Try alternative method with user ID
+              try {
+                await controller.seat.host.muteByUserID(userId, muted: true);
+                print(
+                    "🔇 [SEAT ACTION] ✅ Successfully muted user $userId via userID");
+              } catch (e2) {
+                print("🔇 [SEAT ACTION] ❌ Failed to mute user via userID: $e2");
+              }
+            }
+          } else {
+            print("🔇 [SEAT ACTION] ❌ Cannot mute empty seat");
+          }
+          break;
+
+        case 'unmute':
+          if (userId != null) {
+            print("🔊 [SEAT ACTION] Unmuting user $userId in seat $seatIndex");
+            // Update local state
+            showGiftSendersController.unmuteSeat(seatIndex);
+
+            // Use Zego API to unmute the user
+            try {
+              await controller.seat.host
+                  .mute(targetIndex: seatIndex, muted: false);
+              print(
+                  "🔊 [SEAT ACTION] ✅ Successfully unmuted seat $seatIndex in Zego");
+            } catch (e) {
+              print("🔊 [SEAT ACTION] ❌ Failed to unmute seat in Zego: $e");
+              // Try alternative method with user ID
+              try {
+                await controller.seat.host.muteByUserID(userId, muted: false);
+                print(
+                    "🔊 [SEAT ACTION] ✅ Successfully unmuted user $userId via userID");
+              } catch (e2) {
+                print(
+                    "🔊 [SEAT ACTION] ❌ Failed to unmute user via userID: $e2");
+              }
+            }
+          } else {
+            print("🔊 [SEAT ACTION] ❌ Cannot unmute empty seat");
+          }
+          break;
+
+        case 'remove':
+          if (userId != null) {
+            print(
+                "👤 [SEAT ACTION] Removing user $userId from seat $seatIndex");
+
+            // Use Zego API to remove the speaker
+            try {
+              await controller.seat.host.removeSpeaker(userId);
+              print(
+                  "👤 [SEAT ACTION] ✅ Successfully removed user $userId from Zego");
+
+              // Update local state after successful removal
+              showGiftSendersController.updateSeatState(
+                  seatIndex, 'userId', null);
+              showGiftSendersController.updateSeatState(
+                  seatIndex, 'userName', null);
+              showGiftSendersController.updateSeatState(
+                  seatIndex, 'isMuted', false);
+            } catch (e) {
+              print("👤 [SEAT ACTION] ❌ Failed to remove user from Zego: $e");
+            }
+          } else {
+            print("👤 [SEAT ACTION] ❌ Cannot remove user from empty seat");
+          }
+          break;
+
+        case 'invite':
+          print("📧 [SEAT ACTION] Opening invite dialog for seat $seatIndex");
+          _showInviteFriendsDialog(seatIndex);
+          break;
+
+        default:
+          print("🎭 [SEAT ACTION] ❌ Unknown action: $action");
+      }
+
+      // Show success feedback to user
+      if (mounted) {
+        QuickHelp.showAppNotificationAdvanced(
+          context: context,
+          user: widget.currentUser,
+          title: "Seat Action",
+          message: "Action '$action' completed for seat ${seatIndex + 1}",
+          isError: false,
+        );
+      }
+    } catch (e) {
+      print("🎭 [SEAT ACTION] ❌ Error handling seat action: $e");
+
+      // Show error feedback to user
+      if (mounted) {
+        QuickHelp.showAppNotificationAdvanced(
+          context: context,
+          user: widget.currentUser,
+          title: "Seat Action Failed",
+          message: "Failed to $action seat ${seatIndex + 1}: ${e.toString()}",
+          isError: true,
+        );
+      }
+    }
+  }
+
+  // Show invite friends dialog for a specific seat
+  void _showInviteFriendsDialog(int seatIndex) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => InviteFriendsSheet(
+        currentUser: widget.currentUser!,
+        seatIndex: seatIndex,
+        onUserSelected: (user, seatIndex) async {
+          print(
+              "📧 [INVITE] Inviting user ${user.getFullName} to seat $seatIndex");
+
+          // Send seat invitation using the service
+          final invitation = await _seatInvitationService.sendSeatInvitation(
+            inviter: widget.currentUser!,
+            invitee: user,
+            liveStreaming: widget.liveStreaming!,
+            seatIndex: seatIndex,
+            customMessage: "You've been invited to join seat ${seatIndex + 1}!",
+          );
+
+          if (invitation != null) {
+            print("📧 [INVITE] ✅ Invitation sent successfully");
+
+            // Also send Zego invitation for real-time notification
+            try {
+              final controller = ZegoUIKitPrebuiltLiveAudioRoomController();
+              await controller.seat.host.inviteToTake(user.objectId!);
+              print("📧 [INVITE] ✅ Zego invitation sent successfully");
+            } catch (e) {
+              print("📧 [INVITE] ❌ Failed to send Zego invitation: $e");
+            }
+
+            if (mounted) {
+              QuickHelp.showAppNotificationAdvanced(
+                context: context,
+                user: widget.currentUser,
+                title: "Invitation Sent",
+                message: "Invited ${user.getFullName} to seat ${seatIndex + 1}",
+                isError: false,
+              );
+            }
+          } else {
+            print("📧 [INVITE] ❌ Failed to send invitation");
+            if (mounted) {
+              QuickHelp.showAppNotificationAdvanced(
+                context: context,
+                user: widget.currentUser,
+                title: "Invitation Failed",
+                message: "Failed to invite ${user.getFullName}",
+                isError: true,
+              );
+            }
+          }
+        },
+      ),
+    );
   }
 
   @override
@@ -1074,7 +1329,7 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
                         context: context,
                         currentUser: widget.currentUser!,
                         seatIndex: seatIndex,
-                        onActionSelected: handleSeatAction,
+                        onActionSelected: _handleSeatAction,
                       );
                     },
                     child: Container(
@@ -2689,45 +2944,52 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
     try {
       QuickHelp.showLoadingDialog(context);
 
-      // Update local seat state to show invited user
-      showGiftSendersController.updateSeatState(
-        seatIndex,
-        'userId',
-        user.objectId,
-      );
-      showGiftSendersController.updateSeatState(
-        seatIndex,
-        'userName',
-        user.getFullName,
-      );
-
-      // Send invitation message
-      sendMessage(
-        "invite_to_seat".tr(
-          namedArgs: {
-            "name": user.getFirstName ?? "User",
-            "seat": "${seatIndex + 1}",
-          },
-        ),
+      // Send proper seat invitation using the invitation service
+      final invitation = await _seatInvitationService.sendSeatInvitation(
+        inviter: widget.currentUser!,
+        invitee: user,
+        liveStreaming: widget.liveStreaming!,
+        seatIndex: seatIndex,
+        customMessage: "Join me in seat ${seatIndex + 1}!",
       );
 
       QuickHelp.hideLoadingDialog(context);
-      QuickHelp.showAppNotificationAdvanced(
-        context: context,
-        title: "invite_friends.invited".tr(),
-        message: "invite_friends.invitation_sent".tr(
-          namedArgs: {
-            "name": user.getFirstName ?? "User",
-            "seat": "${seatIndex + 1}",
-          },
-        ),
-      );
+
+      if (invitation != null) {
+        // Send invitation message to the room
+        sendMessage(
+          "invite_to_seat".tr(
+            namedArgs: {
+              "name": user.getFirstName ?? "User",
+              "seat": "${seatIndex + 1}",
+            },
+          ),
+        );
+
+        QuickHelp.showAppNotificationAdvanced(
+          context: context,
+          title: "invite_friends.invited".tr(),
+          message: "seat_invitation.invitation_sent_success".tr(
+            namedArgs: {
+              "name": user.getFirstName ?? "User",
+              "seat": "${seatIndex + 1}",
+            },
+          ),
+        );
+      } else {
+        QuickHelp.showAppNotificationAdvanced(
+          context: context,
+          title: "error".tr(),
+          message: "seat_invitation.invitation_failed".tr(),
+          isError: true,
+        );
+      }
     } catch (e) {
       QuickHelp.hideLoadingDialog(context);
       QuickHelp.showAppNotificationAdvanced(
         context: context,
         title: "error".tr(),
-        message: "invite_friends.invitation_failed".tr(),
+        message: "seat_invitation.invitation_failed".tr(),
         isError: true,
       );
       print("Error inviting user to seat: $e");

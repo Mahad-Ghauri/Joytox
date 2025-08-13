@@ -4,25 +4,26 @@ import 'package:trace/models/UserModel.dart';
 import 'package:parse_server_sdk/parse_server_sdk.dart';
 
 class NotificationsModel extends ParseObject implements ParseCloneable {
-
   static final String keyTableName = "Notifications";
 
   NotificationsModel() : super(keyTableName);
   NotificationsModel.clone() : this();
 
   @override
-  NotificationsModel clone(Map<String, dynamic> map) => NotificationsModel.clone()..fromJson(map);
+  NotificationsModel clone(Map<String, dynamic> map) =>
+      NotificationsModel.clone()..fromJson(map);
 
   static String notificationTypeFollowers = "followers";
   static String notificationTypeLikedPost = "postLiked";
   static String notificationTypeCommentPost = "postComment";
   static String notificationTypeReplyCommentPost = "replyPostComment";
   static String notificationTypeLiveInvite = "liveInvite";
+  static String notificationTypeSeatInvitation = "seatInvitation";
   static String notificationTypeLikedReels = "reelsLiked";
   static String notificationTypeCommentReels = "reelsComment";
 
   static String keyCreatedAt = "createdAt";
-  static String keyObjectId = "objectId";
+
 
   static String keyAuthor = "Author";
   static String keyAuthorId = "AuthorId";
@@ -40,6 +41,8 @@ class NotificationsModel extends ParseObject implements ParseCloneable {
   static String keyLive = "Live";
   static String keyLiveAuthor = "Live.Author";
 
+  static String keyMessage = "message";
+  static String keyObjectId = "objectId";
 
   UserModel? get getAuthor => get<UserModel>(keyAuthor);
   set setAuthor(UserModel author) => set<UserModel>(keyAuthor, author);
@@ -57,19 +60,27 @@ class NotificationsModel extends ParseObject implements ParseCloneable {
   set setReceiverId(String authorId) => set<String>(keyReceiverId, authorId);
 
   String? get getNotificationType => get<String>(keyNotificationType);
-  set setNotificationType(String notificationType) => set<String>(keyNotificationType, notificationType);
+  set setNotificationType(String notificationType) =>
+      set<String>(keyNotificationType, notificationType);
 
   bool? get isRead {
     bool? read = get<bool>(keyRead);
-    if(read != null){
+    if (read != null) {
       return read;
     } else {
       return false;
     }
   }
+
   set setRead(bool read) => set<bool>(keyRead, read);
 
   LiveStreamingModel? get getLive => get<LiveStreamingModel>(keyLive);
-  set setLive(LiveStreamingModel live) => set<LiveStreamingModel>(keyLive, live);
+  set setLive(LiveStreamingModel live) =>
+      set<LiveStreamingModel>(keyLive, live);
 
+  String? get getMessage => get<String>(keyMessage);
+  set setMessage(String message) => set<String>(keyMessage, message);
+
+  String? get getObjectId => get<String>(keyObjectId);
+  set setObjectId(String objectId) => set<String>(keyObjectId, objectId);
 }
