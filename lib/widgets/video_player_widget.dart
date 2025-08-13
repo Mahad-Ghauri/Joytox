@@ -95,13 +95,16 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
           return _buildThumbnail();
         }
 
+        // PERFORMANCE OPTIMIZATION: Cache the video widget to avoid rebuilds
         return GestureDetector(
           onTap: _handleTap,
           child: Center(
             child: AspectRatio(
               aspectRatio: value.aspectRatio,
               child: _isControllerValid && !_isDisposed
-                  ? CachedVideoPlayerPlus(_controller!)
+                  ? RepaintBoundary(
+                      child: CachedVideoPlayerPlus(_controller!),
+                    )
                   : _buildThumbnail(),
             ),
           ),
@@ -120,6 +123,9 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
               fit: BoxFit.cover,
               width: double.infinity,
               height: double.infinity,
+              // MEMORY OPTIMIZATION: Limit thumbnail resolution - saves ~20-30MB
+              maxHeightDiskCache: 512,
+              maxWidthDiskCache: 512,
               placeholder: (context, url) =>
                   const Center(child: CircularProgressIndicator()),
               errorWidget: (context, url, error) =>

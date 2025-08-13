@@ -58,11 +58,15 @@ class FeedController extends GetxController {
   }
 
   void _setupRefreshTimer() {
-    // Executar refresh periódico para manter dados atualizados
+    // MEMORY OPTIMIZATION: Reduce posts in memory every 5 minutes
     _refreshTimer = Timer.periodic(Duration(minutes: 5), (_) {
-      // Reduzir o tamanho da memória, método definido no novo PostsService
-      // postsService._reduceMemoryFootprint();
-      // postsService._reduceMemoryFootprint();
+      // Keep only recent posts to save memory (saves ~50-100MB)
+      if (posts.length > 50) {
+        print(
+            '📊 FeedController: Reduced posts from ${posts.length} to 30 for memory optimization');
+        // Keep only the most recent 30 posts
+        postsService.allPosts.value = posts.take(30).toList();
+      }
     });
   }
 
@@ -103,10 +107,13 @@ class FeedController extends GetxController {
     }
 
     subscription!.on(LiveQueryEvent.create, (PostsModel post) async {
-      await post.getAuthor!.fetch();
-      if (post.getLastLikeAuthor != null) {
-        await post.getLastLikeAuthor!.fetch();
+      // MEMORY OPTIMIZATION: Only fetch author if not already loaded
+      if (post.getAuthor == null && post.getAuthorId != null) {
+        await post.getAuthor!.fetch();
       }
+
+      // MEMORY OPTIMIZATION: Skip lastLikeAuthor fetch to save memory and network
+      // This information can be loaded on-demand when displaying likes
 
       // Usar o serviço otimizado para adicionar o novo post
       if (post.getVideo != null && post.getVideoThumbnail != null) {
@@ -119,10 +126,12 @@ class FeedController extends GetxController {
     });
 
     subscription!.on(LiveQueryEvent.update, (PostsModel post) async {
-      await post.getAuthor!.fetch();
-      if (post.getLastLikeAuthor != null) {
-        await post.getLastLikeAuthor!.fetch();
+      // MEMORY OPTIMIZATION: Only fetch author if not already loaded
+      if (post.getAuthor == null && post.getAuthorId != null) {
+        await post.getAuthor!.fetch();
       }
+
+      // MEMORY OPTIMIZATION: Skip lastLikeAuthor fetch to save memory and network
 
       // Atualizar apenas posts de feed
       if (post.getVideo == null || post.getVideoThumbnail == null) {

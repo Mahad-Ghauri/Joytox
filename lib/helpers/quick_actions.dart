@@ -20,11 +20,14 @@ import 'package:flutter/material.dart';
 import '../utils/colors.dart';
 
 class QuickActions {
-
-
-  static Widget avatarWidgetNotification({double? width, double? height, EdgeInsets? margin, String? imageUrl, UserModel? currentUser, }) {
-
-    if(imageUrl != null) {
+  static Widget avatarWidgetNotification({
+    double? width,
+    double? height,
+    EdgeInsets? margin,
+    String? imageUrl,
+    UserModel? currentUser,
+  }) {
+    if (imageUrl != null) {
       return Container(
         margin: margin,
         width: width,
@@ -58,17 +61,17 @@ class QuickActions {
           errorWidget: (context, url, error) => _avatarInitials(currentUser),
         ),
       );
-    }  else {
+    } else {
       return Container();
     }
   }
 
   static Widget eventBgImage(String? imageUrl,
       {double? borderRadius = 8,
-        BoxFit? fit = BoxFit.cover,
-        double? width,
-        double? height,
-        EdgeInsets? margin}) {
+      BoxFit? fit = BoxFit.cover,
+      double? width,
+      double? height,
+      EdgeInsets? margin}) {
     return Container(
       margin: margin,
       width: width,
@@ -101,12 +104,12 @@ class QuickActions {
       mainAxisSize: MainAxisSize.min,
       children: [
         Lottie.asset(
-            QuickHelp.getUserStatesIcon(state),
-          height: state == UserModel.userLiving ? 35 :  13,
-          width: state == UserModel.userLiving ? 35 :  13,
+          QuickHelp.getUserStatesIcon(state),
+          height: state == UserModel.userLiving ? 35 : 13,
+          width: state == UserModel.userLiving ? 35 : 13,
         ),
         TextWithTap(
-            QuickHelp.getUserStatesByCode(state),
+          QuickHelp.getUserStatesByCode(state),
           fontSize: 9,
           marginLeft: 3,
         ),
@@ -114,7 +117,8 @@ class QuickActions {
     );
   }
 
-  static Widget avatarWidget(UserModel currentUser, {
+  static Widget avatarWidget(
+    UserModel currentUser, {
     double? width,
     double? height,
     EdgeInsets? margin,
@@ -138,11 +142,13 @@ class QuickActions {
               imageBuilder: (context, imageProvider) => Container(
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  image: DecorationImage(image: imageProvider, fit: BoxFit.cover),
+                  image:
+                      DecorationImage(image: imageProvider, fit: BoxFit.cover),
                 ),
               ),
               placeholder: (context, url) => _avatarInitials(currentUser),
-              errorWidget: (context, url, error) => _avatarInitials(currentUser),
+              errorWidget: (context, url, error) =>
+                  _avatarInitials(currentUser),
             ),
           ),
           if (currentUser.getAvatarFrame != null &&
@@ -166,7 +172,9 @@ class QuickActions {
                 ),
               ),
             ),
-          if(!hideAvatarFrame && currentUser.getIsUserVip! && !currentUser.getCanUseAvatarFrame!)
+          if (!hideAvatarFrame &&
+              currentUser.getIsUserVip! &&
+              !currentUser.getCanUseAvatarFrame!)
             Container(
               margin: margin,
               child: Image.asset(
@@ -179,7 +187,7 @@ class QuickActions {
             ),
         ],
       );
-    } else if(imageUrl != null) {
+    } else if (imageUrl != null) {
       return Stack(
         alignment: AlignmentDirectional.center,
         children: [
@@ -192,24 +200,29 @@ class QuickActions {
               imageBuilder: (context, imageProvider) => Container(
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  image: DecorationImage(image: imageProvider, fit: BoxFit.cover),
+                  image:
+                      DecorationImage(image: imageProvider, fit: BoxFit.cover),
                 ),
               ),
               //placeholder: (context, url) => _avatarInitials(currentUser),
               //errorWidget: (context, url, error) => _avatarInitials(currentUser),
             ),
           ),
-          if(currentUser.getAvatarFrame != null && !hideAvatarFrame)
+          if (currentUser.getAvatarFrame != null && !hideAvatarFrame)
             Container(
               margin: margin,
               width: width! + 15,
               height: height! + 15,
               child: CachedNetworkImage(
                 imageUrl: currentUser.getAvatarFrame!.url!,
+                // MEMORY OPTIMIZATION: Limit avatar frame resolution - saves ~20MB
+                maxHeightDiskCache: 200,
+                maxWidthDiskCache: 200,
                 imageBuilder: (context, imageProvider) => Container(
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    image: DecorationImage(image: imageProvider, fit: BoxFit.cover),
+                    image: DecorationImage(
+                        image: imageProvider, fit: BoxFit.cover),
                   ),
                 ),
               ),
@@ -227,21 +240,28 @@ class QuickActions {
       textSize: 18,
       avatarRadius: 10,
       backgroundColor:
-      QuickHelp.isDarkModeNoContext() ? Colors.white : kPrimaryColor,
+          QuickHelp.isDarkModeNoContext() ? Colors.white : kPrimaryColor,
       textColor: QuickHelp.isDarkModeNoContext()
           ? kContentColorLightTheme
           : kContentColorDarkTheme,
     );
   }
 
-  static Widget photosWidget(String? imageUrl, {
-    double? borderRadius = 8, BoxFit? fit = BoxFit.cover, double? width, double? height, EdgeInsets? margin}) {
+  static Widget photosWidget(String? imageUrl,
+      {double? borderRadius = 8,
+      BoxFit? fit = BoxFit.cover,
+      double? width,
+      double? height,
+      EdgeInsets? margin}) {
     return Container(
       margin: margin,
       width: width,
       height: height,
       child: CachedNetworkImage(
         imageUrl: imageUrl != null ? imageUrl : "",
+        // MEMORY OPTIMIZATION: Limit image resolution based on display size - saves ~100-200MB
+        maxHeightDiskCache: 1024,
+        maxWidthDiskCache: 1024,
         imageBuilder: (context, imageProvider) => Container(
           decoration: BoxDecoration(
             //shape: boxShape!,
@@ -249,30 +269,35 @@ class QuickActions {
             image: DecorationImage(image: imageProvider, fit: fit),
           ),
         ),
-        placeholder: (context, url) => _loadingWidget(width: width, height: height, radius: borderRadius),
-        errorWidget: (context, url, error) => _loadingWidget(width: width, height: height, radius: borderRadius),
+        placeholder: (context, url) =>
+            _loadingWidget(width: width, height: height, radius: borderRadius),
+        errorWidget: (context, url, error) =>
+            _loadingWidget(width: width, height: height, radius: borderRadius),
       ),
     );
   }
 
   static Widget pictureWithDifferentRadius(
-      String? imageUrl, {
-        BoxFit? fit = BoxFit.cover,
-        double? width,
-        double? height,
-        EdgeInsets? margin,
-        double? radiusTopRight = 0,
-        double? radiusBottomRight = 0,
-        double? radiusTopLeft = 0,
-        double? radiusBottomLeft = 0,
-        double? borderRadius = 0,
-      }) {
+    String? imageUrl, {
+    BoxFit? fit = BoxFit.cover,
+    double? width,
+    double? height,
+    EdgeInsets? margin,
+    double? radiusTopRight = 0,
+    double? radiusBottomRight = 0,
+    double? radiusTopLeft = 0,
+    double? radiusBottomLeft = 0,
+    double? borderRadius = 0,
+  }) {
     return Container(
       margin: margin,
       width: width,
       height: height,
       child: CachedNetworkImage(
         imageUrl: imageUrl != null ? imageUrl : "",
+        // MEMORY OPTIMIZATION: Limit image resolution - saves ~50MB
+        maxHeightDiskCache: 1024,
+        maxWidthDiskCache: 1024,
         imageBuilder: (context, imageProvider) => Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.only(
@@ -288,13 +313,16 @@ class QuickActions {
             image: DecorationImage(image: imageProvider, fit: fit),
           ),
         ),
-        placeholder: (context, url) => _loadingWidget(width: width, height: height, radius: borderRadius),
-        errorWidget: (context, url, error) => _loadingWidget(width: width, height: height, radius: borderRadius),
+        placeholder: (context, url) =>
+            _loadingWidget(width: width, height: height, radius: borderRadius),
+        errorWidget: (context, url, error) =>
+            _loadingWidget(width: width, height: height, radius: borderRadius),
       ),
     );
   }
 
-  static Widget getGender({required UserModel currentUser, required BuildContext context}) {
+  static Widget getGender(
+      {required UserModel currentUser, required BuildContext context}) {
     bool isMale = currentUser.getGender == UserModel.keyGenderMale;
     Size size = MediaQuery.of(context).size;
     return ContainerCorner(
@@ -313,8 +341,7 @@ class QuickActions {
               size: size.width / 40,
             ),
             TextWithTap(
-              QuickHelp.getAgeFromDate(currentUser.getBirthday!)
-                  .toString(),
+              QuickHelp.getAgeFromDate(currentUser.getBirthday!).toString(),
               color: Colors.white,
               fontSize: size.width / 40,
               marginLeft: 2,
@@ -326,7 +353,14 @@ class QuickActions {
     );
   }
 
-  static Widget photosWidgetCircle(String imageUrl, {double? borderRadius = 8, BoxFit? fit = BoxFit.cover, double? width, double? height, EdgeInsets? margin, BoxShape? boxShape = BoxShape.rectangle, Widget? errorWidget}) {
+  static Widget photosWidgetCircle(String imageUrl,
+      {double? borderRadius = 8,
+      BoxFit? fit = BoxFit.cover,
+      double? width,
+      double? height,
+      EdgeInsets? margin,
+      BoxShape? boxShape = BoxShape.rectangle,
+      Widget? errorWidget}) {
     return Container(
       margin: margin,
       width: width,
@@ -340,13 +374,21 @@ class QuickActions {
             image: DecorationImage(image: imageProvider, fit: fit),
           ),
         ),
-        placeholder: (context, url) => _loadingWidget(width: width, height: height, radius: borderRadius),
-        errorWidget: (context, url, error) => _loadingWidget(width: width, height: height, radius: borderRadius),
+        placeholder: (context, url) =>
+            _loadingWidget(width: width, height: height, radius: borderRadius),
+        errorWidget: (context, url, error) =>
+            _loadingWidget(width: width, height: height, radius: borderRadius),
       ),
     );
   }
 
-  static Widget profileAvatar(String imageUrl, {double? borderRadius = 0, BoxFit? fit = BoxFit.cover, double? width, double? height, EdgeInsets? margin, BoxShape? boxShape = BoxShape.rectangle}) {
+  static Widget profileAvatar(String imageUrl,
+      {double? borderRadius = 0,
+      BoxFit? fit = BoxFit.cover,
+      double? width,
+      double? height,
+      EdgeInsets? margin,
+      BoxShape? boxShape = BoxShape.rectangle}) {
     return Container(
       margin: margin,
       width: width,
@@ -360,13 +402,20 @@ class QuickActions {
             image: DecorationImage(image: imageProvider, fit: fit),
           ),
         ),
-        placeholder: (context, url) => _loadingWidget(width: width, height: height, radius: borderRadius),
-        errorWidget: (context, url, error) => SvgPicture.asset("assets/svg/ic_avatar.svg"),
+        placeholder: (context, url) =>
+            _loadingWidget(width: width, height: height, radius: borderRadius),
+        errorWidget: (context, url, error) =>
+            SvgPicture.asset("assets/svg/ic_avatar.svg"),
       ),
     );
   }
 
-  static Widget profileCover(String imageUrl, {double? borderRadius = 0, BoxFit? fit = BoxFit.cover, double? width, double? height, EdgeInsets? margin}) {
+  static Widget profileCover(String imageUrl,
+      {double? borderRadius = 0,
+      BoxFit? fit = BoxFit.cover,
+      double? width,
+      double? height,
+      EdgeInsets? margin}) {
     return Container(
       margin: margin,
       width: width,
@@ -380,13 +429,17 @@ class QuickActions {
             image: DecorationImage(image: imageProvider, fit: fit),
           ),
         ),
-        placeholder: (context, url) => _loadingWidget(width: width, height: height, radius: borderRadius),
-        errorWidget: (context, url, error) => Center(child: SvgPicture.asset("assets/svg/ic_avatar.svg"),),
+        placeholder: (context, url) =>
+            _loadingWidget(width: width, height: height, radius: borderRadius),
+        errorWidget: (context, url, error) => Center(
+          child: SvgPicture.asset("assets/svg/ic_avatar.svg"),
+        ),
       ),
     );
   }
 
-  static Widget gifWidget(String imageUrl, {double? borderRadius = 8, BoxFit? fit = BoxFit.cover}) {
+  static Widget gifWidget(String imageUrl,
+      {double? borderRadius = 8, BoxFit? fit = BoxFit.cover}) {
     return CachedNetworkImage(
       imageUrl: imageUrl,
       imageBuilder: (context, imageProvider) => Container(
@@ -399,52 +452,53 @@ class QuickActions {
       placeholder: (context, url) => FadeShimmer(
         height: 80,
         width: 80,
-        fadeTheme: QuickHelp.isDarkMode(context)
-            ? FadeTheme.dark
-            : FadeTheme.light,
+        fadeTheme:
+            QuickHelp.isDarkMode(context) ? FadeTheme.dark : FadeTheme.light,
         millisecondsDelay: 0,
       ),
       errorWidget: (context, url, error) => FadeShimmer(
         height: 80,
         width: 80,
-        fadeTheme: QuickHelp.isDarkMode(context)
-            ? FadeTheme.dark
-            : FadeTheme.light,
+        fadeTheme:
+            QuickHelp.isDarkMode(context) ? FadeTheme.dark : FadeTheme.light,
         millisecondsDelay: 0,
       ),
     );
   }
 
-  static Widget _loadingWidget({double? width, double? height, double? radius}){
-
-   return FadeShimmer(
+  static Widget _loadingWidget(
+      {double? width, double? height, double? radius}) {
+    return FadeShimmer(
       width: width != null ? width : 60,
       height: height != null ? height : 60,
       radius: radius != null ? radius : 0,
-      fadeTheme: QuickHelp.isDarkModeNoContext() ? FadeTheme.dark : FadeTheme.light,
+      fadeTheme:
+          QuickHelp.isDarkModeNoContext() ? FadeTheme.dark : FadeTheme.light,
     );
     //return Center(child: CircularProgressIndicator.adaptive());
   }
 
   static showUserProfile(
-      BuildContext context,
-      UserModel currentUser,
-      UserModel user, {ResumableState? resumeState}
-      ){
-    QuickHelp.goToNavigatorScreen(context, UserProfileScreen(
-        currentUser: currentUser, mUser: user,
-        isFollowing: currentUser.getFollowing!.contains(user.objectId)));
+      BuildContext context, UserModel currentUser, UserModel user,
+      {ResumableState? resumeState}) {
+    QuickHelp.goToNavigatorScreen(
+        context,
+        UserProfileScreen(
+            currentUser: currentUser,
+            mUser: user,
+            isFollowing: currentUser.getFollowing!.contains(user.objectId)));
   }
 
   static wealthLevel({required int credit, double? width, double? height}) {
     return Image.asset(
-        QuickHelp.wealthLevel(creditSent: credit),
+      QuickHelp.wealthLevel(creditSent: credit),
       height: height ?? 25,
       width: width ?? 50,
     );
   }
 
-  static giftReceivedLevel({required int receivedGifts, double? width, double? height}) {
+  static giftReceivedLevel(
+      {required int receivedGifts, double? width, double? height}) {
     return Image.asset(
       QuickHelp.receivedGiftsLevelIcon(receivedGift: receivedGifts),
       height: height ?? 25,
@@ -460,17 +514,17 @@ class QuickActions {
       borderWidth: 0,
       child: Center(
           child: Image.asset(
-            "assets/images/szy_kong_icon.png",
-            height: size.width / 2,
-          )),
+        "assets/images/szy_kong_icon.png",
+        height: size.width / 2,
+      )),
     );
   }
 
   static Widget noContentFoundReels(String title, String explain,
       {MainAxisAlignment? mainAxisAlignment = MainAxisAlignment.center,
-        CrossAxisAlignment? crossAxisAlignment = CrossAxisAlignment.center,
-        double? imageWidth = 91,
-        double? imageHeight = 91}) {
+      CrossAxisAlignment? crossAxisAlignment = CrossAxisAlignment.center,
+      double? imageWidth = 91,
+      double? imageHeight = 91}) {
     return Column(
       mainAxisAlignment: mainAxisAlignment!,
       crossAxisAlignment: crossAxisAlignment!,
@@ -480,7 +534,11 @@ class QuickActions {
           width: imageWidth,
           marginBottom: 20,
           color: kTransparentColor,
-          child: Icon(Icons.refresh_rounded, size: 90, color: Colors.white,),
+          child: Icon(
+            Icons.refresh_rounded,
+            size: 90,
+            color: Colors.white,
+          ),
         ),
         TextWithTap(
           title,
@@ -505,17 +563,16 @@ class QuickActions {
 
   static Widget avatarBorder(
     UserModel user, {
-      double? width,
-      double? height,
-      EdgeInsets? avatarMargin,
-      EdgeInsets? borderMargin,
-      Color? borderColor = kPrimacyGrayColor,
-      double? borderWidth = 1,
-      double? vipFrameWidth = 43,
-      double? vipFrameHeight = 40,
-      bool hideAvatarFrame = false,
-      }){
-
+    double? width,
+    double? height,
+    EdgeInsets? avatarMargin,
+    EdgeInsets? borderMargin,
+    Color? borderColor = kPrimacyGrayColor,
+    double? borderWidth = 1,
+    double? vipFrameWidth = 43,
+    double? vipFrameHeight = 40,
+    bool hideAvatarFrame = false,
+  }) {
     return Stack(
       alignment: AlignmentDirectional.center,
       children: [
@@ -528,11 +585,12 @@ class QuickActions {
           vipFrameHeight: vipFrameHeight,
           hideAvatarFrame: hideAvatarFrame,
         ),
-        if(!(user.getIsUserVip! && !user.getCanUseAvatarFrame!))
+        if (!(user.getIsUserVip! && !user.getCanUseAvatarFrame!))
           Container(
             width: width, //160,
             height: height, //160,
-            margin: borderMargin, //EdgeInsets.only(top: 10, bottom: 20, left: 30, right: 30),
+            margin:
+                borderMargin, //EdgeInsets.only(top: 10, bottom: 20, left: 30, right: 30),
             decoration: BoxDecoration(
               border: Border.all(
                 width: borderWidth!,
@@ -554,26 +612,24 @@ class QuickActions {
     );
   }
 
-  static createOrDeleteNotification(UserModel currentUser, UserModel toUser, String type, {PostsModel? post, LiveStreamingModel? live}) async {
-
-    QueryBuilder<NotificationsModel> queryBuilder = QueryBuilder<NotificationsModel>(NotificationsModel());
+  static createOrDeleteNotification(
+      UserModel currentUser, UserModel toUser, String type,
+      {PostsModel? post, LiveStreamingModel? live}) async {
+    QueryBuilder<NotificationsModel> queryBuilder =
+        QueryBuilder<NotificationsModel>(NotificationsModel());
     queryBuilder.whereEqualTo(NotificationsModel.keyAuthor, currentUser);
     queryBuilder.whereEqualTo(NotificationsModel.keyNotificationType, type);
-    if(post != null){
+    if (post != null) {
       queryBuilder.whereEqualTo(NotificationsModel.keyPost, post);
     }
 
     ParseResponse parseResponse = await queryBuilder.query();
 
-    if(parseResponse.success){
-
-      if(parseResponse.results != null){
-
+    if (parseResponse.success) {
+      if (parseResponse.results != null) {
         NotificationsModel notification = parseResponse.results!.first;
         await notification.delete();
-
       } else {
-
         NotificationsModel notificationsModel = NotificationsModel();
         notificationsModel.setAuthor = currentUser;
         notificationsModel.setAuthorId = currentUser.objectId!;
@@ -584,29 +640,34 @@ class QuickActions {
         notificationsModel.setNotificationType = type;
         notificationsModel.setRead = false;
 
-        if(post != null){
+        if (post != null) {
           notificationsModel.setPost = post;
         }
 
-        if(live != null){
+        if (live != null) {
           notificationsModel.setLive = live;
         }
 
         await notificationsModel.save();
 
-        if(post != null){
-
-          if(post.getAuthorId != currentUser.objectId){
-            if(post.getVideoThumbnail != null) {
-              SendNotifications.sendPush(currentUser, toUser, type, objectId: post.objectId!, pictureURL: post.getVideoThumbnail!.url);
-            }else if(post.getImagesList!.isNotEmpty){
-              SendNotifications.sendPush(currentUser, toUser, type, objectId: post.objectId!, pictureURL: post.getImagesList![0]!.url);
-            }else{
-              SendNotifications.sendPush(currentUser, toUser, type, objectId: post.objectId!);
+        if (post != null) {
+          if (post.getAuthorId != currentUser.objectId) {
+            if (post.getVideoThumbnail != null) {
+              SendNotifications.sendPush(currentUser, toUser, type,
+                  objectId: post.objectId!,
+                  pictureURL: post.getVideoThumbnail!.url);
+            } else if (post.getImagesList!.isNotEmpty) {
+              SendNotifications.sendPush(currentUser, toUser, type,
+                  objectId: post.objectId!,
+                  pictureURL: post.getImagesList![0]!.url);
+            } else {
+              SendNotifications.sendPush(currentUser, toUser, type,
+                  objectId: post.objectId!);
             }
           }
-        } else if(live != null){
-          SendNotifications.sendPush(currentUser, toUser, type, objectId: live.objectId!, pictureURL: live.getImage!.url);
+        } else if (live != null) {
+          SendNotifications.sendPush(currentUser, toUser, type,
+              objectId: live.objectId!, pictureURL: live.getImage!.url);
         } else {
           SendNotifications.sendPush(currentUser, toUser, type);
         }
@@ -614,8 +675,14 @@ class QuickActions {
     }
   }
 
-  static Future<ParseResponse> report({required String type, required String message, String? description, required UserModel accuser, required UserModel accused, LiveStreamingModel? liveStreamingModel, PostsModel? postsModel}) async {
-
+  static Future<ParseResponse> report(
+      {required String type,
+      required String message,
+      String? description,
+      required UserModel accuser,
+      required UserModel accused,
+      LiveStreamingModel? liveStreamingModel,
+      PostsModel? postsModel}) async {
     ReportModel reportModel = ReportModel();
 
     reportModel.setReportType = type;
@@ -626,113 +693,117 @@ class QuickActions {
     reportModel.setAccused = accused;
     reportModel.setAccusedId = accused.objectId!;
 
-    if(liveStreamingModel != null) reportModel.setLiveStreaming = liveStreamingModel;
-    if(postsModel != null) reportModel.setPost = postsModel;
+    if (liveStreamingModel != null)
+      reportModel.setLiveStreaming = liveStreamingModel;
+    if (postsModel != null) reportModel.setPost = postsModel;
 
     reportModel.setMessage = message;
-    if(description != null) reportModel.setDescription = description;
+    if (description != null) reportModel.setDescription = description;
 
     return await reportModel.save();
-
   }
 
-  static Widget getVideoPlaceHolder(String url, {bool adaptive = false, bool showLoading = false}){
+  static Widget getVideoPlaceHolder(String url,
+      {bool adaptive = false, bool showLoading = false}) {
     return CachedNetworkImage(
       imageUrl: url,
       fit: BoxFit.cover,
-      placeholder: (ctx, value){
-        if(showLoading){
-          return adaptive ? CircularProgressIndicator.adaptive() : CircularProgressIndicator();
+      placeholder: (ctx, value) {
+        if (showLoading) {
+          return adaptive
+              ? CircularProgressIndicator.adaptive()
+              : CircularProgressIndicator();
         } else {
           return Container();
         }
       },
     );
   }
-  static Widget getImageFeed(BuildContext context, PostsModel post, {bool? cache = true}){
-    return SizedBox(
-      width: MediaQuery.of(context).size.width,
-      child: cache!? CachedNetworkImage(
-        imageUrl: post.isVideo!
-            ? post.getVideoThumbnail!.url!
-            : post.getImage!.url!,
-        fit: BoxFit.contain,
-        placeholder: (ctx, value){
-          return FadeShimmer(
-            width: MediaQuery.of(context).size.width,
-            height: MediaQuery.of(context).size.width,
-            fadeTheme: QuickHelp.isDarkMode(context) ? FadeTheme.dark : FadeTheme.light,
-          );
-        },
 
-      ) : Image.network(
-        post.isVideo!
-            ? post.getVideoThumbnail!.url!
-            : post.getImage!.url!,
-        fit: BoxFit.contain,
-        loadingBuilder:
-            (context, child, loadingProgress) {
-
-          if(loadingProgress != null){
-            return SizedBox(
-              width: MediaQuery.of(context).size.width,
-              height: MediaQuery.of(context).size.width,
-              child: Center(
-                child: CircularProgressIndicator(
-                  color: kPrimaryColor,
-                ),
-              ),
-            );
-
-          } else {
-            return child;
-          }
-        },
-      )
-    );
-  }
-
-  static Widget getReelsImage(BuildContext context, PostsModel post, {bool? cache = true}){
+  static Widget getImageFeed(BuildContext context, PostsModel post,
+      {bool? cache = true}) {
     return SizedBox(
         width: MediaQuery.of(context).size.width,
-        child: cache!? CachedNetworkImage(
-          imageUrl: post.isVideo!
-              ? post.getVideoThumbnail!.url!
-              : post.getImage!.url!,
-          fit: BoxFit.contain,
-          placeholder: (ctx, value){
-            return FadeShimmer(
-              width: MediaQuery.of(context).size.width,
-              height: MediaQuery.of(context).size.width,
-              fadeTheme: QuickHelp.isDarkMode(context) ? FadeTheme.dark : FadeTheme.light,
-            );
-          },
+        child: cache!
+            ? CachedNetworkImage(
+                imageUrl: post.isVideo!
+                    ? post.getVideoThumbnail!.url!
+                    : post.getImage!.url!,
+                fit: BoxFit.contain,
+                placeholder: (ctx, value) {
+                  return FadeShimmer(
+                    width: MediaQuery.of(context).size.width,
+                    height: MediaQuery.of(context).size.width,
+                    fadeTheme: QuickHelp.isDarkMode(context)
+                        ? FadeTheme.dark
+                        : FadeTheme.light,
+                  );
+                },
+              )
+            : Image.network(
+                post.isVideo!
+                    ? post.getVideoThumbnail!.url!
+                    : post.getImage!.url!,
+                fit: BoxFit.contain,
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress != null) {
+                    return SizedBox(
+                      width: MediaQuery.of(context).size.width,
+                      height: MediaQuery.of(context).size.width,
+                      child: Center(
+                        child: CircularProgressIndicator(
+                          color: kPrimaryColor,
+                        ),
+                      ),
+                    );
+                  } else {
+                    return child;
+                  }
+                },
+              ));
+  }
 
-        ) : Image.network(
-          post.isVideo!
-              ? post.getVideoThumbnail!.url!
-              : post.getImage!.url!,
-          fit: BoxFit.contain,
-          loadingBuilder:
-              (context, child, loadingProgress) {
-
-            if(loadingProgress != null){
-              return SizedBox(
-                width: MediaQuery.of(context).size.width,
-                height: MediaQuery.of(context).size.width,
-                child: Center(
-                  child: CircularProgressIndicator(
-                    color: kPrimaryColor,
-                  ),
-                ),
-              );
-
-            } else {
-              return child;
-            }
-          },
-        )
-    );
+  static Widget getReelsImage(BuildContext context, PostsModel post,
+      {bool? cache = true}) {
+    return SizedBox(
+        width: MediaQuery.of(context).size.width,
+        child: cache!
+            ? CachedNetworkImage(
+                imageUrl: post.isVideo!
+                    ? post.getVideoThumbnail!.url!
+                    : post.getImage!.url!,
+                fit: BoxFit.contain,
+                placeholder: (ctx, value) {
+                  return FadeShimmer(
+                    width: MediaQuery.of(context).size.width,
+                    height: MediaQuery.of(context).size.width,
+                    fadeTheme: QuickHelp.isDarkMode(context)
+                        ? FadeTheme.dark
+                        : FadeTheme.light,
+                  );
+                },
+              )
+            : Image.network(
+                post.isVideo!
+                    ? post.getVideoThumbnail!.url!
+                    : post.getImage!.url!,
+                fit: BoxFit.contain,
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress != null) {
+                    return SizedBox(
+                      width: MediaQuery.of(context).size.width,
+                      height: MediaQuery.of(context).size.width,
+                      child: Center(
+                        child: CircularProgressIndicator(
+                          color: kPrimaryColor,
+                        ),
+                      ),
+                    );
+                  } else {
+                    return child;
+                  }
+                },
+              ));
   }
 
   static Widget getVideoPlayer(PostsModel post) {

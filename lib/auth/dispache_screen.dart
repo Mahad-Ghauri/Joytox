@@ -70,6 +70,21 @@ class _DispacheScreenState extends State<DispacheScreen> {
           context: context,
         ).initialise();
 
+        // FIX: Check if we're already on a home screen to prevent multiple instances
+        final currentRoute = ModalRoute.of(context)?.settings.name;
+        if (currentRoute != null &&
+            (currentRoute.contains('home') ||
+                currentRoute == '/home' ||
+                currentRoute == ResponsiveHomeScreen.route)) {
+          // If we're already on a home screen, just return a simple scaffold
+          // to prevent creating multiple instances
+          return Scaffold(
+            body: Center(
+              child: CircularProgressIndicator(),
+            ),
+          );
+        }
+
         return QuickHelp.isMobile()
             ? HomeScreen(
                 currentUser: widget.currentUser,

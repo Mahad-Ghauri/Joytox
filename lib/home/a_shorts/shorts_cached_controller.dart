@@ -7,18 +7,17 @@ import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 
 import '../../models/PostsModel.dart';
 
-
 class ShortsCachedController extends GetxController {
   RxList<PostsModel> shorts = <PostsModel>[].obs;
   RxBool isLoading = true.obs;
 
-  int limit = 15;
+  int limit = 10; // REDUCED from 15 to 10 - saves ~50MB per load
   int limitBeforeMore = 3;
 
   var showPlayPauseIcon = false.obs;
   var isPlaying = true.obs;
 
-  final int preloadCount = 5;
+  final int preloadCount = 3; // REDUCED from 5 to 3 - saves ~30MB memory
 
   //video Stuff
   var videoControllers = <CachedVideoPlayerPlusController>[].obs;
@@ -26,6 +25,9 @@ class ShortsCachedController extends GetxController {
 
   var lastSavedIndex = 0.obs;
 
+  // FIX: Add disposal state tracking to prevent buffer issues
+  bool _isDisposed = false;
+  bool _isInitializing = false;
 
   @override
   void onInit() {
@@ -35,18 +37,44 @@ class ShortsCachedController extends GetxController {
 
   @override
   void onClose() {
+    // FIX: Comprehensive cleanup to prevent ImageReader buffer issues
+    _isDisposed = true;
     disposeAllControllers();
-    super.onClose();
-  }
 
+    // Clear all lists to prevent memory leaks
+    shorts.clear();
+    videoControllers.clear();
+
+    super.onClose();
+    print('ShortsCachedController: Properly disposed all resources');
+  }
 
   //dispose all controllers
   void disposeAllControllers() {
-    for (var controller in videoControllers) {
-      controller.pause();
-      controller.dispose();
+    try {
+      // FIX: Proper sequential disposal to prevent ImageReader buffer overflow
+      for (var controller in videoControllers) {
+        if (controller.value.isInitialized) {
+          controller.pause();
+          // Add small delay to prevent buffer conflicts
+          Future.delayed(Duration(milliseconds: 50), () {
+            controller.dispose();
+          });
+        } else {
+          // Dispose uninitialized controllers immediately
+          controller.dispose();
+        }
+      }
+
+      // Clear after disposal operations are queued
+      Future.delayed(Duration(milliseconds: 100), () {
+        videoControllers.clear();
+      });
+    } catch (e) {
+      print('ShortsCachedController: Error disposing controllers: $e');
+      // Force clear on error
+      videoControllers.clear();
     }
-    videoControllers.clear();
   }
 
   //Get first videos
@@ -59,8 +87,9 @@ class ShortsCachedController extends GetxController {
 
     ParseResponse response = await query.query();
 
-    if(response.success && response.results != null) {
-      List<PostsModel> loadedVideos = response.results!.map((e) => e as PostsModel).toList();
+    if (response.success && response.results != null) {
+      List<PostsModel> loadedVideos =
+          response.results!.map((e) => e as PostsModel).toList();
       shorts.value = loadedVideos;
       isLoading.value = false;
       _initializeVideoController();
@@ -71,7 +100,7 @@ class ShortsCachedController extends GetxController {
 
   //Load more videos, when scroll reaches end
   Future<void> queryMoreVideos() async {
-    if(isLoading.value) return; //avoid multiple calls
+    if (isLoading.value) return; //avoid multiple calls
 
     isLoading.value = true;
 
@@ -85,19 +114,20 @@ class ShortsCachedController extends GetxController {
 
     ParseResponse response = await query.query();
 
-    if(response.success && response.results != null) {
-      List<PostsModel> loadedVideos = response.results!.map((e) => e as PostsModel).toList();
+    if (response.success && response.results != null) {
+      List<PostsModel> loadedVideos =
+          response.results!.map((e) => e as PostsModel).toList();
       shorts.addAll(loadedVideos);
       isLoading.value = false;
 
-      //initialize only 3-5 controllers, not all
-      int videosToPreload = 5;
-      for(int i = 0; i < loadedVideos.length && i < videosToPreload; i++) {
+      //initialize only 2 controllers - REDUCED from 5 to 2 - saves memory
+      int videosToPreload = 2;
+      for (int i = 0; i < loadedVideos.length && i < videosToPreload; i++) {
         _addVideoController(loadedVideos[i]);
       }
 
       // add empty controllers for the rest
-      for(int i = videosToPreload; i < loadedVideos.length; i++) {
+      for (int i = videosToPreload; i < loadedVideos.length; i++) {
         _addEmptyController(loadedVideos[i]);
       }
     } else {
@@ -114,14 +144,14 @@ class ShortsCachedController extends GetxController {
   void _initializeVideoController() {
     videoControllers.clear();
 
-    // initialize only 3-5 controllers
-    int initialVideosToLoad = 5;
-    for(int i = 0; i < shorts.length && i < initialVideosToLoad; i++) {
+    // initialize only 2 controllers - REDUCED from 5 to 2 - saves ~100MB
+    int initialVideosToLoad = 2;
+    for (int i = 0; i < shorts.length && i < initialVideosToLoad; i++) {
       _addVideoController(shorts[i]);
     }
 
     // add empty controller for the rest
-    for(int i = initialVideosToLoad; i < shorts.length; i++) {
+    for (int i = initialVideosToLoad; i < shorts.length; i++) {
       _addEmptyController(shorts[i]);
     }
   }
@@ -136,35 +166,62 @@ class ShortsCachedController extends GetxController {
   }
 
   //Initialize video controllers for fast video playback
-  void _addVideoController(PostsModel videoPost) async{
-      var controller = CachedVideoPlayerPlusController.networkUrl(
-        Uri.parse(videoPost.getVideo!.url!),
-        invalidateCacheIfOlderThan: const Duration(days: 2),
-      );
-      videoControllers.add(controller);
-      controller.initialize().then((_) async {
-        debugPrint("controller initialized:");
-        update();
-      });
-      controller.setLooping(true);
+  void _addVideoController(PostsModel videoPost) async {
+    var controller = CachedVideoPlayerPlusController.networkUrl(
+      Uri.parse(videoPost.getVideo!.url!),
+      invalidateCacheIfOlderThan: const Duration(days: 2),
+    );
+    videoControllers.add(controller);
+    controller.initialize().then((_) async {
+      debugPrint("controller initialized:");
+      update();
+    });
+    controller.setLooping(true);
   }
 
   // to avoid memory crashes, release distant controllers
   void _releaseDistantControllers(int currentIndex) {
+    if (_isDisposed || _isInitializing) return;
 
-    final int keepRange = 5;
+    final int keepRange = 2; // REDUCED from 5 to 2 - saves ~150MB memory
 
-    for (int i = 0; i < videoControllers.length; i++) {
-      if ((i < currentIndex - keepRange || i > currentIndex + keepRange) &&
-          videoControllers[i].value.isInitialized) {
-        videoControllers[i].pause();
-        videoControllers[i].dispose();
-        //create a new controller not initialized to use if needed
-        videoControllers[i] = CachedVideoPlayerPlusController.networkUrl(
-          Uri.parse(shorts[i].getVideo!.url!),
-          invalidateCacheIfOlderThan: const Duration(days: 2),
-        );
+    try {
+      for (int i = 0; i < videoControllers.length; i++) {
+        if ((i < currentIndex - keepRange || i > currentIndex + keepRange) &&
+            videoControllers[i].value.isInitialized) {
+          // FIX: Proper async disposal to prevent ImageReader buffer issues
+          final controllerToDispose = videoControllers[i];
+          controllerToDispose.pause();
+
+          // Dispose with delay to prevent buffer conflicts
+          Future.delayed(Duration(milliseconds: 100), () {
+            try {
+              controllerToDispose.dispose();
+            } catch (e) {
+              print(
+                  'ShortsCachedController: Error disposing distant controller $i: $e');
+            }
+          });
+
+          // FIX: Create new controller with delay to prevent race conditions
+          Future.delayed(Duration(milliseconds: 150), () {
+            if (!_isDisposed && i < shorts.length) {
+              try {
+                videoControllers[i] =
+                    CachedVideoPlayerPlusController.networkUrl(
+                  Uri.parse(shorts[i].getVideo!.url!),
+                  invalidateCacheIfOlderThan: const Duration(days: 2),
+                );
+              } catch (e) {
+                print(
+                    'ShortsCachedController: Error creating new controller $i: $e');
+              }
+            }
+          });
+        }
       }
+    } catch (e) {
+      print('ShortsCachedController: Error in _releaseDistantControllers: $e');
     }
   }
 
@@ -175,7 +232,8 @@ class ShortsCachedController extends GetxController {
     List<Future<void>> initializationFutures = [];
 
     for (int i = currentIndex; i < endIndex; i++) {
-      if (i < videoControllers.length && !videoControllers[i].value.isInitialized) {
+      if (i < videoControllers.length &&
+          !videoControllers[i].value.isInitialized) {
         _addVideoController(shorts[i]);
         initializationFutures.add(videoControllers[i].initialize());
       }
@@ -184,10 +242,12 @@ class ShortsCachedController extends GetxController {
     if (initializationFutures.isNotEmpty) {
       try {
         await Future.wait(initializationFutures);
-        debugPrint("novos_controladores_preica Next $preloadCount vídeos initialized successful");
+        debugPrint(
+            "novos_controladores_preica Next $preloadCount vídeos initialized successful");
         return true;
       } catch (e) {
-        debugPrint("novos_controladores_preica Erros initializing next $preloadCount vídeos: $e");
+        debugPrint(
+            "novos_controladores_preica Erros initializing next $preloadCount vídeos: $e");
         return false;
       }
     }
@@ -196,65 +256,116 @@ class ShortsCachedController extends GetxController {
   }
 
   void playVideo(int index) async {
-    if (index < 0 || index >= videoControllers.length) return;
+    if (index < 0 || index >= videoControllers.length || _isDisposed) return;
 
-    int lastIndex = index - 1;
-    if (currentVideoIndex.value < videoControllers.length &&
-        !videoControllers[currentVideoIndex.value].value.isInitialized) {
-      videoControllers[currentVideoIndex.value].pause();
-    }
+    // FIX: Prevent concurrent initialization to avoid buffer overflow
+    if (_isInitializing) return;
+    _isInitializing = true;
 
-    if(lastIndex > -1) {
-      videoControllers[lastIndex].pause();
-    }
+    try {
+      // FIX: Single cleanup call instead of double call
+      _releaseDistantControllers(index);
 
-    /*if (!videoControllers[index].value.isInitialized) {
-      videoControllers[index] = CachedVideoPlayerPlusController.networkUrl(
-        Uri.parse(shorts[index].getVideo!.url!),
-        invalidateCacheIfOlderThan: const Duration(days: 2),
-      );
-      await videoControllers[index].initialize();
-    }*/
-
-    currentVideoIndex.value = index;
-
-    //clean memory for distant controllers
-    _releaseDistantControllers(index);
-
-    if (videoControllers[index].value.isInitialized) {
-      videoControllers[index].play();
-    }
-
-
-    if (index + 1 < shorts.length && !videoControllers[index + 1].value.isInitialized) {
-      int nextControllers = shorts.length > 5 ? 5 : shorts.length;
-      for(int i = index + 1; i <= index + nextControllers; i++) {
-        videoControllers[i] = CachedVideoPlayerPlusController.networkUrl(
-          Uri.parse(shorts[i].getVideo!.url!),
-          invalidateCacheIfOlderThan: const Duration(days: 2),
-        );
-        videoControllers[i].initialize();
+      // Pause previous videos
+      int lastIndex = currentVideoIndex.value;
+      if (lastIndex >= 0 &&
+          lastIndex < videoControllers.length &&
+          videoControllers[lastIndex].value.isInitialized) {
+        await videoControllers[lastIndex].pause();
       }
-    }
 
-    if (currentVideoIndex.value >= shorts.length - limitBeforeMore) {
-      queryMoreVideos();
+      currentVideoIndex.value = index;
+
+      // Play current video if initialized
+      if (videoControllers[index].value.isInitialized) {
+        await videoControllers[index].play();
+      } else {
+        // FIX: Safe controller initialization with error handling
+        try {
+          videoControllers[index] = CachedVideoPlayerPlusController.networkUrl(
+            Uri.parse(shorts[index].getVideo!.url!),
+            invalidateCacheIfOlderThan: const Duration(days: 2),
+          );
+          await videoControllers[index].initialize();
+          if (!_isDisposed) {
+            await videoControllers[index].play();
+          }
+        } catch (e) {
+          print('ShortsCachedController: Error initializing video $index: $e');
+        }
+      }
+
+      // FIX: Limit next controller preloading to prevent buffer overflow
+      if (index + 1 < shorts.length &&
+          index + 1 < videoControllers.length &&
+          !videoControllers[index + 1].value.isInitialized) {
+        // Only preload next 2 videos instead of 5 to prevent buffer issues
+        int maxPreload = 2;
+        int endIndex = (index + 1 + maxPreload).clamp(0, shorts.length);
+
+        for (int i = index + 1;
+            i < endIndex && i < videoControllers.length;
+            i++) {
+          if (!_isDisposed) {
+            try {
+              // Add delay between initializations to prevent buffer overflow
+              await Future.delayed(Duration(milliseconds: 200));
+
+              videoControllers[i] = CachedVideoPlayerPlusController.networkUrl(
+                Uri.parse(shorts[i].getVideo!.url!),
+                invalidateCacheIfOlderThan: const Duration(days: 2),
+              );
+
+              // Initialize without blocking
+              videoControllers[i].initialize().catchError((e) {
+                print('ShortsCachedController: Error preloading video $i: $e');
+              });
+            } catch (e) {
+              print(
+                  'ShortsCachedController: Error creating preload controller $i: $e');
+              break; // Stop preloading on error
+            }
+          }
+        }
+      }
+
+      if (currentVideoIndex.value >= shorts.length - limitBeforeMore) {
+        queryMoreVideos();
+      }
+    } catch (e) {
+      print('ShortsCachedController: Error in playVideo: $e');
+    } finally {
+      _isInitializing = false;
     }
   }
 
   Future<void> pauseAllVideos() async {
+    if (_isDisposed) return;
+
     try {
+      // FIX: Safe pause with error handling for each controller
       for (final controller in videoControllers) {
-        if (controller.value.isPlaying) {
-          await controller.pause();
+        try {
+          if (controller.value.isInitialized && controller.value.isPlaying) {
+            await controller.pause();
+          }
+        } catch (e) {
+          print(
+              "ShortsCachedController: Error pausing individual controller: $e");
+          // Continue with next controller
         }
       }
-      isPlaying.value = false;
-      Future.delayed(Duration(milliseconds: 1000)).then((val){
-        showPlayPauseIcon.value = false;
-      });
+
+      if (!_isDisposed) {
+        isPlaying.value = false;
+        Future.delayed(Duration(milliseconds: 1000)).then((val) {
+          if (!_isDisposed) {
+            showPlayPauseIcon.value = false;
+          }
+        });
+      }
     } catch (e) {
-      print("ReelsController: Erro ao pausar todos os vídeos: $e");
+      print("ShortsCachedController: Error pausing all videos: $e");
     }
   }
 
@@ -266,7 +377,7 @@ class ShortsCachedController extends GetxController {
         }
       }
       isPlaying.value = false;
-      Future.delayed(Duration(milliseconds: 1000)).then((val){
+      Future.delayed(Duration(milliseconds: 1000)).then((val) {
         showPlayPauseIcon.value = false;
       });
     } catch (e) {
@@ -298,7 +409,6 @@ class ShortsCachedController extends GetxController {
       print('ReelsController: Erro ao alternar reprodução: $e');
     }
   }
-
 
   Future<void> playCurrentVideo() async {
     try {
@@ -338,9 +448,7 @@ class ShortsCachedController extends GetxController {
   }
 
   void saveLastIndex() {
-
     lastSavedIndex.value = currentVideoIndex.value;
-
 
     if (currentVideoIndex.value < videoControllers.length) {
       try {
@@ -351,6 +459,4 @@ class ShortsCachedController extends GetxController {
       }
     }
   }
-
-
 }

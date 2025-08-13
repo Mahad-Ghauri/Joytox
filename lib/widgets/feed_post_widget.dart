@@ -156,17 +156,19 @@ class FeedPostWidget extends StatelessWidget {
             Expanded(
               child: ContainerCorner(
                 marginTop: 10,
-                onTap: (){
-                  if (post.getAuthorId ==
-                      currentUser.objectId!) {
+                onTap: () {
+                  if (post.getAuthorId == currentUser.objectId!) {
                     QuickHelp.goToNavigatorScreen(
                         context,
                         ProfileScreen(
                           currentUser: currentUser,
                         ));
                   } else {
-                    QuickActions.showUserProfile(context,
-                      currentUser, post.getAuthor!,);
+                    QuickActions.showUserProfile(
+                      context,
+                      currentUser,
+                      post.getAuthor!,
+                    );
                   }
                 },
                 color: isDark ? kContentColorLightTheme : Colors.white,
@@ -302,8 +304,7 @@ class FeedPostWidget extends StatelessWidget {
             ),
           ),
         // Verificar se tem vídeo para exibir
-        if (post.getVideo != null)
-          _buildVideoContent(),
+        if (post.getVideo != null) _buildVideoContent(),
         // Exibir imagens se não houver vídeo ou se o vídeo não estiver carregado
         if (post.getImagesList != null) _buildImagesContent(context),
         if (post.getText != null &&
@@ -406,14 +407,14 @@ class FeedPostWidget extends StatelessWidget {
         children: [
           // Thumbnail do vídeo
           if (post.getVideoThumbnail != null)
-      QuickActions.photosWidget(
-      post.getVideoThumbnail!.url,
-      fit: BoxFit.fitWidth,
-        height: 400,
-        width: double.infinity,
-    )
+            QuickActions.photosWidget(
+              post.getVideoThumbnail!.url,
+              fit: BoxFit.fitWidth,
+              height: 400,
+              width: double.infinity,
+            )
 
-            /*Image.network(
+          /*Image.network(
               _getParseFileUrl(post.getVideoThumbnail) ?? '',
               fit: BoxFit.cover,
               width: double.infinity,
@@ -507,17 +508,14 @@ class FeedPostWidget extends StatelessWidget {
             onTap: () => onPostTap(post),
             child: ContainerCorner(
               width: imageWidth(
-                  numberOfPictures:
-                  post.getNumberOfPictures, context: context),
+                  numberOfPictures: post.getNumberOfPictures, context: context),
               height: imageHeight(
-                  numberOfPictures:
-                  post.getNumberOfPictures, context: context),
+                  numberOfPictures: post.getNumberOfPictures, context: context),
               borderWidth: 0,
               marginRight: 5,
               marginBottom: 5,
               borderRadius: 8,
-              child: QuickActions.photosWidget(
-                  post.getImagesList![index].url),
+              child: QuickActions.photosWidget(post.getImagesList![index].url),
             ),
           );
         },
@@ -525,25 +523,33 @@ class FeedPostWidget extends StatelessWidget {
     );
   }
 
-  double imageWidth({required int numberOfPictures, required BuildContext context}) {
-    Size size = MediaQuery.of(context).size;
+  // PERFORMANCE OPTIMIZATION: Cache screen size to avoid repeated MediaQuery calls
+  static Size? _cachedScreenSize;
+  static double _getScreenWidth(BuildContext context) {
+    _cachedScreenSize ??= MediaQuery.of(context).size;
+    return _cachedScreenSize!.width;
+  }
+
+  double imageWidth(
+      {required int numberOfPictures, required BuildContext context}) {
+    final screenWidth = _getScreenWidth(context);
     if (numberOfPictures == 1) {
-      return size.width;
+      return screenWidth;
     } else if (numberOfPictures == 2 || numberOfPictures == 4) {
-      return size.width / 2.2;
+      return screenWidth / 2.2;
     } else {
-      return size.width / 3.4;
+      return screenWidth / 3.4;
     }
   }
 
-  double imageHeight({required int numberOfPictures, required BuildContext context}) {
-    Size size = MediaQuery.of(context).size;
+  double imageHeight(
+      {required int numberOfPictures, required BuildContext context}) {
     if (numberOfPictures == 1) {
       return 400;
     } else if (numberOfPictures == 2 || numberOfPictures == 4) {
       return 170;
     } else {
-      return size.width / 3.4;
+      return _getScreenWidth(context) / 3.4;
     }
   }
 

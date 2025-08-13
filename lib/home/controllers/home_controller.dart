@@ -10,8 +10,9 @@ import '../a_shorts/shorts_cached_controller.dart';
 
 class HomeController extends GetxController {
   final UserModel? currentUser;
-  final PageController pageController;
-  late final ShortsCachedController reelsController;
+  late final PageController pageController;
+  ShortsCachedController? _reelsController; // Made nullable and private
+  String? _reelsControllerTag; // Store tag for cleanup
 
   RxInt selectedIndex = 2.obs;
   RxInt unreadMessageCount = 0.obs;
@@ -25,12 +26,36 @@ class HomeController extends GetxController {
   late QueryBuilder<MessageModel> messageQueryBuilder;
   late QueryBuilder<OfficialAnnouncementModel> officialAssistantQueryBuilder;
 
+  final int initialTabIndex;
+  bool _isDisposed = false;
+
   HomeController({
     required this.currentUser,
-    required int initialTabIndex,
-  }) : pageController = PageController(initialPage: initialTabIndex) {
-    selectedIndex.value = initialTabIndex;
-    reelsController = Get.put(ShortsCachedController());
+    required this.initialTabIndex,
+  }) {
+    // FIX: Initialize PageController safely to prevent multiple attachments
+    if (!_isDisposed) {
+      pageController = PageController(
+        initialPage: initialTabIndex,
+        keepPage: false, // Don't keep page state to prevent conflicts
+      );
+      selectedIndex.value = initialTabIndex;
+
+      // FIX: Don't create reels controller immediately - lazy load only when needed
+      // This improves login performance significantly
+    }
+  }
+
+  // FIX: Lazy getter for reels controller - only create when actually needed
+  ShortsCachedController get reelsController {
+    if (_reelsController == null && !_isDisposed) {
+      print('HomeController: Lazy loading reels controller...');
+      _reelsControllerTag = 'reels_${DateTime.now().millisecondsSinceEpoch}';
+      _reelsController =
+          Get.put(ShortsCachedController(), tag: _reelsControllerTag!);
+      print('HomeController: Reels controller loaded successfully');
+    }
+    return _reelsController!;
   }
 
   @override
@@ -41,11 +66,44 @@ class HomeController extends GetxController {
 
   @override
   void onClose() {
-    pageController.dispose();
-    if (subscription != null) {
-      liveQuery.client.unSubscribe(subscription!);
+    // FIX: Proper disposal to prevent PageController conflicts
+    _isDisposed = true;
+
+    try {
+      if (pageController.hasClients) {
+        pageController.dispose();
+      }
+    } catch (e) {
+      print('HomeController: Error disposing PageController: $e');
     }
+
+    try {
+      if (subscription != null) {
+        liveQuery.client.unSubscribe(subscription!);
+        subscription = null;
+      }
+    } catch (e) {
+      print('HomeController: Error disposing subscription: $e');
+    }
+
+    try {
+      // Clean up lazy-loaded reels controller if it was created
+      if (_reelsController != null && _reelsControllerTag != null) {
+        if (Get.isRegistered<ShortsCachedController>(
+            tag: _reelsControllerTag)) {
+          Get.delete<ShortsCachedController>(
+              tag: _reelsControllerTag, force: true);
+        }
+        _reelsController = null;
+        _reelsControllerTag = null;
+        print('HomeController: Lazy-loaded reels controller disposed');
+      }
+    } catch (e) {
+      print('HomeController: Error disposing reels controller: $e');
+    }
+
     super.onClose();
+    print('HomeController: Properly disposed');
   }
 
   void loadInitialData() {
@@ -175,28 +233,59 @@ class HomeController extends GetxController {
   }
 
   void onTabChanged(int index) {
-    if (selectedIndex.value == index) return;
+    // FIX: Safety checks to prevent PageController conflicts
+    if (_isDisposed || selectedIndex.value == index) return;
 
-    if (selectedIndex.value == 0) {
-      reelsController.pauseAllVideos();
+    try {
+      // FIX: Handle leaving reels tab - pause videos
+      if (selectedIndex.value == 0 && _reelsController != null) {
+        _reelsController!.pauseAllVideos();
+      }
+
+      selectedIndex.value = index;
+
+      // FIX: Handle entering reels tab - lazy load controller if needed
+      if (index == 0) {
+        // Access reelsController getter to trigger lazy loading if needed
+        print(
+            'HomeController: Switching to reels tab, ensuring controller is ready...');
+        final controller = reelsController; // This will lazy load if needed
+
+        // Resume playback if needed
+        try {
+          controller.playCurrentVideo();
+        } catch (e) {
+          print('HomeController: Error resuming video playback: $e');
+        }
+      }
+
+      // FIX: Only jump to page if PageController is still valid
+      if (pageController.hasClients && !_isDisposed) {
+        pageController.jumpToPage(index);
+      }
+    } catch (e) {
+      print('HomeController: Error changing tab: $e');
+      // Just update selected index as fallback
+      selectedIndex.value = index;
     }
-
-    selectedIndex.value = index;
-    pageController.jumpToPage(index);
   }
 
   void handleAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      if (selectedIndex.value == 0) {
+      if (selectedIndex.value == 0 && _reelsController != null) {
         try {
-          reelsController.playCurrentVideo();
+          _reelsController!.playCurrentVideo();
         } catch (e) {
-          print("Erro ao reproduzir vídeo: $e");
+          print("HomeController: Error resuming video: $e");
         }
       }
     } else if (state == AppLifecycleState.paused) {
-      if (selectedIndex.value == 0) {
-        reelsController.pauseAllVideos();
+      if (selectedIndex.value == 0 && _reelsController != null) {
+        try {
+          _reelsController!.pauseAllVideos();
+        } catch (e) {
+          print("HomeController: Error pausing videos: $e");
+        }
       }
     }
   }

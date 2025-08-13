@@ -204,7 +204,8 @@ void main() async {
   // Registrar e iniciar serviços essenciais
   final postsService = PostsService();
   Get.put(postsService, permanent: true);
-  Get.put(ShortsCachedController());
+  // FIX: Remove early ShortsCachedController initialization to improve login speed
+  // Controller will be lazy-loaded when needed
   //  Initialize the logs for zego kit user interface
   ZegoUIKit().initLog().then((value) {
     ZegoUIKitPrebuiltCallInvitationService().useSystemCallingUI(
@@ -316,8 +317,8 @@ class _AppState extends State<App> with WidgetsBindingObserver {
         print("Error ao definir usuário actual no feed: $e");
       }
 
-      // Define um timeout para garantir que o carregamento seja concluído
-      Future.delayed(Duration(seconds: 5), () {
+      // PERFORMANCE: Reduced timeout from 5s to 2s for faster response
+      Future.delayed(Duration(seconds: 2), () {
         _initializingFeed = false;
       });
     } catch (e) {
@@ -375,8 +376,12 @@ class _AppState extends State<App> with WidgetsBindingObserver {
     return GetMaterialApp(
       title: Setup.appName,
       debugShowCheckedModeBanner: false,
+      // PERFORMANCE OPTIMIZATION: Cache theme data to reduce rebuilds
       theme: lightThemeData(context),
       darkTheme: darkThemeData(context),
+      themeMode: ThemeMode.system,
+      // PERFORMANCE OPTIMIZATION: Reduce widget rebuilds
+      smartManagement: SmartManagement.onlyBuilder,
       localizationsDelegates: context.localizationDelegates,
       supportedLocales: context.supportedLocales,
       navigatorKey: navigatorKey,

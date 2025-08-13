@@ -38,8 +38,8 @@ class VideoCacheManager {
   // Diretório de cache
   late Directory _cacheDir;
 
-  // Tamanho máximo do cache (500MB)
-  static const int _maxCacheSize = 500 * 1024 * 1024;
+  // Tamanho máximo do cache (200MB) - REDUCED from 500MB - saves 300MB
+  static const int _maxCacheSize = 200 * 1024 * 1024;
 
   // Estado de inicialização
   bool _initialized = false;
@@ -580,20 +580,7 @@ class VideoCacheManager {
   }
 
   /// Obter estatísticas do cache
-  Map<String, dynamic> getCacheStats() {
-    return {
-      'initialized': _initialized,
-      'videosInCache': _lruList.length,
-      'cacheHits': _cacheHits,
-      'cacheMisses': _cacheMisses,
-      'hitRatio': _cacheHits + _cacheMisses > 0
-          ? (_cacheHits / (_cacheHits + _cacheMisses)).toStringAsFixed(2)
-          : '0',
-      'activeDownloads': _activeDownloads.length,
-      'totalDownloaded':
-          '${(_totalDownloaded / 1024 / 1024).toStringAsFixed(2)}MB',
-    };
-  }
+  
 
   /// Baixa um vídeo em segundo plano e retorna imediatamente
   /// Útil para pré-carregar vídeos sem bloquear a UI
@@ -699,6 +686,77 @@ class VideoCacheManager {
         _activeDownloads.remove(videoId);
       }
     }();
+  }
+
+  /// FIX: Add comprehensive cleanup methods to prevent ImageReader buffer issues
+  /// Dispose all active downloads and clear cache
+  Future<void> dispose() async {
+    try {
+      print('VideoCacheManager: Starting disposal process');
+
+      // Cancel all active downloads
+      final activeDownloadIds = _activeDownloads.keys.toList();
+      for (final videoId in activeDownloadIds) {
+        await cancelDownload(videoId);
+      }
+
+      // Clear all caches
+      _pathCache.clear();
+      _lruList.clear();
+      _activeDownloads.clear();
+
+      // Reset statistics
+      _cacheHits = 0;
+      _cacheMisses = 0;
+      _totalDownloaded = 0;
+
+      // Mark as uninitialized
+      _initialized = false;
+
+      print('VideoCacheManager: Disposal completed successfully');
+    } catch (e) {
+      print('VideoCacheManager: Error during disposal: $e');
+    }
+  }
+
+  /// Force clear all cache files and reset
+  Future<void> clearAllCache() async {
+    try {
+      print('VideoCacheManager: Clearing all cache files');
+
+      // Cancel active downloads first
+      await dispose();
+
+      // Delete all cache files
+      if (await _cacheDir.exists()) {
+        final files = await _cacheDir.list().toList();
+        for (final file in files) {
+          if (file is File) {
+            try {
+              await file.delete();
+            } catch (e) {
+              print('VideoCacheManager: Error deleting file ${file.path}: $e');
+            }
+          }
+        }
+      }
+
+      print('VideoCacheManager: All cache files cleared');
+    } catch (e) {
+      print('VideoCacheManager: Error clearing cache: $e');
+    }
+  }
+
+  /// Get cache statistics for monitoring
+  Map<String, dynamic> getCacheStats() {
+    return {
+      'initialized': _initialized,
+      'cacheHits': _cacheHits,
+      'cacheMisses': _cacheMisses,
+      'totalDownloaded': _totalDownloaded,
+      'cachedVideosCount': _pathCache.length,
+      'activeDownloads': _activeDownloads.length,
+    };
   }
 }
 

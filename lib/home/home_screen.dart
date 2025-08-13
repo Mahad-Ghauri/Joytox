@@ -14,6 +14,8 @@ import 'message/message_list_screen.dart';
 import 'controllers/home_controller.dart';
 
 class HomeScreen extends StatefulWidget {
+  static const String route = '/home';
+
   final UserModel? currentUser;
   final int initialTabIndex;
 
@@ -35,10 +37,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    controller = Get.put(HomeController(
-      currentUser: widget.currentUser,
-      initialTabIndex: widget.initialTabIndex,
-    ));
+
+    // FIX: Use unique tag and proper controller lifecycle management
+    final String controllerTag =
+        'home_controller_${DateTime.now().millisecondsSinceEpoch}';
+
+    controller = Get.put(
+      HomeController(
+        currentUser: widget.currentUser,
+        initialTabIndex: widget.initialTabIndex,
+      ),
+      tag: controllerTag,
+    );
   }
 
   @override
@@ -51,6 +61,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _bannerAd?.dispose();
+
+    // FIX: Ensure proper controller disposal to prevent multiple PageControllers
+    try {
+      if (Get.isRegistered<HomeController>()) {
+        Get.delete<HomeController>(force: true);
+      }
+    } catch (e) {
+      print('HomeScreen: Error disposing controller: $e');
+    }
+
     super.dispose();
   }
 

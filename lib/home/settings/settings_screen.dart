@@ -28,8 +28,7 @@ import 'package:trace/app/config.dart' as conf;
 class SettingsScreen extends StatefulWidget {
   UserModel? currentUser;
 
-  SettingsScreen({this.currentUser, Key? key})
-      : super(key: key);
+  SettingsScreen({this.currentUser, Key? key}) : super(key: key);
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -118,8 +117,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
             automaticallyImplyLeading: false,
             leading: BackButton(
               color: isDark ? Colors.white : kContentColorLightTheme,
-              onPressed: (){
-                QuickHelp.goBackToPreviousPage(context, result: widget.currentUser);
+              onPressed: () {
+                // FIX: Use simple Navigator.pop to prevent navigation issues
+                Navigator.of(context).pop(widget.currentUser);
               },
             ),
             centerTitle: true,
@@ -154,8 +154,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 height: 10,
               ),
               option(
-                  title: "setting_screen.account_security".tr(),
-                  showSecurityInfo: true,
+                title: "setting_screen.account_security".tr(),
+                showSecurityInfo: true,
                 goToAccountAndSecurityScreen: true,
               ),
               option(
@@ -310,7 +310,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 currentUser: widget.currentUser,
               ),
             );
-          }else if(goToAccountAndSecurityScreen){
+          } else if (goToAccountAndSecurityScreen) {
             QuickHelp.goToNavigatorScreen(
               context,
               AccountAndSecurityScreen(
@@ -480,14 +480,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
           QuickHelp.initInstallation(null, null);
           QuickHelp.goToPageWithClear(
             context,
-            size.width > kMobileWidth ? ResponsiveWelcomeScreen() : WelcomeScreen(),
+            size.width > kMobileWidth
+                ? ResponsiveWelcomeScreen()
+                : WelcomeScreen(),
           );
         }).onError(
           (error, stackTrace) {
             QuickHelp.hideLoadingDialog(context);
           },
         );
-
       },
     );
   }
