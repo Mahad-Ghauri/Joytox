@@ -617,7 +617,7 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
 
   // Calculate seat index based on user ID and seat layout
   int _calculateSeatIndex(String? userId) {
-    if (userId == null) return -1;
+    if (userId == null) return 1;
 
     // Host always gets seat index 0
     if (userId == widget.liveStreaming!.getAuthorId) {
@@ -634,7 +634,7 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
     }
 
     // If user not found in any seat, return -1
-    return -1;
+    return 1;
   }
 
   // Validate if a user can occupy a specific seat
@@ -714,7 +714,28 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
         return;
       }
 
-      final userId = seatState['userId'] as String?;
+      String? userId = seatState['userId'] as String?;
+
+      // If local state shows empty, resolve actual occupant from Zego and sync
+      if (userId == null) {
+        try {
+          final seatUser = controller.seat.getUserByIndex(seatIndex);
+          if (seatUser != null && seatUser.id.isNotEmpty) {
+            userId = seatUser.id;
+            // Sync local seat state for future actions
+            showGiftSendersController.updateSeatState(
+                seatIndex, 'userId', userId);
+            showGiftSendersController.updateSeatState(
+                seatIndex, 'userName', userId);
+            print(
+                "🎭 [SEAT ACTION] Resolved occupant via Zego: $userId for seat $seatIndex");
+          }
+        } catch (e) {
+          print(
+              "🎭 [SEAT ACTION] Failed to resolve seat occupant via Zego: $e");
+        }
+      }
+
       print(
           "🎭 [SEAT ACTION] Current user in seat $seatIndex: ${userId ?? 'empty'}");
 
@@ -1227,26 +1248,82 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
                 );
 
                 // Get seat index from extraInfo (Zego uses 'index' key)
-                int seatIndex = extraInfo['index'] as int? ?? -1;
+                int seatIndex = -1;
+                final rawIndex = extraInfo['index'];
+                if (rawIndex is int) {
+                  seatIndex = rawIndex;
+                } else if (rawIndex is double) {
+                  seatIndex = rawIndex.toInt();
+                } else if (rawIndex is String) {
+                  seatIndex = int.tryParse(rawIndex) ?? -1;
+                }
                 print(
                     "🪑 Avatar builder - seat index: $seatIndex for user: ${user?.id ?? 'empty'}");
 
-                // Handle special case: if user is host and seat index is invalid, assign to seat 0
-                if (seatIndex < 0 &&
-                    user != null &&
-                    user.id == widget.liveStreaming!.getAuthorId) {
+                // If index missing/invalid, assign deterministically without using 0 for non-hosts
+                if (seatIndex < 0) {
+                  if (user != null &&
+                      user.id == widget.liveStreaming!.getAuthorId) {
+                    // Host always seat 0
+                    seatIndex = 0;
+                  } else {
+                    // Non-host -> first empty seat from 1
+                    try {
+                      final controller =
+                          ZegoUIKitPrebuiltLiveAudioRoomController();
+                      final int userSeats =
+                          widget.liveStreaming!.getNumberOfChairs ?? 8;
+                      final int totalSeats = 1 + userSeats; // include host
+                      for (int i = 1; i < totalSeats; i++) {
+                        final seatUser = controller.seat.getUserByIndex(i);
+                        if (seatUser == null) {
+                          seatIndex = i;
+                          break;
+                        }
+                      }
+                      if (seatIndex < 0) seatIndex = 1; // fallback
+                    } catch (e) {
+                      debugPrint(
+                          'avatarBuilder: resolve first empty seat failed: $e');
+                      seatIndex = 1; // safe fallback
+                    }
+                  }
                   print(
-                      "🪑 Host user detected with invalid index, assigning to seat 0");
-                  seatIndex = 0;
-                } else if (seatIndex < 0) {
-                  print("⚠️ Invalid seat index: $seatIndex");
-                  seatIndex = 0; // Fallback to host seat
+                      "🪑 Resolved seat index for user: ${user?.id ?? 'empty'} => $seatIndex");
+                }
+
+                // Sync local seat state for UI consistency
+                if (user != null && seatIndex >= 0) {
+                  if (seatIndex == 0 &&
+                      user.id != widget.liveStreaming!.getAuthorId) {
+                    print(
+                        "⚠️ WARNING: Non-host user ${user.id} in host seat 0!");
+                  }
+                  final state =
+                      showGiftSendersController.getSeatState(seatIndex);
+                  if (state == null || state['userId'] != user.id) {
+                    showGiftSendersController.updateSeatState(
+                        seatIndex, 'userId', user.id);
+                    showGiftSendersController.updateSeatState(
+                        seatIndex, 'userName', user.id);
+                  }
                 }
 
                 Widget avatarWidget;
                 if (user == null) {
                   // Empty seat
                   print("🪑 Empty seat at index: $seatIndex");
+
+                  // Ensure local state is cleared for empty seats
+                  final state =
+                      showGiftSendersController.getSeatState(seatIndex);
+                  if (state != null && state['userId'] != null) {
+                    showGiftSendersController.updateSeatState(
+                        seatIndex, 'userId', null);
+                    showGiftSendersController.updateSeatState(
+                        seatIndex, 'userName', null);
+                  }
+
                   avatarWidget = Container(
                     width: size.width,
                     height: size.height,
@@ -1275,6 +1352,16 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
                         "⚠️ WARNING: Non-host user ${user.id} in host seat 0!");
                   }
 
+                  // Sync occupant in local state if missing/wrong
+                  final state =
+                      showGiftSendersController.getSeatState(seatIndex);
+                  if (state == null || state['userId'] != user.id) {
+                    showGiftSendersController.updateSeatState(
+                        seatIndex, 'userId', user.id);
+                    showGiftSendersController.updateSeatState(
+                        seatIndex, 'userName', user.id);
+                  }
+
                   avatarWidget = FutureBuilder<String?>(
                     future: avatarService.fetchUserAvatar(user.id),
                     builder: (context, snapshot) {
@@ -1296,47 +1383,72 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
                 );
 
                 // Get seat index from extraInfo (Zego uses 'index' key)
-                int seatIndex = extraInfo['index'] as int? ?? -1;
+                int seatIndex = -1;
+                final rawIndex = extraInfo['index'];
+                if (rawIndex is int) {
+                  seatIndex = rawIndex;
+                } else if (rawIndex is double) {
+                  seatIndex = rawIndex.toInt();
+                } else if (rawIndex is String) {
+                  seatIndex = int.tryParse(rawIndex) ?? -1;
+                }
                 print(
                     "📍 Foreground builder - seat index: $seatIndex for user: ${user?.id ?? 'empty'}");
+
+                // If index invalid, try to resolve via controller for correct seat overlay
+                if (seatIndex < 0 && user != null) {
+                  try {
+                    final controller =
+                        ZegoUIKitPrebuiltLiveAudioRoomController();
+                    final int userSeats =
+                        widget.liveStreaming!.getNumberOfChairs ?? 8;
+                    final int totalSeats = 1 + userSeats;
+                    for (int i = 1; i < totalSeats; i++) {
+                      final seatUser = controller.seat.getUserByIndex(i);
+                      if (seatUser?.id == user.id) {
+                        seatIndex = i;
+                        break;
+                      }
+                    }
+                  } catch (e) {
+                    debugPrint(
+                        'foregroundBuilder: resolve seat by user failed: $e');
+                  }
+                }
 
                 // Validate seat index
                 if (seatIndex < 0) {
                   print(
                       "⚠️ Invalid seat index in foreground builder: $seatIndex");
-                  return SizedBox.shrink();
+                  return const SizedBox.shrink();
                 }
 
                 // Host seat (index 0) should have no foreground/options
                 if (seatIndex == 0) {
                   print("🚫 Host seat (index 0) - no foreground options");
-                  return SizedBox.shrink();
+                  return const SizedBox.shrink();
                 }
 
                 // Only show clickable overlay for hosts on non-host seats
-                if (!widget.isHost!) return SizedBox.shrink();
+                if (!widget.isHost!) return const SizedBox.shrink();
 
                 // Return invisible clickable overlay for seat management
-                return Positioned.fill(
-                  child: GestureDetector(
-                    onTap: () {
-                      print(
-                        "🔥 SEAT FOREGROUND CLICKED! User: ${user?.id ?? 'empty'}",
-                      );
-                      print("🎯 Using seat index: $seatIndex");
+                return GestureDetector(
+                  behavior: HitTestBehavior.translucent,
+                  onTap: () {
+                    print(
+                      "🔥 SEAT FOREGROUND CLICKED! User: ${user?.id ?? 'empty'}",
+                    );
+                    print("🎯 Using seat index: $seatIndex");
 
-                      showSeatActionMenu(
-                        context: context,
-                        currentUser: widget.currentUser!,
-                        seatIndex: seatIndex,
-                        onActionSelected: _handleSeatAction,
-                      );
-                    },
-                    child: Container(
-                      // Invisible container - no visual indicators
-                      color: Colors.transparent,
-                    ),
-                  ),
+                    showSeatActionMenu(
+                      context: context,
+                      currentUser: widget.currentUser!,
+                      seatIndex: seatIndex,
+                      onActionSelected: _handleSeatAction,
+                    );
+                  },
+                  child: const SizedBox.expand(),
                 );
               }
               ..seat.layout.rowSpacing = 10

@@ -4,13 +4,13 @@ import 'package:flutter/material.dart';
 import '../../main.dart';
 import 'zego_sdk_manager.dart';
 export 'zego_sdk_manager.dart';
-import 'internal/business/audio_room/room_seat_service.dart'; // ✅ Required for RoomSeatService
+import 'internal/business/audio_room/room_seat_service.dart';  // ✅ Required for RoomSeatService
+
 
 class ZegoLiveAudioRoomManager {
   factory ZegoLiveAudioRoomManager() => instance;
   ZegoLiveAudioRoomManager._internal();
-  static final ZegoLiveAudioRoomManager instance =
-      ZegoLiveAudioRoomManager._internal();
+  static final ZegoLiveAudioRoomManager instance = ZegoLiveAudioRoomManager._internal();
 
   static const String roomKey = 'audioRoom';
 
@@ -19,12 +19,11 @@ class ZegoLiveAudioRoomManager {
 
   ValueNotifier<bool> isLockSeat = ValueNotifier(false);
   ValueNotifier<ZegoSDKUser?> hostUserNoti = ValueNotifier(null);
-  ValueNotifier<ZegoLiveAudioRoomRole> roleNoti =
-      ValueNotifier(ZegoLiveAudioRoomRole.audience);
+  ValueNotifier<ZegoLiveAudioRoomRole> roleNoti = ValueNotifier(ZegoLiveAudioRoomRole.audience);
 
   /// Music playback state synced via room extra info so all users can hear consistent background music
   ValueNotifier<MusicPlaybackState?> musicStateNoti = ValueNotifier(null);
-
+  
   // ✅ NEW: Enhanced state management
   ValueNotifier<bool> isMusicStateUpdating = ValueNotifier(false);
   ValueNotifier<String?> lastMusicError = ValueNotifier(null);
@@ -50,25 +49,19 @@ class ZegoLiveAudioRoomManager {
     return hostUserNoti.value?.userID ?? '';
   }
 
-  Future<ZegoRoomLoginResult> loginRoom(
-      String roomID, ZegoLiveAudioRoomRole role,
-      {String? token}) async {
+  Future<ZegoRoomLoginResult> loginRoom(String roomID, ZegoLiveAudioRoomRole role, {String? token}) async {
     try {
       roomSeatService = RoomSeatService();
       roleNoti.value = role;
       final expressService = ZEGOSDKManager().expressService;
       final zimService = ZEGOSDKManager().zimService;
       subscriptions.addAll([
-        expressService.roomExtraInfoUpdateCtrl.stream
-            .listen(onRoomExtraInfoUpdate),
-        expressService.roomUserListUpdateStreamCtrl.stream
-            .listen(onRoomUserListUpdate),
-        zimService.onRoomCommandReceivedEventStreamCtrl.stream
-            .listen(onRoomCommandReceived)
+        expressService.roomExtraInfoUpdateCtrl.stream.listen(onRoomExtraInfoUpdate),
+        expressService.roomUserListUpdateStreamCtrl.stream.listen(onRoomUserListUpdate),
+        zimService.onRoomCommandReceivedEventStreamCtrl.stream.listen(onRoomCommandReceived)
       ]);
       roomSeatService?.initWithConfig(role);
-      return ZEGOSDKManager()
-          .loginRoom(roomID, ZegoScenario.HighQualityChatroom, token: token);
+      return ZEGOSDKManager().loginRoom(roomID, ZegoScenario.HighQualityChatroom, token: token);
     } catch (e) {
       debugPrint('ZegoLiveAudioRoomManager: Error in loginRoom: $e');
       rethrow;
@@ -92,11 +85,9 @@ class ZegoLiveAudioRoomManager {
     return isLockSeat.value;
   }
 
-  Future<ZIMRoomAttributesOperatedCallResult?> takeSeat(int seatIndex,
-      {bool? isForce}) async {
+  Future<ZIMRoomAttributesOperatedCallResult?> takeSeat(int seatIndex, {bool? isForce}) async {
     try {
-      final result =
-          await roomSeatService?.takeSeat(seatIndex, isForce: isForce);
+      final result = await roomSeatService?.takeSeat(seatIndex, isForce: isForce);
       if (result != null) {
         if (!result.errorKeys.contains(seatIndex.toString())) {
           for (final element in seatList) {
@@ -109,8 +100,7 @@ class ZegoLiveAudioRoomManager {
           }
         }
       }
-      if (result != null &&
-          !result.errorKeys.contains(ZEGOSDKManager().currentUser!.userID)) {
+      if (result != null && !result.errorKeys.contains(ZEGOSDKManager().currentUser!.userID)) {
         openMicAndStartPublishStream();
       }
       return result;
@@ -126,8 +116,7 @@ class ZegoLiveAudioRoomManager {
       ZEGOSDKManager().expressService.turnMicrophoneOn(true);
       ZEGOSDKManager().expressService.startPublishingStream(generateStreamID());
     } catch (e) {
-      debugPrint(
-          'ZegoLiveAudioRoomManager: Error in openMicAndStartPublishStream: $e');
+      debugPrint('ZegoLiveAudioRoomManager: Error in openMicAndStartPublishStream: $e');
     }
   }
 
@@ -135,8 +124,7 @@ class ZegoLiveAudioRoomManager {
     try {
       final userID = ZEGOSDKManager().currentUser!.userID;
       final roomID = ZEGOSDKManager().expressService.currentRoomID;
-      final streamID =
-          '${roomID}${userID}${ZegoLiveAudioRoomManager().roleNoti.value == ZegoLiveAudioRoomRole.host ? 'host' : 'speaker'}';
+      final streamID = '${roomID}${userID}${ZegoLiveAudioRoomManager().roleNoti.value == ZegoLiveAudioRoomRole.host ? 'host' : 'speaker'}';
       return streamID;
     } catch (e) {
       debugPrint('ZegoLiveAudioRoomManager: Error generating stream ID: $e');
@@ -144,8 +132,7 @@ class ZegoLiveAudioRoomManager {
     }
   }
 
-  Future<ZIMRoomAttributesBatchOperatedResult?> switchSeat(
-      int fromSeatIndex, int toSeatIndex) async {
+  Future<ZIMRoomAttributesBatchOperatedResult?> switchSeat(int fromSeatIndex, int toSeatIndex) async {
     try {
       return roomSeatService?.switchSeat(fromSeatIndex, toSeatIndex);
     } catch (e) {
@@ -163,28 +150,20 @@ class ZegoLiveAudioRoomManager {
     }
   }
 
-  Future<ZIMRoomAttributesOperatedCallResult?> removeSpeakerFromSeat(
-      String userID) async {
+  Future<ZIMRoomAttributesOperatedCallResult?> removeSpeakerFromSeat(String userID) async {
     try {
       return roomSeatService?.removeSpeakerFromSeat(userID);
     } catch (e) {
-      debugPrint(
-          'ZegoLiveAudioRoomManager: Error in removeSpeakerFromSeat: $e');
+      debugPrint('ZegoLiveAudioRoomManager: Error in removeSpeakerFromSeat: $e');
       rethrow;
     }
   }
 
   Future<ZIMMessageSentResult> muteSpeaker(String userID, bool isMute) async {
     try {
-      final messageType =
-          isMute ? RoomCommandType.muteSpeaker : RoomCommandType.unMuteSpeaker;
-      final commandMap = {
-        'room_command_type': messageType,
-        'receiver_id': userID
-      };
-      final result = await ZEGOSDKManager()
-          .zimService
-          .sendRoomCommand(jsonEncode(commandMap));
+      final messageType = isMute ? RoomCommandType.muteSpeaker : RoomCommandType.unMuteSpeaker;
+      final commandMap = {'room_command_type': messageType, 'receiver_id': userID};
+      final result = await ZEGOSDKManager().zimService.sendRoomCommand(jsonEncode(commandMap));
       return result;
     } catch (e) {
       debugPrint('ZegoLiveAudioRoomManager: Error in muteSpeaker: $e');
@@ -194,13 +173,8 @@ class ZegoLiveAudioRoomManager {
 
   Future<ZIMMessageSentResult> kickOutRoom(String userID) async {
     try {
-      final commandMap = {
-        'room_command_type': RoomCommandType.kickOutRoom,
-        'receiver_id': userID
-      };
-      final result = await ZEGOSDKManager()
-          .zimService
-          .sendRoomCommand(jsonEncode(commandMap));
+      final commandMap = {'room_command_type': RoomCommandType.kickOutRoom, 'receiver_id': userID};
+      final result = await ZEGOSDKManager().zimService.sendRoomCommand(jsonEncode(commandMap));
       return result;
     } catch (e) {
       debugPrint('ZegoLiveAudioRoomManager: Error in kickOutRoom: $e');
@@ -224,13 +198,11 @@ class ZegoLiveAudioRoomManager {
       isLockSeat.value = false;
       hostUserNoti.value = null;
       musicStateNoti.value = null;
-      // MEMORY OPTIMIZATION: Clear retry state to prevent memory leaks
-      _musicStateRetryCount = 0;
-      _musicStateRetryTimer?.cancel();
-      _musicStateRetryTimer = null;
       isMusicStateUpdating.value = false;
       lastMusicError.value = null;
-
+      _musicStateRetryCount = 0;
+      _musicStateRetryTimer?.cancel();
+      
       for (final subscription in subscriptions) {
         subscription.cancel();
       }
@@ -246,9 +218,7 @@ class ZegoLiveAudioRoomManager {
 
       roomExtraInfoDict['host'] = ZEGOSDKManager().currentUser!.userID;
       final dataJson = jsonEncode(roomExtraInfoDict);
-      final result = await ZEGOSDKManager()
-          .expressService
-          .setRoomExtraInfo(roomKey, dataJson);
+      final result = await ZEGOSDKManager().expressService.setRoomExtraInfo(roomKey, dataJson);
 
       if (result.errorCode == 0) {
         roleNoti.value = ZegoLiveAudioRoomRole.host;
@@ -300,10 +270,7 @@ class ZegoLiveAudioRoomManager {
           /// ✅ APPLY PER-SEAT LOCKS
           if (roomExtraInfoDict.containsKey('lockseats')) {
             List<dynamic> lockedSeatList = roomExtraInfoDict['lockseats'];
-            List<int> lockedIndexes = lockedSeatList
-                .map((e) => int.tryParse(e.toString()) ?? -1)
-                .where((e) => e >= 0)
-                .toList();
+            List<int> lockedIndexes = lockedSeatList.map((e) => int.tryParse(e.toString()) ?? -1).where((e) => e >= 0).toList();
             updateLockedSeats(lockedIndexes);
           }
 
@@ -314,79 +281,69 @@ class ZegoLiveAudioRoomManager {
               if (musicJson is Map<String, dynamic>) {
                 musicStateNoti.value = MusicPlaybackState.fromJson(musicJson);
               } else if (musicJson is String) {
-                musicStateNoti.value =
-                    MusicPlaybackState.fromJson(jsonDecode(musicJson));
+                musicStateNoti.value = MusicPlaybackState.fromJson(jsonDecode(musicJson));
               }
-
+              
               // Clear any previous errors when music state updates successfully
               lastMusicError.value = null;
               _musicStateRetryCount = 0;
             } catch (e) {
-              debugPrint(
-                  'ZegoLiveAudioRoomManager: Error parsing music state: $e');
+              debugPrint('ZegoLiveAudioRoomManager: Error parsing music state: $e');
               lastMusicError.value = 'Failed to parse music state: $e';
             }
           }
         }
       }
     } catch (e) {
-      debugPrint(
-          'ZegoLiveAudioRoomManager: Error in onRoomExtraInfoUpdate: $e');
+      debugPrint('ZegoLiveAudioRoomManager: Error in onRoomExtraInfoUpdate: $e');
     }
   }
 
   /// Host updates music state which is broadcast to the room via room extra info
-  Future<ZegoRoomSetRoomExtraInfoResult?> setMusicState(
-      MusicPlaybackState state) async {
+  Future<ZegoRoomSetRoomExtraInfoResult?> setMusicState(MusicPlaybackState state) async {
     if (roleNoti.value != ZegoLiveAudioRoomRole.host) {
       return null;
     }
-
+    
     if (isMusicStateUpdating.value) {
-      debugPrint(
-          'ZegoLiveAudioRoomManager: Music state update already in progress, skipping');
+      debugPrint('ZegoLiveAudioRoomManager: Music state update already in progress, skipping');
       return null;
     }
-
+    
     try {
       isMusicStateUpdating.value = true;
       lastMusicError.value = null;
-
+      
       roomExtraInfoDict['music'] = state.toJson();
       final dataJson = jsonEncode(roomExtraInfoDict);
-      final result = await ZEGOSDKManager()
-          .expressService
-          .setRoomExtraInfo(roomKey, dataJson);
-
+      final result = await ZEGOSDKManager().expressService.setRoomExtraInfo(roomKey, dataJson);
+      
       if (result.errorCode == 0) {
         musicStateNoti.value = state;
         _musicStateRetryCount = 0; // Reset retry count on success
-        debugPrint(
-            'ZegoLiveAudioRoomManager: Music state updated successfully');
+        debugPrint('ZegoLiveAudioRoomManager: Music state updated successfully');
       } else {
         throw Exception('Failed to update music state: ${result.errorCode}');
       }
-
+      
       return result;
     } catch (e) {
       debugPrint('ZegoLiveAudioRoomManager: Error setting music state: $e');
       lastMusicError.value = 'Failed to update music state: $e';
-
+      
       // Attempt retry if possible
       if (_musicStateRetryCount < _maxMusicStateRetries) {
         _musicStateRetryCount++;
-        debugPrint(
-            'ZegoLiveAudioRoomManager: Retrying music state update (attempt $_musicStateRetryCount/$_maxMusicStateRetries)');
-
+        debugPrint('ZegoLiveAudioRoomManager: Retrying music state update (attempt $_musicStateRetryCount/$_maxMusicStateRetries)');
+        
         _musicStateRetryTimer?.cancel();
         _musicStateRetryTimer = Timer(const Duration(seconds: 2), () async {
           await setMusicState(state);
         });
       } else {
-        debugPrint(
-            'ZegoLiveAudioRoomManager: Max retry attempts reached for music state update');
+        debugPrint('ZegoLiveAudioRoomManager: Max retry attempts reached for music state update');
       }
-
+      
       return null;
     } finally {
       isMusicStateUpdating.value = false;
@@ -415,14 +372,12 @@ class ZegoLiveAudioRoomManager {
         final receiverID = messageMap['receiver_id'];
         if (receiverID == ZEGOSDKManager().currentUser!.userID) {
           if (type == RoomCommandType.muteSpeaker) {
-            ScaffoldMessenger.of(navigatorKey.currentContext!).showSnackBar(
-                const SnackBar(
-                    content: Text('You have been muted by the host')));
+            ScaffoldMessenger.of(navigatorKey.currentContext!)
+                .showSnackBar(const SnackBar(content: Text('You have been muted by the host')));
             ZEGOSDKManager().expressService.turnMicrophoneOn(false);
           } else if (type == RoomCommandType.unMuteSpeaker) {
-            ScaffoldMessenger.of(navigatorKey.currentContext!).showSnackBar(
-                const SnackBar(
-                    content: Text('You have been unmuted by the host')));
+            ScaffoldMessenger.of(navigatorKey.currentContext!)
+                .showSnackBar(const SnackBar(content: Text('You have been unmuted by the host')));
             ZEGOSDKManager().expressService.turnMicrophoneOn(true);
           } else if (type == RoomCommandType.kickOutRoom) {
             logoutRoom();
@@ -431,8 +386,7 @@ class ZegoLiveAudioRoomManager {
         }
       }
     } catch (e) {
-      debugPrint(
-          'ZegoLiveAudioRoomManager: Error in onRoomCommandReceived: $e');
+      debugPrint('ZegoLiveAudioRoomManager: Error in onRoomCommandReceived: $e');
     }
   }
 
@@ -452,13 +406,10 @@ class MusicPlaybackState {
   final bool isPlaying;
   final int positionMs;
 
-  MusicPlaybackState(
-      {this.trackUrl, required this.isPlaying, required this.positionMs});
+  MusicPlaybackState({this.trackUrl, required this.isPlaying, required this.positionMs});
 
-  factory MusicPlaybackState.empty() =>
-      MusicPlaybackState(trackUrl: null, isPlaying: false, positionMs: 0);
-  factory MusicPlaybackState.stopped() =>
-      MusicPlaybackState(trackUrl: null, isPlaying: false, positionMs: 0);
+  factory MusicPlaybackState.empty() => MusicPlaybackState(trackUrl: null, isPlaying: false, positionMs: 0);
+  factory MusicPlaybackState.stopped() => MusicPlaybackState(trackUrl: null, isPlaying: false, positionMs: 0);
 
   Map<String, dynamic> toJson() => {
         'trackUrl': trackUrl,
@@ -466,15 +417,13 @@ class MusicPlaybackState {
         'positionMs': positionMs,
       };
 
-  factory MusicPlaybackState.fromJson(Map<String, dynamic> json) =>
-      MusicPlaybackState(
+  factory MusicPlaybackState.fromJson(Map<String, dynamic> json) => MusicPlaybackState(
         trackUrl: json['trackUrl'] as String?,
         isPlaying: (json['isPlaying'] ?? false) as bool,
         positionMs: (json['positionMs'] ?? 0) as int,
       );
 
-  MusicPlaybackState copyWith(
-      {String? trackUrl, bool? isPlaying, int? positionMs}) {
+  MusicPlaybackState copyWith({String? trackUrl, bool? isPlaying, int? positionMs}) {
     return MusicPlaybackState(
       trackUrl: trackUrl ?? this.trackUrl,
       isPlaying: isPlaying ?? this.isPlaying,

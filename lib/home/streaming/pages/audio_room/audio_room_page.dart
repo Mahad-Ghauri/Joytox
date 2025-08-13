@@ -13,6 +13,7 @@ import '../../components/components.dart';
 import '../../live_audio_room_manager.dart';
 import '../../utils/zegocloud_token.dart';
 import '../../zego_sdk_key_center.dart';
+import 'package:zego_express_engine/zego_express_engine.dart';
 import '../../zego_live_audio_room_seat_tile.dart';
 
 
@@ -60,6 +61,12 @@ class AudioRoomPageState extends State<AudioRoomPage> {
   ];
   int _currentIndex = 0;
 
+  // ✅ NEW: Enhanced playlist management
+  String get currentTrackUrl => _playlistUrls.isNotEmpty ? _playlistUrls[_currentIndex] : '';
+  bool get hasNextTrack => _playlistUrls.isNotEmpty && _currentIndex < _playlistUrls.length - 1;
+  bool get hasPreviousTrack => _playlistUrls.isNotEmpty && _currentIndex > 0;
+  bool get isPlaying => ZegoLiveAudioRoomManager().musicStateNoti.value?.isPlaying ?? false;
+
   @override
   void initState() {
     super.initState();
@@ -105,12 +112,26 @@ class AudioRoomPageState extends State<AudioRoomPage> {
             break;
           case ZegoMediaPlayerState.PlayEnded:
             _isMusicReady = false;
+            // ✅ NEW: Auto-advance to next track when current track ends
+            _autoAdvanceToNextTrack();
             break;
           case ZegoMediaPlayerState.NoPlay:
             _isMusicReady = false;
             break;
           default:
             break;
+        }
+      });
+    }
+  }
+
+  // ✅ NEW: Auto-advance to next track when current track ends
+  void _autoAdvanceToNextTrack() {
+    if (hasNextTrack && ZegoLiveAudioRoomManager().roleNoti.value == ZegoLiveAudioRoomRole.host) {
+      // Small delay to ensure smooth transition
+      Future.delayed(const Duration(milliseconds: 500), () async {
+        if (mounted) {
+          await _hostForward();
         }
       });
     }
@@ -418,6 +439,110 @@ class AudioRoomPageState extends State<AudioRoomPage> {
     }
   }
 
+  // ✅ NEW: Forward functionality - skip to next track
+  Future<void> _hostForward() async {
+    if (ZegoLiveAudioRoomManager().roleNoti.value != ZegoLiveAudioRoomRole.host) return;
+    
+    if (!hasNextTrack) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No more tracks available'),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+      return;
+    }
+    
+    try {
+      _currentIndex = (_currentIndex + 1) % _playlistUrls.length;
+      await _hostPlayUrl(_playlistUrls[_currentIndex]);
+      
+      debugPrint('AudioRoomPage: Forwarded to next track: $_currentIndex');
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Playing track ${_currentIndex + 1}/${_playlistUrls.length}'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('AudioRoomPage: Error forwarding to next track: $e');
+      _handleMediaPlayerError(-1, 'Failed to forward to next track: $e');
+    }
+  }
+
+  // ✅ NEW: Backward functionality - go to previous track
+  Future<void> _hostBackward() async {
+    if (ZegoLiveAudioRoomManager().roleNoti.value != ZegoLiveAudioRoomRole.host) return;
+    
+    if (!hasPreviousTrack) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No previous tracks available'),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+      return;
+    }
+    
+    try {
+      _currentIndex = (_currentIndex - 1) % _playlistUrls.length;
+      await _hostPlayUrl(_playlistUrls[_currentIndex]);
+      
+      debugPrint('AudioRoomPage: Backward to previous track: $_currentIndex');
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Playing track ${_currentIndex + 1}/${_playlistUrls.length}'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('AudioRoomPage: Error going to previous track: $e');
+      _handleMediaPlayerError(-1, 'Failed to go to previous track: $e');
+    }
+  }
+
+  // ✅ NEW: Play specific track by index
+  Future<void> _hostPlayTrack(int trackIndex) async {
+    if (ZegoLiveAudioRoomManager().roleNoti.value != ZegoLiveAudioRoomRole.host) return;
+    
+    if (trackIndex < 0 || trackIndex >= _playlistUrls.length) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Invalid track index'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+      return;
+    }
+    
+    try {
+      _currentIndex = trackIndex;
+      await _hostPlayUrl(_playlistUrls[_currentIndex]);
+      
+      debugPrint('AudioRoomPage: Playing specific track: $_currentIndex');
+    } catch (e) {
+      debugPrint('AudioRoomPage: Error playing specific track: $e');
+      _handleMediaPlayerError(-1, 'Failed to play specific track: $e');
+    }
+  }
+
   // Apply incoming music state for non-hosts
   void _onMusicStateChanged() {
     final state = ZegoLiveAudioRoomManager().musicStateNoti.value;
@@ -568,66 +693,113 @@ class AudioRoomPageState extends State<AudioRoomPage> {
   }
 
   Widget _hostMusicControls() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 10),
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.95),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+        border: Border.all(
+          color: Colors.grey.withOpacity(0.2),
+          width: 1,
+        ),
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // ✅ NEW: Status indicator
+          // ✅ NEW: Enhanced status indicator with better styling
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: BoxDecoration(
-              color: _isMusicPlayerError ? Colors.red.shade100 : Colors.green.shade100,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: _isMusicPlayerError ? Colors.red : Colors.green,
-                width: 1,
+              gradient: LinearGradient(
+                colors: _isMusicPlayerError 
+                  ? [Colors.red.shade400, Colors.red.shade600]
+                  : [Colors.green.shade400, Colors.green.shade600],
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
               ),
+              borderRadius: BorderRadius.circular(25),
+              boxShadow: [
+                BoxShadow(
+                  color: (_isMusicPlayerError ? Colors.red : Colors.green).withOpacity(0.3),
+                  blurRadius: 10,
+                  offset: const Offset(0, 5),
+                ),
+              ],
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  _isMusicPlayerError ? Icons.error : Icons.music_note,
-                  size: 16,
-                  color: _isMusicPlayerError ? Colors.red : Colors.green,
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Icon(
+                    _isMusicPlayerError ? Icons.error_outline : Icons.music_note,
+                    size: 20,
+                    color: Colors.white,
+                  ),
                 ),
-                const SizedBox(width: 6),
+                const SizedBox(width: 12),
                 Text(
                   _isMusicPlayerError 
                     ? 'Audio Error' 
                     : (_isMusicReady ? 'Audio Ready' : 'Audio Loading...'),
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: _isMusicPlayerError ? Colors.red : Colors.green,
-                    fontWeight: FontWeight.w500,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 16),
           
-          // ✅ NEW: Error message display
+          // ✅ NEW: Error message display with improved styling
           if (_lastErrorMessage != null)
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              margin: const EdgeInsets.only(bottom: 16),
               decoration: BoxDecoration(
                 color: Colors.red.shade50,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.red.shade200),
+                borderRadius: BorderRadius.circular(15),
+                border: Border.all(color: Colors.red.shade200, width: 2),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.red.withOpacity(0.1),
+                    blurRadius: 10,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
               ),
               child: Row(
                 children: [
-                  Icon(Icons.warning, size: 16, color: Colors.red.shade600),
-                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade100,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Icon(Icons.warning_amber_rounded, size: 20, color: Colors.red.shade700),
+                  ),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Text(
                       _lastErrorMessage!,
                       style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.red.shade600,
+                        fontSize: 13,
+                        color: Colors.red.shade700,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ),
@@ -635,126 +807,478 @@ class AudioRoomPageState extends State<AudioRoomPage> {
               ),
             ),
           
-          // ✅ NEW: Enhanced music controls
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              ElevatedButton(
-                onPressed: _isMusicPlayerError || _isMusicPlayerInitializing 
-                  ? null 
-                  : () async {
-                      _currentIndex = 0;
-                      await _hostPlayUrl(_playlistUrls[_currentIndex]);
-                    },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  foregroundColor: Colors.white,
-                  disabledBackgroundColor: Colors.grey.shade300,
+          // ✅ NEW: Modern music controls with improved layout
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.grey.shade200),
+            ),
+            child: Column(
+              children: [
+                // Main control buttons in a row
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    // Back Button - Goes to previous track
+                    _buildControlButton(
+                      onPressed: _isMusicPlayerError || _isMusicPlayerInitializing || !hasPreviousTrack
+                        ? null 
+                        : () async {
+                            try {
+                              await _hostBackward();
+                            } catch (e) {
+                              debugPrint('AudioRoomPage: Error in Back button: $e');
+                              _handleMediaPlayerError(-1, 'Failed to go to previous track: $e');
+                            }
+                          },
+                      icon: Icons.skip_previous_rounded,
+                      label: 'Back',
+                      backgroundColor: Colors.blue.shade500,
+                      disabledColor: Colors.grey.shade300,
+                      size: 60,
+                    ),
+                    
+                    // Play Button - Starts/resumes audio playback
+                    _buildControlButton(
+                      onPressed: _isMusicPlayerError || _isMusicPlayerInitializing 
+                        ? null 
+                        : () async {
+                            try {
+                              if (_musicPlayer == null || !_isMusicReady) {
+                                // Start playing current track
+                                await _hostPlayUrl(_playlistUrls[_currentIndex]);
+                              } else if (!isPlaying) {
+                                // Resume playback
+                                await _hostResume();
+                              } else {
+                                // Already playing, show feedback
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Audio is already playing'),
+                                      backgroundColor: Colors.blue,
+                                      duration: Duration(seconds: 2),
+                                    ),
+                                  );
+                                }
+                              }
+                            } catch (e) {
+                              debugPrint('AudioRoomPage: Error in Play button: $e');
+                              _handleMediaPlayerError(-1, 'Failed to play audio: $e');
+                            }
+                          },
+                      icon: Icons.play_circle_filled_rounded,
+                      label: 'Play',
+                      backgroundColor: Colors.green.shade500,
+                      disabledColor: Colors.grey.shade300,
+                      size: 80,
+                      isPrimary: true,
+                    ),
+                    
+                    // Pause Button - Pauses audio playback
+                    _buildControlButton(
+                      onPressed: _isMusicPlayerError || _isMusicPlayerInitializing || _musicPlayer == null || !isPlaying
+                        ? null 
+                        : () async {
+                            try {
+                              if (isPlaying) {
+                                await _hostPause();
+                              } else {
+                                // Not playing, show feedback
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Audio is not currently playing'),
+                                      backgroundColor: Colors.orange,
+                                      duration: Duration(seconds: 2),
+                                    ),
+                                  );
+                                }
+                              }
+                            } catch (e) {
+                              debugPrint('AudioRoomPage: Error in Pause button: $e');
+                              _handleMediaPlayerError(-1, 'Failed to pause audio: $e');
+                            }
+                          },
+                      icon: Icons.pause_circle_filled_rounded,
+                      label: 'Pause',
+                      backgroundColor: Colors.orange.shade500,
+                      disabledColor: Colors.grey.shade300,
+                      size: 80,
+                      isPrimary: true,
+                    ),
+                    
+                    // Forward Button - Skips to next track
+                    _buildControlButton(
+                      onPressed: _isMusicPlayerError || _isMusicPlayerInitializing || !hasNextTrack
+                        ? null 
+                        : () async {
+                            try {
+                              await _hostForward();
+                            } catch (e) {
+                              debugPrint('AudioRoomPage: Error in Forward button: $e');
+                              _handleMediaPlayerError(-1, 'Failed to go to next track: $e');
+                            }
+                          },
+                      icon: Icons.skip_next_rounded,
+                      label: 'Forward',
+                      backgroundColor: Colors.purple.shade500,
+                      disabledColor: Colors.grey.shade300,
+                      size: 60,
+                    ),
+                  ],
                 ),
-                child: const Icon(Icons.play_arrow),
-              ),
-              const SizedBox(width: 8),
-              ElevatedButton(
-                onPressed: _isMusicPlayerError || _isMusicPlayerInitializing || _musicPlayer == null
-                  ? null 
-                  : _hostPause,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.orange,
-                  foregroundColor: Colors.white,
-                  disabledBackgroundColor: Colors.grey.shade300,
+                
+                const SizedBox(height: 20),
+                
+                // Secondary control buttons
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    // Stop Button
+                    _buildControlButton(
+                      onPressed: _isMusicPlayerError || _isMusicPlayerInitializing || _musicPlayer == null
+                        ? null 
+                        : _hostStop,
+                      icon: Icons.stop_circle_rounded,
+                      label: 'Stop',
+                      backgroundColor: Colors.red.shade500,
+                      disabledColor: Colors.grey.shade300,
+                      size: 50,
+                    ),
+                    
+                    // Play First Track Button
+                    _buildControlButton(
+                      onPressed: _isMusicPlayerError || _isMusicPlayerInitializing 
+                        ? null 
+                        : () async {
+                            _currentIndex = 0;
+                            await _hostPlayUrl(_playlistUrls[_currentIndex]);
+                          },
+                      icon: Icons.first_page_rounded,
+                      label: 'First',
+                      backgroundColor: Colors.teal.shade500,
+                      disabledColor: Colors.grey.shade300,
+                      size: 50,
+                    ),
+                  ],
                 ),
-                child: const Icon(Icons.pause),
-              ),
-              const SizedBox(width: 8),
-              ElevatedButton(
-                onPressed: _isMusicPlayerError || _isMusicPlayerInitializing || _musicPlayer == null
-                  ? null 
-                  : _hostResume,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
-                  foregroundColor: Colors.white,
-                  disabledBackgroundColor: Colors.grey.shade300,
-                ),
-                child: const Icon(Icons.play_circle),
-              ),
-              const SizedBox(width: 8),
-              ElevatedButton(
-                onPressed: _isMusicPlayerError || _isMusicPlayerInitializing 
-                  ? null 
-                  : () async {
-                      _currentIndex = (_currentIndex + 1) % _playlistUrls.length;
-                      await _hostPlayUrl(_playlistUrls[_currentIndex]);
-                    },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.purple,
-                  foregroundColor: Colors.white,
-                  disabledBackgroundColor: Colors.grey.shade300,
-                ),
-                child: const Icon(Icons.skip_next),
-              ),
-              const SizedBox(width: 8),
-              ElevatedButton(
-                onPressed: _isMusicPlayerError || _isMusicPlayerInitializing || _musicPlayer == null
-                  ? null 
-                  : _hostStop,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red,
-                  foregroundColor: Colors.white,
-                  disabledBackgroundColor: Colors.grey.shade300,
-                ),
-                child: const Icon(Icons.stop),
-              ),
-            ],
+              ],
+            ),
           ),
           
-          // ✅ NEW: Recovery button when errors occur
+          const SizedBox(height: 16),
+          
+          // ✅ NEW: Recovery button when errors occur with improved styling
           if (_isMusicPlayerError)
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
+            Container(
+              width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: _isMusicPlayerInitializing ? null : () async {
                   _retryCount = 0;
                   await _recreateMusicPlayer();
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.amber,
+                  backgroundColor: Colors.amber.shade500,
                   foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(25),
+                  ),
+                  elevation: 8,
+                  shadowColor: Colors.amber.withOpacity(0.4),
                 ),
-                icon: const Icon(Icons.refresh, size: 16),
-                label: Text(_isMusicPlayerInitializing ? 'Recovering...' : 'Recover Audio'),
+                icon: Icon(
+                  _isMusicPlayerInitializing ? Icons.hourglass_empty : Icons.refresh_rounded,
+                  size: 20,
+                ),
+                label: Text(
+                  _isMusicPlayerInitializing ? 'Recovering...' : 'Recover Audio System',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
             ),
           
-          // ✅ NEW: Current track info
+          const SizedBox(height: 16),
+          
+          // ✅ NEW: Enhanced current track info with better styling
           if (_isMusicReady && ZegoLiveAudioRoomManager().musicStateNoti.value?.trackUrl != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.blue.shade200),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Colors.blue.shade50, Colors.blue.shade100],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.blue.shade200, width: 2),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.blue.withOpacity(0.1),
+                    blurRadius: 10,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade500,
+                      borderRadius: BorderRadius.circular(25),
+                    ),
+                    child: const Icon(
+                      Icons.music_note_rounded,
+                      size: 20,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Now Playing',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.blue.shade700,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      Text(
+                        'Track ${_currentIndex + 1} of ${_playlistUrls.length}',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.blue.shade800,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          
+          const SizedBox(height: 16),
+          
+          // ✅ NEW: Playlist management section
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.grey.shade200),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
                   children: [
-                    Icon(Icons.music_note, size: 16, color: Colors.blue.shade600),
-                    const SizedBox(width: 6),
+                    Icon(
+                      Icons.playlist_play_rounded,
+                      color: Colors.grey.shade700,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
                     Text(
-                      'Track ${_currentIndex + 1}/${_playlistUrls.length}',
+                      'Playlist',
                       style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.blue.shade600,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey.shade800,
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      '${_playlistUrls.length} tracks',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
                   ],
                 ),
-              ),
+                const SizedBox(height: 16),
+                
+                // Track list
+                ...List.generate(_playlistUrls.length, (index) {
+                  final isCurrentTrack = index == _currentIndex;
+                  final isPlayingTrack = isCurrentTrack && isPlaying;
+                  
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: _isMusicPlayerError || _isMusicPlayerInitializing 
+                          ? null 
+                          : () => _hostPlayTrack(index),
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: isCurrentTrack 
+                              ? (isPlayingTrack ? Colors.green.shade100 : Colors.blue.shade100)
+                              : Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: isCurrentTrack 
+                                ? (isPlayingTrack ? Colors.green.shade300 : Colors.blue.shade300)
+                                : Colors.grey.shade200,
+                              width: isCurrentTrack ? 2 : 1,
+                            ),
+                            boxShadow: isCurrentTrack ? [
+                              BoxShadow(
+                                color: (isPlayingTrack ? Colors.green : Colors.blue).withOpacity(0.2),
+                                blurRadius: 8,
+                                offset: const Offset(0, 4),
+                              ),
+                            ] : null,
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  color: isCurrentTrack 
+                                    ? (isPlayingTrack ? Colors.green.shade500 : Colors.blue.shade500)
+                                    : Colors.grey.shade400,
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Icon(
+                                  isCurrentTrack 
+                                    ? (isPlayingTrack ? Icons.pause_rounded : Icons.play_arrow_rounded)
+                                    : Icons.music_note_rounded,
+                                  color: Colors.white,
+                                  size: 20,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Track ${index + 1}',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: isCurrentTrack 
+                                          ? (isPlayingTrack ? Colors.green.shade800 : Colors.blue.shade800)
+                                          : Colors.grey.shade700,
+                                      ),
+                                    ),
+                                    Text(
+                                      _playlistUrls[index].split('/').last,
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey.shade600,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              if (isCurrentTrack)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: isPlayingTrack ? Colors.green.shade500 : Colors.blue.shade500,
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text(
+                                    isPlayingTrack ? 'Playing' : 'Current',
+                                    style: const TextStyle(
+                                      fontSize: 10,
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+              ],
             ),
+          ),
         ],
       ),
+    );
+  }
+
+  // ✅ NEW: Helper method to build consistent control buttons
+  Widget _buildControlButton({
+    required VoidCallback? onPressed,
+    required IconData icon,
+    required String label,
+    required Color backgroundColor,
+    required Color disabledColor,
+    required double size,
+    bool isPrimary = false,
+  }) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            color: onPressed != null ? backgroundColor : disabledColor,
+            borderRadius: BorderRadius.circular(size / 2),
+            boxShadow: onPressed != null ? [
+              BoxShadow(
+                color: backgroundColor.withOpacity(0.4),
+                blurRadius: isPrimary ? 15 : 10,
+                offset: Offset(0, isPrimary ? 8 : 5),
+                spreadRadius: isPrimary ? 2 : 1,
+              ),
+            ] : null,
+            border: onPressed != null ? Border.all(
+              color: Colors.white,
+              width: isPrimary ? 3 : 2,
+            ) : null,
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: onPressed,
+              borderRadius: BorderRadius.circular(size / 2),
+              child: Center(
+                child: Icon(
+                  icon,
+                  size: size * 0.4,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            color: onPressed != null ? Colors.grey.shade700 : Colors.grey.shade400,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
     );
   }
 
