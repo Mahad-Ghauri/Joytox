@@ -1147,11 +1147,11 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
                 onEnter: (user) {
                   if (user.id != widget.liveStreaming!.getAuthorId) {
                     addOrUpdateLiveViewers();
-                    sendMessage("has_entered_the_room".tr());
+                    sendMessage("${user.name} ${"has_entered_the_room".tr()}");
                   }
                 },
                 onLeave: (user) {
-                  sendMessage("has_left_the_room".tr());
+                  sendMessage("${user.name} ${"has_left_the_room".tr()}");
                   onViewerLeave();
                 },
               ),
