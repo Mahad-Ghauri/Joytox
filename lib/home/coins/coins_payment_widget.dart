@@ -1,5 +1,6 @@
 // ignore_for_file: deprecated_member_use, unused_local_variable
 
+import 'dart:math' as Math;
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -347,9 +348,25 @@ class _CoinsFlowWidgetState extends State<_CoinsFlowWidget>
   }
 
   Widget getGifts(String category, StateSetter setState) {
+    print("💰 [COINS-GIFT DEBUG] ===== STARTING GIFT FETCH =====");
+    print(
+        "💰 [COINS-GIFT DEBUG] Current user credits: ${widget.currentUser.getCredits}");
+    print("💰 [COINS-GIFT DEBUG] Requested category: $category");
+
+    // Add detailed query debugging
+    print("💰 [COINS-GIFT DEBUG] === QUERY DETAILS ===");
+    print("💰 [COINS-GIFT DEBUG] Table name: ${GiftsModel.keyTableName}");
+    print(
+        "💰 [COINS-GIFT DEBUG] keyGiftCategories field: ${GiftsModel.keyGiftCategories}");
+    print("💰 [COINS-GIFT DEBUG] gifStatus value: ${GiftsModel.gifStatus}");
+
+    // Show ALL gifts regardless of category
     QueryBuilder<GiftsModel> giftQuery = QueryBuilder<GiftsModel>(GiftsModel());
-    giftQuery.whereValueExists(GiftsModel.keyGiftCategories, true);
-    giftQuery.whereEqualTo(GiftsModel.keyGiftCategories, GiftsModel.gifStatus);
+
+    // No category filter - show all gifts
+    print("💰 [COINS-GIFT DEBUG] === SHOWING ALL GIFTS ===");
+    print(
+        "💰 [COINS-GIFT DEBUG] Query: SELECT ALL FROM ${GiftsModel.keyTableName}");
 
     return ContainerCorner(
       color: kTransparentColor,
@@ -367,7 +384,33 @@ class _CoinsFlowWidgetState extends State<_CoinsFlowWidget>
         animationController: _animationController,
         childBuilder: (BuildContext context,
             ParseLiveListElementSnapshot<GiftsModel> snapshot) {
+          print("💰 [COINS-GIFT DEBUG] Processing gift item from snapshot");
+          print(
+              "💰 [COINS-GIFT DEBUG] Snapshot state: ${snapshot.hasData ? 'HAS_DATA' : 'NO_DATA'}");
+          print(
+              "💰 [COINS-GIFT DEBUG] Data available: ${snapshot.loadedData != null ? 'YES' : 'NO'}");
+
+          if (!snapshot.hasData || snapshot.loadedData == null) {
+            print(
+                "💰 [COINS-GIFT DEBUG] ❌ No data in snapshot, returning placeholder");
+            return Container(
+              width: 50,
+              height: 50,
+              color: Colors.grey.withOpacity(0.3),
+              child: Icon(Icons.error, color: Colors.red),
+            );
+          }
+
           GiftsModel gift = snapshot.loadedData!;
+          print("💰 [COINS-GIFT DEBUG] ✅ Gift loaded successfully:");
+          print("💰 [COINS-GIFT DEBUG] - Gift ID: ${gift.objectId}");
+          print("💰 [COINS-GIFT DEBUG] - Gift Name: ${gift.getName}");
+          print("💰 [COINS-GIFT DEBUG] - Gift Coins: ${gift.getCoins}");
+          print(
+              "💰 [COINS-GIFT DEBUG] - Gift Category: ${gift.getGiftCategories}");
+          print(
+              "💰 [COINS-GIFT DEBUG] - Preview URL: ${gift.getPreview?.url ?? 'NULL'}");
+
           return GestureDetector(
             //onTap: () => _checkCredits(gift, setState),
             child: SizedBox(
@@ -421,11 +464,42 @@ class _CoinsFlowWidgetState extends State<_CoinsFlowWidget>
             ),
           );
         },
-        queryEmptyElement: QuickActions.noContentFound(context),
+        queryEmptyElement: Container(
+          margin: EdgeInsets.only(top: 50),
+          alignment: Alignment.center,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.search_off, size: 48, color: Colors.grey),
+              SizedBox(height: 16),
+              Text(
+                "💰 [DEBUG] No gifts found in database",
+                style: TextStyle(color: Colors.white),
+                textAlign: TextAlign.center,
+              ),
+              SizedBox(height: 8),
+              Text(
+                "Query: ${GiftsModel.keyGiftCategories} = '${GiftsModel.gifStatus}'",
+                style: TextStyle(color: Colors.grey, fontSize: 12),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
         gridLoadingElement: Container(
           margin: EdgeInsets.only(top: 50),
           alignment: Alignment.topCenter,
-          child: CircularProgressIndicator(),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text(
+                "💰 [DEBUG] Loading gifts from database...",
+                style: TextStyle(color: Colors.white),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -520,13 +594,70 @@ class _CoinsFlowWidgetState extends State<_CoinsFlowWidget>
     }
   }
 
+  _testGiftDatabase() async {
+    print("💰 [DATABASE TEST] ===== TESTING GIFT DATABASE =====");
+
+    try {
+      // Test 1: Count all gifts
+      QueryBuilder<GiftsModel> countQuery =
+          QueryBuilder<GiftsModel>(GiftsModel());
+      countQuery.setLimit(1000);
+      ParseResponse countResponse = await countQuery.query();
+
+      print(
+          "💰 [DATABASE TEST] Total gifts in database: ${countResponse.results?.length ?? 0}");
+
+      if (countResponse.success &&
+          countResponse.results != null &&
+          countResponse.results!.isNotEmpty) {
+        print("💰 [DATABASE TEST] Sample gift data:");
+        for (int i = 0; i < Math.min(3, countResponse.results!.length); i++) {
+          GiftsModel gift = countResponse.results![i] as GiftsModel;
+          print("💰 [DATABASE TEST] - Gift ${i + 1}:");
+          print("💰 [DATABASE TEST]   - ID: ${gift.objectId}");
+          print("💰 [DATABASE TEST]   - Name: ${gift.getName}");
+          print("💰 [DATABASE TEST]   - Coins: ${gift.getCoins}");
+          print("💰 [DATABASE TEST]   - Categories: ${gift.getGiftCategories}");
+        }
+
+        // Test 2: Test original query
+        print("💰 [DATABASE TEST] === TESTING ORIGINAL QUERY ===");
+        QueryBuilder<GiftsModel> originalQuery =
+            QueryBuilder<GiftsModel>(GiftsModel());
+        originalQuery.whereValueExists(GiftsModel.keyGiftCategories, true);
+        originalQuery.whereEqualTo(
+            GiftsModel.keyGiftCategories, GiftsModel.gifStatus);
+        ParseResponse originalResponse = await originalQuery.query();
+        print(
+            "💰 [DATABASE TEST] Original query results: ${originalResponse.results?.length ?? 0}");
+      } else {
+        print("💰 [DATABASE TEST] ❌ No gifts found in database!");
+        print("💰 [DATABASE TEST] Response success: ${countResponse.success}");
+        print(
+            "💰 [DATABASE TEST] Error: ${countResponse.error?.message ?? 'No error message'}");
+      }
+    } catch (e) {
+      print("💰 [DATABASE TEST] ❌ Exception testing database: $e");
+    }
+  }
+
   _checkCredits(GiftsModel gift, StateSetter setState) {
+    print("💰 [CREDIT CHECK] ===== CHECKING USER CREDITS =====");
+    print("💰 [CREDIT CHECK] User credits: ${widget.currentUser.getCredits}");
+    print("💰 [CREDIT CHECK] Gift cost: ${gift.getCoins}");
+    print("💰 [CREDIT CHECK] Gift name: ${gift.getName}");
+
     if (widget.currentUser.getCredits! >= gift.getCoins!) {
+      print("💰 [CREDIT CHECK] ✅ User has sufficient credits");
       if (widget.onGiftSelected != null) {
+        print("💰 [CREDIT CHECK] Calling onGiftSelected callback");
         widget.onGiftSelected!(gift) as void Function()?;
         Navigator.of(context).pop();
+        print("💰 [CREDIT CHECK] Gift selection completed");
       }
     } else {
+      print(
+          "💰 [CREDIT CHECK] ❌ Insufficient credits - redirecting to purchase");
       setState(() {
         bottomSheetCurrentIndex = 1;
       });
