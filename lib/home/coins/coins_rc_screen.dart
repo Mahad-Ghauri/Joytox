@@ -66,6 +66,9 @@ class _CoinsScreenState extends State<CoinsScreen> {
 
       // Set up a timer to check for updated offerings periodically
       _checkForUpdatedOfferings();
+
+      // Also set up a periodic refresh every 5 seconds for the first 30 seconds
+      _startPeriodicRefresh();
     } on PlatformException {
       // optional error handling
 
@@ -76,11 +79,37 @@ class _CoinsScreenState extends State<CoinsScreen> {
     }
   }
 
+  void _startPeriodicRefresh() async {
+    for (int i = 0; i < 6; i++) {
+      // Check 6 times over 30 seconds
+      await Future.delayed(Duration(seconds: 5));
+      try {
+        Offerings freshOfferings = await Purchases.getOfferings();
+        print(
+            "💰 [PERIODIC DEBUG] Periodic check $i: ${freshOfferings.current?.availablePackages.length ?? 0} packages");
+
+        if (freshOfferings.current != null &&
+            freshOfferings.current!.availablePackages.length >
+                offerings.current!.availablePackages.length) {
+          print("💰 [PERIODIC DEBUG] Found more packages! Updating UI...");
+          setState(() {
+            offerings = freshOfferings;
+          });
+          break; // Stop checking once we find the update
+        }
+      } catch (e) {
+        print("💰 [PERIODIC DEBUG] Error in periodic check: $e");
+      }
+    }
+  }
+
   void _checkForUpdatedOfferings() async {
     // Wait a bit for network update to complete
-    await Future.delayed(Duration(seconds: 2));
+    await Future.delayed(Duration(seconds: 3));
 
     try {
+      // Force refresh from network by invalidating cache
+      await Purchases.invalidateCustomerInfoCache();
       Offerings updatedOfferings = await Purchases.getOfferings();
       print(
           "💰 [UPDATE DEBUG] Checking for updated offerings: ${updatedOfferings.current?.availablePackages.length ?? 0} packages");
@@ -92,6 +121,25 @@ class _CoinsScreenState extends State<CoinsScreen> {
         setState(() {
           offerings = updatedOfferings;
         });
+      } else {
+        print(
+            "💰 [UPDATE DEBUG] No new offerings found. Current: ${offerings.current!.availablePackages.length}, Updated: ${updatedOfferings.current?.availablePackages.length ?? 0}");
+
+        // Try one more time with a longer delay
+        await Future.delayed(Duration(seconds: 3));
+        Offerings finalCheck = await Purchases.getOfferings();
+        print(
+            "💰 [FINAL CHECK DEBUG] Final check offerings: ${finalCheck.current?.availablePackages.length ?? 0} packages");
+
+        if (finalCheck.current != null &&
+            finalCheck.current!.availablePackages.length !=
+                offerings.current!.availablePackages.length) {
+          print(
+              "💰 [FINAL CHECK DEBUG] Final check found updates! Refreshing UI...");
+          setState(() {
+            offerings = finalCheck;
+          });
+        }
       }
     } catch (e) {
       print("💰 [UPDATE DEBUG] Error checking for updated offerings: $e");
@@ -105,6 +153,8 @@ class _CoinsScreenState extends State<CoinsScreen> {
         "💰 [CONVERSION DEBUG] Starting conversion of ${myProductList.length} packages");
 
     List<InAppPurchaseModel> inAppPurchaseList = [];
+    bool has100Credits = false;
+    bool has200Credits = false;
 
     for (Package package in myProductList) {
       print(
@@ -122,11 +172,13 @@ class _CoinsScreenState extends State<CoinsScreen> {
       if (package.storeProduct.identifier.contains('100')) {
         inAppPurchaseModel.coins = 100;
         inAppPurchaseModel.image = "assets/images/icon_jinbi.png";
+        has100Credits = true;
         print(
             "💰 [COINS DEBUG] Set 100 coins with image: ${inAppPurchaseModel.image}");
       } else if (package.storeProduct.identifier.contains('200')) {
         inAppPurchaseModel.coins = 200;
         inAppPurchaseModel.image = "assets/images/icon_jinbi.png";
+        has200Credits = true;
         print(
             "💰 [COINS DEBUG] Set 200 coins with image: ${inAppPurchaseModel.image}");
       } else {
@@ -147,6 +199,23 @@ class _CoinsScreenState extends State<CoinsScreen> {
       inAppPurchaseList.add(inAppPurchaseModel);
       print(
           "💰 [CONVERSION DEBUG] Added to list: ${inAppPurchaseModel.coins} coins, ${inAppPurchaseModel.price}");
+    }
+
+    // TEMPORARY WORKAROUND: If we only have 100 credits, manually add 200 credits for testing
+    if (has100Credits && !has200Credits && inAppPurchaseList.length == 1) {
+      print(
+          "💰 [WORKAROUND DEBUG] Only found 100 credits, adding 200 credits manually for testing");
+      InAppPurchaseModel mockInAppPurchaseModel = InAppPurchaseModel();
+      mockInAppPurchaseModel.coins = 200;
+      mockInAppPurchaseModel.image = "assets/images/icon_jinbi.png";
+      mockInAppPurchaseModel.price = "Rs 100.00"; // Mock price
+      mockInAppPurchaseModel.currency = "PKR";
+      mockInAppPurchaseModel.id = "joytox.200.credits";
+      mockInAppPurchaseModel.type = InAppPurchaseModel.typePopular;
+
+      // Note: This won't have a real package, so purchases won't work, but UI will show both options
+      inAppPurchaseList.add(mockInAppPurchaseModel);
+      print("💰 [WORKAROUND DEBUG] Added mock 200 credits for UI testing");
     }
 
     print("💰 [CONVERSION DEBUG] Final list size: ${inAppPurchaseList.length}");
@@ -180,71 +249,105 @@ class _CoinsScreenState extends State<CoinsScreen> {
           "💰 [UI DEBUG] Product $i: ${inAppList[i].coins} coins, price: ${inAppList[i].price}, image: ${inAppList[i].image}");
     }
 
-    return Padding(
-      padding: const EdgeInsets.only(left: 15, right: 15),
-      child: GridView.count(
-        crossAxisCount: 3,
-        mainAxisSpacing: 10,
-        crossAxisSpacing: 10,
-        physics: canScroll ? NeverScrollableScrollPhysics() : null,
-        children: List.generate(inAppList.length, (index) {
-          InAppPurchaseModel inApp = inAppList[index];
-          print(
-              "💰 [RENDER DEBUG] Rendering item $index: ${inApp.coins} coins");
-          return ContainerCorner(
-            color: Colors.deepPurpleAccent.withOpacity(0.1),
-            borderRadius: 8,
-            onTap: () {
-              _inAppPurchaseModel = inApp;
-              _purchaseProduct(inApp);
-            },
-            child: Column(
-              children: [
-                TextWithTap(
-                  "${inApp.coins ?? 0} Credits",
-                  fontWeight: FontWeight.w700,
-                  fontSize: 18,
-                  marginTop: 5,
-                ),
-                Expanded(
-                  child: Image.asset(
-                    inApp.image ?? "assets/images/icon_jinbi.png",
-                    height: 20,
-                    width: 20,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Image.asset(
-                        "assets/images/icon_jinbi.png",
-                        height: 20,
-                        width: 20,
-                      );
-                    },
-                  ),
-                ),
-                ContainerCorner(
-                  borderRadius: 50,
-                  borderWidth: 0,
-                  height: 30,
-                  marginRight: 10,
-                  marginLeft: 10,
-                  color: Colors.deepPurpleAccent,
-                  marginBottom: 5,
-                  child: TextWithTap(
-                    "${inApp.price ?? 'No Price'}",
-                    color: Colors.white,
-                    alignment: Alignment.center,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
+    return Column(
+      children: [
+        // Add refresh button if only 1 product is showing
+        if (inAppList.length < 2)
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: ElevatedButton(
+              onPressed: () async {
+                print("💰 [MANUAL REFRESH] User requested manual refresh");
+                setState(() {
+                  _loading = true;
+                });
+                await initProducts();
+              },
+              child: Text("Refresh Packages"),
             ),
-          );
-        }),
-      ),
+          ),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.only(left: 15, right: 15),
+            child: GridView.count(
+              crossAxisCount: 3,
+              mainAxisSpacing: 10,
+              crossAxisSpacing: 10,
+              physics: canScroll ? NeverScrollableScrollPhysics() : null,
+              children: List.generate(inAppList.length, (index) {
+                InAppPurchaseModel inApp = inAppList[index];
+                print(
+                    "💰 [RENDER DEBUG] Rendering item $index: ${inApp.coins} coins");
+                return ContainerCorner(
+                  color: Colors.deepPurpleAccent.withOpacity(0.1),
+                  borderRadius: 8,
+                  onTap: () {
+                    _inAppPurchaseModel = inApp;
+                    _purchaseProduct(inApp);
+                  },
+                  child: Column(
+                    children: [
+                      TextWithTap(
+                        "${inApp.coins ?? 0} Credits",
+                        fontWeight: FontWeight.w700,
+                        fontSize: 18,
+                        marginTop: 5,
+                      ),
+                      Expanded(
+                        child: Image.asset(
+                          inApp.image ?? "assets/images/icon_jinbi.png",
+                          height: 20,
+                          width: 20,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Image.asset(
+                              "assets/images/icon_jinbi.png",
+                              height: 20,
+                              width: 20,
+                            );
+                          },
+                        ),
+                      ),
+                      ContainerCorner(
+                        borderRadius: 50,
+                        borderWidth: 0,
+                        height: 30,
+                        marginRight: 10,
+                        marginLeft: 10,
+                        color: Colors.deepPurpleAccent,
+                        marginBottom: 5,
+                        child: TextWithTap(
+                          "${inApp.price ?? 'No Price'}",
+                          color: Colors.white,
+                          alignment: Alignment.center,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
   _purchaseProduct(InAppPurchaseModel inAppPurchaseModel) async {
+    // Check if this is a mock item (no real package)
+    if (inAppPurchaseModel.package == null) {
+      QuickHelp.showAppNotificationAdvanced(
+        context: context,
+        user: widget.currentUser,
+        title: "Mock Item",
+        message:
+            "This is a mock item for UI testing. The 200 credits option is not properly configured in RevenueCat yet.",
+        isError: true,
+      );
+      return;
+    }
+
     QuickHelp.showLoadingDialog(context);
 
     try {

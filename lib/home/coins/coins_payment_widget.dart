@@ -76,9 +76,14 @@ class _CoinsFlowWidgetState extends State<_CoinsFlowWidget>
   List<InAppPurchaseModel> getInAppList() {
     List<Package> myProductList = offerings.current!.availablePackages;
 
+    print(
+        "💰 [PAYMENT CONVERSION DEBUG] Starting conversion of ${myProductList.length} packages");
+
     List<InAppPurchaseModel> inAppPurchaseList = [];
 
     for (Package package in myProductList) {
+      print(
+          "💰 [PAYMENT CONVERSION DEBUG] Processing package: ${package.storeProduct.identifier}");
       InAppPurchaseModel inAppPurchaseModel = InAppPurchaseModel();
 
       // Set basic package info
@@ -99,6 +104,12 @@ class _CoinsFlowWidgetState extends State<_CoinsFlowWidget>
         inAppPurchaseModel.image = "assets/images/icon_jinbi.png";
         print(
             "💰 [PAYMENT DEBUG] Set 200 coins with image: ${inAppPurchaseModel.image}");
+      } else {
+        // Default fallback for unknown products
+        inAppPurchaseModel.coins = 0;
+        inAppPurchaseModel.image = "assets/images/icon_jinbi.png";
+        print(
+            "💰 [PAYMENT DEBUG] Unknown product: ${package.storeProduct.identifier}");
       }
 
       // Set type based on coins amount
@@ -109,8 +120,12 @@ class _CoinsFlowWidgetState extends State<_CoinsFlowWidget>
       }
 
       inAppPurchaseList.add(inAppPurchaseModel);
+      print(
+          "💰 [PAYMENT CONVERSION DEBUG] Added to list: ${inAppPurchaseModel.coins} coins, ${inAppPurchaseModel.price}");
     }
 
+    print(
+        "💰 [PAYMENT CONVERSION DEBUG] Final list size: ${inAppPurchaseList.length}");
     return inAppPurchaseList;
   }
 
@@ -129,6 +144,8 @@ class _CoinsFlowWidgetState extends State<_CoinsFlowWidget>
   initProducts() async {
     try {
       offerings = await Purchases.getOfferings();
+      print(
+          "💰 [PAYMENT INIT DEBUG] Initial offerings loaded with ${offerings.current?.availablePackages.length ?? 0} packages");
 
       if (offerings.current!.availablePackages.length > 0) {
         // Display packages for sale
@@ -139,6 +156,9 @@ class _CoinsFlowWidgetState extends State<_CoinsFlowWidget>
         });
         // Display packages for sale
       }
+
+      // Set up a timer to check for updated offerings periodically
+      _checkForUpdatedOfferings();
     } on PlatformException {
       // optional error handling
 
@@ -146,6 +166,50 @@ class _CoinsFlowWidgetState extends State<_CoinsFlowWidget>
         _isAvailable = false;
         _loading = false;
       });
+    }
+  }
+
+  void _checkForUpdatedOfferings() async {
+    // Wait a bit for network update to complete
+    await Future.delayed(Duration(seconds: 3));
+
+    try {
+      // Force refresh from network by invalidating cache
+      await Purchases.invalidateCustomerInfoCache();
+      Offerings updatedOfferings = await Purchases.getOfferings();
+      print(
+          "💰 [PAYMENT UPDATE DEBUG] Checking for updated offerings: ${updatedOfferings.current?.availablePackages.length ?? 0} packages");
+
+      if (updatedOfferings.current != null &&
+          updatedOfferings.current!.availablePackages.length !=
+              offerings.current!.availablePackages.length) {
+        print("💰 [PAYMENT UPDATE DEBUG] Offerings updated! Refreshing UI...");
+        setState(() {
+          offerings = updatedOfferings;
+        });
+      } else {
+        print(
+            "💰 [PAYMENT UPDATE DEBUG] No new offerings found. Current: ${offerings.current!.availablePackages.length}, Updated: ${updatedOfferings.current?.availablePackages.length ?? 0}");
+
+        // Try one more time with a longer delay
+        await Future.delayed(Duration(seconds: 3));
+        Offerings finalCheck = await Purchases.getOfferings();
+        print(
+            "💰 [PAYMENT FINAL CHECK DEBUG] Final check offerings: ${finalCheck.current?.availablePackages.length ?? 0} packages");
+
+        if (finalCheck.current != null &&
+            finalCheck.current!.availablePackages.length !=
+                offerings.current!.availablePackages.length) {
+          print(
+              "💰 [PAYMENT FINAL CHECK DEBUG] Final check found updates! Refreshing UI...");
+          setState(() {
+            offerings = finalCheck;
+          });
+        }
+      }
+    } catch (e) {
+      print(
+          "💰 [PAYMENT UPDATE DEBUG] Error checking for updated offerings: $e");
     }
   }
 
