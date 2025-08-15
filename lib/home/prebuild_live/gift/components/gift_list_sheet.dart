@@ -92,8 +92,7 @@ class _ZegoGiftSheetState extends State<ZegoGiftSheet>
   Widget getGifts() {
     QueryBuilder<GiftsModel> giftQuery = QueryBuilder<GiftsModel>(GiftsModel());
     giftQuery.whereValueExists(GiftsModel.keyGiftCategories, true);
-    giftQuery.whereEqualTo(
-        GiftsModel.keyGiftCategories, GiftsModel.gifStatus);
+    giftQuery.whereEqualTo(GiftsModel.keyGiftCategories, GiftsModel.gifStatus);
 
     return ContainerCorner(
       color: kTransparentColor,
@@ -175,11 +174,36 @@ class _ZegoGiftSheetState extends State<ZegoGiftSheet>
             ),
           );
         },
-        queryEmptyElement: QuickActions.noContentFound(context),
+        queryEmptyElement: Container(
+          margin: EdgeInsets.only(top: 50),
+          alignment: Alignment.center,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.search_off, size: 48, color: Colors.grey),
+              SizedBox(height: 16),
+              Text(
+                "🎁 [DEBUG] No gifts found in database",
+                style: TextStyle(color: Colors.white),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
         gridLoadingElement: Container(
           margin: EdgeInsets.only(top: 50),
           alignment: Alignment.topCenter,
-          child: CircularProgressIndicator(),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text(
+                "🎁 [DEBUG] Loading gifts from database...",
+                style: TextStyle(color: Colors.white),
+              ),
+            ],
+          ),
         ),
       ),
     );
