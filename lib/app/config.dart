@@ -1,8 +1,6 @@
 import 'dart:ui';
 
-
 class Config {
-
   static const String packageNameAndroid = "com.nazcloak.joytox";
   static const String packageNameiOS = "com.nazcloak.joytox";
   static const String iosAppStoreId = "";
@@ -22,13 +20,14 @@ class Config {
 
   // Firebase Cloud Messaging
   static final String pushGcm = "732846852135";
-  static final String webPushCertificate = "BOcDBhPvYrRB0CCAsyXN5mMbL_b8wj2w5AnpqthaDSrksblAfvvsLwjzGbYnmwyRCmiPnVGDUuQodau-Cv7xU74";
+  static final String webPushCertificate =
+      "BOcDBhPvYrRB0CCAsyXN5mMbL_b8wj2w5AnpqthaDSrksblAfvvsLwjzGbYnmwyRCmiPnVGDUuQodau-Cv7xU74";
 
   // User support objectId
   static final String supportId = "";
 
   // Play Store and App Store public keys
-  static final String publicGoogleSdkKey = "goog_tSYdaYFUUDyYzRYwOkQAmCszLCt";
+  static final String publicGoogleSdkKey = "goog_YTmsSipPYVrTXUvjfxcswbjbuRE";
   static final String publicIosSdkKey = "";
 
   // Languages
@@ -40,20 +39,32 @@ class Config {
   ];
 
   // Android Admob ad
-  static const String admobAndroidOpenAppAd = "ca-app-pub-9318890613494690/4325316561";
-  static const String admobAndroidHomeBannerAd = "ca-app-pub-9318890613494690/8240828077";
-  static const String admobAndroidFeedNativeAd = "ca-app-pub-9318890613494690/9362338057";
-  static const String admobAndroidChatListBannerAd = "ca-app-pub-9318890613494690/6736174716";
-  static const String admobAndroidLiveBannerAd = "ca-app-pub-9318890613494690/7959371442";
-  static const String admobAndroidFeedBannerAd = "ca-app-pub-9318890613494690/9362338057";
+  static const String admobAndroidOpenAppAd =
+      "ca-app-pub-9318890613494690/4325316561";
+  static const String admobAndroidHomeBannerAd =
+      "ca-app-pub-9318890613494690/8240828077";
+  static const String admobAndroidFeedNativeAd =
+      "ca-app-pub-9318890613494690/9362338057";
+  static const String admobAndroidChatListBannerAd =
+      "ca-app-pub-9318890613494690/6736174716";
+  static const String admobAndroidLiveBannerAd =
+      "ca-app-pub-9318890613494690/7959371442";
+  static const String admobAndroidFeedBannerAd =
+      "ca-app-pub-9318890613494690/9362338057";
 
   // iOS Admob ad
-  static const String admobIOSOpenAppAd = "ca-app-pub-1084112649181796/6328973508";
-  static const String admobIOSHomeBannerAd = "ca-app-pub-1084112649181796/1185447057";
-  static const String admobIOSFeedNativeAd = "ca-app-pub-1084112649181796/7224203806";
-  static const String admobIOSChatListBannerAd = "ca-app-pub-1084112649181796/5811376758";
-  static const String admobIOSLiveBannerAd = "ca-app-pub-1084112649181796/8093979063";
-  static const String admobIOSFeedBannerAd = "ca-app-pub-1084112649181796/6907075815";
+  static const String admobIOSOpenAppAd =
+      "ca-app-pub-1084112649181796/6328973508";
+  static const String admobIOSHomeBannerAd =
+      "ca-app-pub-1084112649181796/1185447057";
+  static const String admobIOSFeedNativeAd =
+      "ca-app-pub-1084112649181796/7224203806";
+  static const String admobIOSChatListBannerAd =
+      "ca-app-pub-1084112649181796/5811376758";
+  static const String admobIOSLiveBannerAd =
+      "ca-app-pub-1084112649181796/8093979063";
+  static const String admobIOSFeedBannerAd =
+      "ca-app-pub-1084112649181796/6907075815";
 
   // Web links for help, privacy policy and terms of use.
   static final String helpCenterUrl = "https://joytox.com/help";
