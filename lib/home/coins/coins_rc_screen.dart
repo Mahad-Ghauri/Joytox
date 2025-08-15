@@ -53,6 +53,8 @@ class _CoinsScreenState extends State<CoinsScreen> {
   initProducts() async {
     try {
       offerings = await Purchases.getOfferings();
+      print(
+          "💰 [INIT DEBUG] Initial offerings loaded with ${offerings.current?.availablePackages.length ?? 0} packages");
 
       if (offerings.current!.availablePackages.length > 0) {
         setState(() {
@@ -61,6 +63,9 @@ class _CoinsScreenState extends State<CoinsScreen> {
         });
         // Display packages for sale
       }
+
+      // Set up a timer to check for updated offerings periodically
+      _checkForUpdatedOfferings();
     } on PlatformException {
       // optional error handling
 
@@ -71,11 +76,80 @@ class _CoinsScreenState extends State<CoinsScreen> {
     }
   }
 
+  void _checkForUpdatedOfferings() async {
+    // Wait a bit for network update to complete
+    await Future.delayed(Duration(seconds: 2));
+
+    try {
+      Offerings updatedOfferings = await Purchases.getOfferings();
+      print(
+          "💰 [UPDATE DEBUG] Checking for updated offerings: ${updatedOfferings.current?.availablePackages.length ?? 0} packages");
+
+      if (updatedOfferings.current != null &&
+          updatedOfferings.current!.availablePackages.length !=
+              offerings.current!.availablePackages.length) {
+        print("💰 [UPDATE DEBUG] Offerings updated! Refreshing UI...");
+        setState(() {
+          offerings = updatedOfferings;
+        });
+      }
+    } catch (e) {
+      print("💰 [UPDATE DEBUG] Error checking for updated offerings: $e");
+    }
+  }
+
   List<InAppPurchaseModel> getInAppList() {
     List<Package> myProductList = offerings.current!.availablePackages;
 
+    print(
+        "💰 [CONVERSION DEBUG] Starting conversion of ${myProductList.length} packages");
+
     List<InAppPurchaseModel> inAppPurchaseList = [];
 
+    for (Package package in myProductList) {
+      print(
+          "💰 [CONVERSION DEBUG] Processing package: ${package.storeProduct.identifier}");
+      InAppPurchaseModel inAppPurchaseModel = InAppPurchaseModel();
+
+      // Set basic package info
+      inAppPurchaseModel.package = package;
+      inAppPurchaseModel.storeProduct = package.storeProduct;
+      inAppPurchaseModel.id = package.storeProduct.identifier;
+      inAppPurchaseModel.price = package.storeProduct.priceString;
+      inAppPurchaseModel.currency = package.storeProduct.currencyCode;
+
+      // Extract coins from product identifier
+      if (package.storeProduct.identifier.contains('100')) {
+        inAppPurchaseModel.coins = 100;
+        inAppPurchaseModel.image = "assets/images/icon_jinbi.png";
+        print(
+            "💰 [COINS DEBUG] Set 100 coins with image: ${inAppPurchaseModel.image}");
+      } else if (package.storeProduct.identifier.contains('200')) {
+        inAppPurchaseModel.coins = 200;
+        inAppPurchaseModel.image = "assets/images/icon_jinbi.png";
+        print(
+            "💰 [COINS DEBUG] Set 200 coins with image: ${inAppPurchaseModel.image}");
+      } else {
+        // Default fallback for unknown products
+        inAppPurchaseModel.coins = 0;
+        inAppPurchaseModel.image = "assets/images/icon_jinbi.png";
+        print(
+            "💰 [COINS DEBUG] Unknown product: ${package.storeProduct.identifier}");
+      }
+
+      // Set type based on coins amount
+      if (inAppPurchaseModel.coins == 200) {
+        inAppPurchaseModel.type = InAppPurchaseModel.typePopular;
+      } else {
+        inAppPurchaseModel.type = InAppPurchaseModel.typeNormal;
+      }
+
+      inAppPurchaseList.add(inAppPurchaseModel);
+      print(
+          "💰 [CONVERSION DEBUG] Added to list: ${inAppPurchaseModel.coins} coins, ${inAppPurchaseModel.price}");
+    }
+
+    print("💰 [CONVERSION DEBUG] Final list size: ${inAppPurchaseList.length}");
     return inAppPurchaseList;
   }
 
@@ -98,6 +172,14 @@ class _CoinsScreenState extends State<CoinsScreen> {
 
   Widget getProductList() {
     bool canScroll = widget.scroll ?? true;
+    List<InAppPurchaseModel> inAppList = getInAppList();
+
+    print("💰 [UI DEBUG] Total products to display: ${inAppList.length}");
+    for (int i = 0; i < inAppList.length; i++) {
+      print(
+          "💰 [UI DEBUG] Product $i: ${inAppList[i].coins} coins, price: ${inAppList[i].price}, image: ${inAppList[i].image}");
+    }
+
     return Padding(
       padding: const EdgeInsets.only(left: 15, right: 15),
       child: GridView.count(
@@ -105,8 +187,10 @@ class _CoinsScreenState extends State<CoinsScreen> {
         mainAxisSpacing: 10,
         crossAxisSpacing: 10,
         physics: canScroll ? NeverScrollableScrollPhysics() : null,
-        children: List.generate(getInAppList().length, (index) {
-          InAppPurchaseModel inApp = getInAppList()[index];
+        children: List.generate(inAppList.length, (index) {
+          InAppPurchaseModel inApp = inAppList[index];
+          print(
+              "💰 [RENDER DEBUG] Rendering item $index: ${inApp.coins} coins");
           return ContainerCorner(
             color: Colors.deepPurpleAccent.withOpacity(0.1),
             borderRadius: 8,
@@ -117,16 +201,23 @@ class _CoinsScreenState extends State<CoinsScreen> {
             child: Column(
               children: [
                 TextWithTap(
-                  QuickHelp.checkFundsWithString(amount: "${inApp.coins}"),
+                  "${inApp.coins ?? 0} Credits",
                   fontWeight: FontWeight.w700,
                   fontSize: 18,
                   marginTop: 5,
                 ),
                 Expanded(
                   child: Image.asset(
-                    "assets/images/icon_jinbi.png",
+                    inApp.image ?? "assets/images/icon_jinbi.png",
                     height: 20,
                     width: 20,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Image.asset(
+                        "assets/images/icon_jinbi.png",
+                        height: 20,
+                        width: 20,
+                      );
+                    },
                   ),
                 ),
                 ContainerCorner(
@@ -138,7 +229,7 @@ class _CoinsScreenState extends State<CoinsScreen> {
                   color: Colors.deepPurpleAccent,
                   marginBottom: 5,
                   child: TextWithTap(
-                    "${inApp.price}",
+                    "${inApp.price ?? 'No Price'}",
                     color: Colors.white,
                     alignment: Alignment.center,
                     fontSize: 10,

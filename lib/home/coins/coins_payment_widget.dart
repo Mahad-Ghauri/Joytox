@@ -78,6 +78,39 @@ class _CoinsFlowWidgetState extends State<_CoinsFlowWidget>
 
     List<InAppPurchaseModel> inAppPurchaseList = [];
 
+    for (Package package in myProductList) {
+      InAppPurchaseModel inAppPurchaseModel = InAppPurchaseModel();
+
+      // Set basic package info
+      inAppPurchaseModel.package = package;
+      inAppPurchaseModel.storeProduct = package.storeProduct;
+      inAppPurchaseModel.id = package.storeProduct.identifier;
+      inAppPurchaseModel.price = package.storeProduct.priceString;
+      inAppPurchaseModel.currency = package.storeProduct.currencyCode;
+
+      // Extract coins from product identifier
+      if (package.storeProduct.identifier.contains('100')) {
+        inAppPurchaseModel.coins = 100;
+        inAppPurchaseModel.image = "assets/images/icon_jinbi.png";
+        print(
+            "💰 [PAYMENT DEBUG] Set 100 coins with image: ${inAppPurchaseModel.image}");
+      } else if (package.storeProduct.identifier.contains('200')) {
+        inAppPurchaseModel.coins = 200;
+        inAppPurchaseModel.image = "assets/images/icon_jinbi.png";
+        print(
+            "💰 [PAYMENT DEBUG] Set 200 coins with image: ${inAppPurchaseModel.image}");
+      }
+
+      // Set type based on coins amount
+      if (inAppPurchaseModel.coins == 200) {
+        inAppPurchaseModel.type = InAppPurchaseModel.typePopular;
+      } else {
+        inAppPurchaseModel.type = InAppPurchaseModel.typeNormal;
+      }
+
+      inAppPurchaseList.add(inAppPurchaseModel);
+    }
+
     return inAppPurchaseList;
   }
 
@@ -561,9 +594,16 @@ class _CoinsFlowWidgetState extends State<_CoinsFlowWidget>
                     ),
                     Expanded(
                       child: Image.asset(
-                        "assets/images/coin_bling.webp",
+                        inApp.image ?? "assets/images/coin_bling.webp",
                         height: 20,
                         width: 20,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Image.asset(
+                            "assets/images/coin_bling.webp",
+                            height: 20,
+                            width: 20,
+                          );
+                        },
                       ),
                     ),
                     ContainerCorner(
