@@ -70,8 +70,10 @@ class DefaultFirebaseOptions {
     messagingSenderId: '908354790229',
     projectId: 'trace-34749',
     storageBucket: 'trace-34749.appspot.com',
-    androidClientId: '908354790229-4pfj0hgmv4gjegs9qq3t9feohp9baahn.apps.googleusercontent.com',
-    iosClientId: '908354790229-5j91atkrp9ms2rbn5qbcgdae7d9a5da2.apps.googleusercontent.com',
-    iosBundleId: 'com.trace.appsdabanda',
+    androidClientId:
+        '908354790229-4pfj0hgmv4gjegs9qq3t9feohp9baahn.apps.googleusercontent.com',
+    iosClientId:
+        '908354790229-5j91atkrp9ms2rbn5qbcgdae7d9a5da2.apps.googleusercontent.com',
+    iosBundleId: 'com.nazcloak.joytox',
   );
 }

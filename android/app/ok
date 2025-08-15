@@ -9,7 +9,7 @@
       "client_info": {
         "mobilesdk_app_id": "1:452853037055:android:39306ef5c507f0a4f4d9ca",
         "android_client_info": {
-          "package_name": "com.trace.appsdabanda"
+          "package_name": "com.nazcloak.joytox"
         }
       },
       "oauth_client": [
@@ -17,7 +17,7 @@
           "client_id": "452853037055-2qqlnl6577lo94geu91sjs5561nv8hqa.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
-            "package_name": "com.trace.appsdabanda",
+            "package_name": "com.nazcloak.joytox",
             "certificate_hash": "d2fbf945a58962bbfc0c7640fbf6c38467be6240"
           }
         },

@@ -16,7 +16,7 @@ if (localPropertiesFile.exists()) {
     }
 }
 
-def flutterVersionCode = localProperties.getProperty('flutter.versionCode') ?: '78'
+def flutterVersionCode = localProperties.getProperty('flutter.versionCode') ?: '45'
 def flutterVersionName = localProperties.getProperty('flutter.versionName') ?: '3.0.0'
 
 def keystoreProperties = new Properties()
@@ -26,12 +26,12 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
-    namespace 'com.trace.appsdabanda'
+    namespace 'com.nazcloak.joytox'
     compileSdkVersion 36
     ndkVersion  "27.0.12077973"
 
     defaultConfig {
-        applicationId "com.trace.appsdabanda"
+        applicationId "com.nazcloak.joytox"
         minSdkVersion 24
         targetSdkVersion 35
         versionCode flutterVersionCode.toInteger()
@@ -43,18 +43,19 @@ android {
         }
     }
 
-    // signingConfigs {
-    //     release {
-    //         keyAlias keystoreProperties['keyAlias']
-    //         keyPassword keystoreProperties['keyPassword']
-    //         storeFile keystoreProperties['storeFile'] ? file(keystoreProperties['storeFile']) : null
-    //         storePassword keystoreProperties['storePassword']
-    //     }
-    // }
+    signingConfigs {
+        release {
+            keyAlias keystoreProperties['keyAlias']
+            keyPassword keystoreProperties['keyPassword']
+            storeFile keystoreProperties['storeFile'] ? file(keystoreProperties['storeFile']) : null
+            storePassword keystoreProperties['storePassword']
+        }
+    }
 
 
   buildTypes {
     release {
+        signingConfig signingConfigs.release 
         minifyEnabled true
         shrinkResources true
         proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
