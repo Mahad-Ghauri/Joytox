@@ -53,21 +53,51 @@ class _CoinsScreenState extends State<CoinsScreen> {
 
   initProducts() async {
     try {
+      // Force clear all caches first
+      print("💰 [CACHE DEBUG] Clearing all RevenueCat caches...");
+      await Purchases.invalidateCustomerInfoCache();
+
+      // Wait a moment for cache clear
+      await Future.delayed(Duration(seconds: 1));
+
       offerings = await Purchases.getOfferings();
       print(
           "💰 [INIT DEBUG] Initial offerings loaded with ${offerings.current?.availablePackages.length ?? 0} packages");
 
       // Debug: Print all available offerings
       print("💰 [DEBUG] Total offerings available: ${offerings.all.length}");
+
+      // Check for specific missing packages
+      List<String> missingPackages = [
+        "joytox.21000.credits",
+        "joytox.23000.credits",
+        "joytox.35000.credits",
+        "joytox.55000.credits"
+      ];
+
+      Set<String> allFoundPackages = {};
+
       for (String key in offerings.all.keys) {
         Offering offering = offerings.all[key]!;
         print(
             "💰 [DEBUG] Offering '$key' has ${offering.availablePackages.length} packages");
         for (Package package in offering.availablePackages) {
+          String identifier = package.storeProduct.identifier;
+          allFoundPackages.add(identifier);
           print(
-              "💰 [DEBUG] - Package: ${package.storeProduct.identifier} (${package.storeProduct.priceString})");
+              "💰 [DEBUG] - Package: $identifier (${package.storeProduct.priceString})");
         }
       }
+
+      // Check which specific packages are missing
+      print("💰 [MISSING CHECK] Checking for missing packages:");
+      for (String missingId in missingPackages) {
+        bool found = allFoundPackages.contains(missingId);
+        print("💰 [MISSING CHECK] $missingId: ${found ? 'FOUND' : 'MISSING'}");
+      }
+
+      print(
+          "💰 [DEBUG] Total unique packages found across all offerings: ${allFoundPackages.length}");
 
       // Debug: Print current offering details
       if (offerings.current != null) {
@@ -103,26 +133,122 @@ class _CoinsScreenState extends State<CoinsScreen> {
   }
 
   void _startPeriodicRefresh() async {
-    for (int i = 0; i < 6; i++) {
-      // Check 6 times over 30 seconds
+    for (int i = 0; i < 12; i++) {
+      // Check 12 times over 60 seconds (every 5 seconds)
       await Future.delayed(Duration(seconds: 5));
       try {
+        // Clear cache before each check
+        await Purchases.invalidateCustomerInfoCache();
+        await Future.delayed(Duration(milliseconds: 500));
+
         Offerings freshOfferings = await Purchases.getOfferings();
         print(
             "💰 [PERIODIC DEBUG] Periodic check $i: ${freshOfferings.current?.availablePackages.length ?? 0} packages");
 
-        if (freshOfferings.current != null &&
+        // Check for our specific missing packages
+        Set<String> foundPackages = {};
+        for (String key in freshOfferings.all.keys) {
+          Offering offering = freshOfferings.all[key]!;
+          for (Package package in offering.availablePackages) {
+            foundPackages.add(package.storeProduct.identifier);
+          }
+        }
+
+        List<String> targetPackages = [
+          "joytox.21000.credits",
+          "joytox.23000.credits",
+          "joytox.35000.credits",
+          "joytox.55000.credits"
+        ];
+
+        int foundTargets = 0;
+        for (String target in targetPackages) {
+          if (foundPackages.contains(target)) {
+            foundTargets++;
+          }
+        }
+
+        print(
+            "💰 [PERIODIC DEBUG] Found $foundTargets/4 target packages in check $i");
+
+        if (foundTargets > 0 ||
             freshOfferings.current!.availablePackages.length >
                 offerings.current!.availablePackages.length) {
-          print("💰 [PERIODIC DEBUG] Found more packages! Updating UI...");
+          print("💰 [PERIODIC DEBUG] Found updates! Refreshing UI...");
           setState(() {
             offerings = freshOfferings;
           });
-          break; // Stop checking once we find the update
+          if (foundTargets == 4) {
+            print(
+                "💰 [PERIODIC DEBUG] All target packages found! Stopping periodic checks.");
+            break; // Stop checking once we find all targets
+          }
         }
       } catch (e) {
         print("💰 [PERIODIC DEBUG] Error in periodic check: $e");
       }
+    }
+  }
+
+  Future<void> _forceCompleteRefresh() async {
+    print("💰 [FORCE REFRESH] Starting complete refresh...");
+    setState(() {
+      _loading = true;
+    });
+
+    try {
+      // Multiple cache invalidations with delays
+      for (int i = 0; i < 3; i++) {
+        print("💰 [FORCE REFRESH] Cache clear attempt ${i + 1}");
+        await Purchases.invalidateCustomerInfoCache();
+        await Future.delayed(Duration(seconds: 1));
+      }
+
+      // Wait longer for cache to fully clear
+      await Future.delayed(Duration(seconds: 2));
+
+      // Get fresh offerings
+      print("💰 [FORCE REFRESH] Fetching fresh offerings...");
+      Offerings freshOfferings = await Purchases.getOfferings();
+
+      // Check what we got
+      Set<String> allFoundPackages = {};
+      for (String key in freshOfferings.all.keys) {
+        Offering offering = freshOfferings.all[key]!;
+        for (Package package in offering.availablePackages) {
+          allFoundPackages.add(package.storeProduct.identifier);
+        }
+      }
+
+      List<String> targetPackages = [
+        "joytox.21000.credits",
+        "joytox.23000.credits",
+        "joytox.35000.credits",
+        "joytox.55000.credits"
+      ];
+
+      int foundTargets = 0;
+      for (String target in targetPackages) {
+        if (allFoundPackages.contains(target)) {
+          foundTargets++;
+          print("💰 [FORCE REFRESH] ✅ Found target: $target");
+        } else {
+          print("💰 [FORCE REFRESH] ❌ Missing target: $target");
+        }
+      }
+
+      print("💰 [FORCE REFRESH] Found $foundTargets/4 target packages");
+      print("💰 [FORCE REFRESH] Total packages: ${allFoundPackages.length}");
+
+      setState(() {
+        offerings = freshOfferings;
+        _loading = false;
+      });
+    } catch (e) {
+      print("💰 [FORCE REFRESH] Error during refresh: $e");
+      setState(() {
+        _loading = false;
+      });
     }
   }
 
@@ -190,11 +316,30 @@ class _CoinsScreenState extends State<CoinsScreen> {
     print(
         "💰 [CONVERSION DEBUG] Starting conversion of ${myProductList.length} packages");
 
+    // Debug: List all packages being processed
+    print("💰 [CONVERSION DEBUG] Packages to process:");
+    for (int i = 0; i < myProductList.length; i++) {
+      print(
+          "💰 [CONVERSION DEBUG] [$i] ${myProductList[i].storeProduct.identifier}");
+    }
+
     List<InAppPurchaseModel> inAppPurchaseList = [];
 
     for (Package package in myProductList) {
-      print(
-          "💰 [CONVERSION DEBUG] Processing package: ${package.storeProduct.identifier}");
+      String identifier = package.storeProduct.identifier;
+      print("💰 [CONVERSION DEBUG] Processing package: $identifier");
+
+      // Check if this is one of our missing packages
+      List<String> targetPackages = [
+        "joytox.21000.credits",
+        "joytox.23000.credits",
+        "joytox.35000.credits",
+        "joytox.55000.credits"
+      ];
+      if (targetPackages.contains(identifier)) {
+        print("💰 [TARGET DEBUG] Found target package: $identifier");
+      }
+
       InAppPurchaseModel inAppPurchaseModel = InAppPurchaseModel();
 
       // Set basic package info
@@ -205,8 +350,12 @@ class _CoinsScreenState extends State<CoinsScreen> {
       inAppPurchaseModel.currency = package.storeProduct.currencyCode;
 
       // Extract coins from product identifier using regex to get the number
-      String identifier = package.storeProduct.identifier;
       int coins = _extractCoinsFromIdentifier(identifier);
+
+      // Debug coin extraction for target packages
+      if (targetPackages.contains(identifier)) {
+        print("💰 [TARGET DEBUG] Extracted $coins coins from $identifier");
+      }
 
       inAppPurchaseModel.coins = coins;
 
@@ -241,8 +390,20 @@ class _CoinsScreenState extends State<CoinsScreen> {
         inAppPurchaseList.add(inAppPurchaseModel);
         print(
             "💰 [CONVERSION DEBUG] Added to list: ${inAppPurchaseModel.coins} coins, ${inAppPurchaseModel.price}");
+
+        // Special logging for target packages
+        if (targetPackages.contains(identifier)) {
+          print(
+              "💰 [TARGET DEBUG] Successfully added target package: $identifier with $coins coins");
+        }
       } else {
         print("💰 [CONVERSION DEBUG] Skipped unknown product: $identifier");
+
+        // Special logging for target packages that failed
+        if (targetPackages.contains(identifier)) {
+          print(
+              "💰 [TARGET DEBUG] ERROR: Target package $identifier was skipped because coins = $coins");
+        }
       }
     }
 
@@ -370,10 +531,7 @@ class _CoinsScreenState extends State<CoinsScreen> {
               ElevatedButton(
                 onPressed: () async {
                   print("💰 [MANUAL REFRESH] User requested manual refresh");
-                  setState(() {
-                    _loading = true;
-                  });
-                  await initProducts();
+                  await _forceCompleteRefresh();
                 },
                 child: Text("Refresh"),
               ),
