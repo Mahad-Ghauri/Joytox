@@ -5,7 +5,7 @@ extension ZegoLivePageStateGiftExtension on AudioRoomPageState {
     ZegoGiftController().service.recvNotifier.addListener(onGiftReceived);
     WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
       ZegoGiftController().service.init(
-            appID: SDKKeyCenter.appID,
+            appID: Setup.zegoLiveStreamAppID,
             localUserID: ZEGOSDKManager().currentUser!.userID,
             localUserName: 'user_${ZEGOSDKManager().currentUser!.userID}',
           );
@@ -27,8 +27,10 @@ extension ZegoLivePageStateGiftExtension on AudioRoomPageState {
           onPressed: () async {
             /// local play
             const giftName = 'music_box';
-            final giftPath = await getPathFromAssetOrCache('assets/gift/$giftName.mp4');
-            ZegoGiftController().addToPlayingList(ZegoGiftData(giftPath: giftPath));
+            final giftPath =
+                await getPathFromAssetOrCache('assets/gift/$giftName.mp4');
+            ZegoGiftController()
+                .addToPlayingList(ZegoGiftData(giftPath: giftPath));
 
             /// notify remote host
             ZegoGiftController().service.sendGift(giftName: giftName);
@@ -47,7 +49,8 @@ extension ZegoLivePageStateGiftExtension on AudioRoomPageState {
       return;
     }
 
-    final giftPath = await getPathFromAssetOrCache('assets/gift/${receivedGiftCommand.giftName}.mp4');
+    final giftPath = await getPathFromAssetOrCache(
+        'assets/gift/${receivedGiftCommand.giftName}.mp4');
     ZegoGiftController().addToPlayingList(ZegoGiftData(giftPath: giftPath));
   }
 }

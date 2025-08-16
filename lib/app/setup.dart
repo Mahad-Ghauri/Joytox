@@ -26,11 +26,12 @@ class Setup {
   static final String streamingProviderType = ''; // webrtc
   static final String streamingProviderKey = '';
 
-
   //Zego Cloud Credentials
-  static final int zegoLiveStreamAppID = 1767765862;
-  static final String zegoLiveStreamAppSign = "a9436cd2a93ceccb56dbbcba8256602f69225bbc64c57623da104827d9d609d1";
-  static final String zegoLiveStreamServerSecret = "bcfc47cbf96af36efa0a34720b0fbab9";
+  static final int zegoLiveStreamAppID = 1333718868;
+  static final String zegoLiveStreamAppSign =
+      "4395b5988388228ec9300d15ceb4e67f0e6702e760f4c0d4a23619d5da9f9394";
+  static final String zegoLiveStreamServerSecret =
+      "2400b7ee268927382ac1561dba7732db";
   static final String zegoPushResourceID = "joytoxResource";
 
   //Set Banuba license token for Video Editor SDK
