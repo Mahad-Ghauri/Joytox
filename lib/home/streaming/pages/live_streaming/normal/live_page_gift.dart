@@ -5,7 +5,7 @@ extension ZegoLivePageStateGiftExtension on ZegoNormalLivePageState {
     ZegoGiftController().service.recvNotifier.addListener(onGiftReceived);
     WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
       ZegoGiftController().service.init(
-            appID: SDKKeyCenter.appID,
+            appID: Setup.zegoLiveStreamAppID,
             localUserID: ZEGOSDKManager().currentUser!.userID,
             localUserName: 'user_${ZEGOSDKManager().currentUser!.userID}',
           );
@@ -28,7 +28,8 @@ extension ZegoLivePageStateGiftExtension on ZegoNormalLivePageState {
       return;
     }
 
-    final giftPath = await getPathFromAssetOrCache('assets/gift/${receivedGiftCommand.giftName}.mp4');
+    final giftPath = await getPathFromAssetOrCache(
+        'assets/gift/${receivedGiftCommand.giftName}.mp4');
     ZegoGiftController().addToPlayingList(ZegoGiftData(giftPath: giftPath));
   }
 }

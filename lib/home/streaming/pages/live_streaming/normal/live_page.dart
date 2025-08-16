@@ -47,7 +47,7 @@ class ZegoNormalLivePage extends StatefulWidget {
       required this.roomID,
       required this.role,
       this.externalControlCommand,
-        this.mLiveStreaming,
+      this.mLiveStreaming,
       this.previewHostID,
       this.currentUser,
       this.preferences});
@@ -243,11 +243,9 @@ class ZegoNormalLivePageState extends State<ZegoNormalLivePage> {
                       ContainerCorner(
                         width: 65,
                         child: TextScroll(
-                          widget.mLiveStreaming!.getAuthor!
-                              .getFullName!,
+                          widget.mLiveStreaming!.getAuthor!.getFullName!,
                           mode: TextScrollMode.endless,
-                          velocity: Velocity(
-                              pixelsPerSecond: Offset(30, 0)),
+                          velocity: Velocity(pixelsPerSecond: Offset(30, 0)),
                           delayBefore: Duration(seconds: 1),
                           pauseBetween: Duration(milliseconds: 150),
                           style: TextStyle(
@@ -290,8 +288,7 @@ class ZegoNormalLivePageState extends State<ZegoNormalLivePage> {
                 child: ContainerCorner(
                   marginLeft: 15,
                   marginRight: 6,
-                  color:
-                  following ? Colors.blueAccent : kPrimaryColor,
+                  color: following ? Colors.blueAccent : kPrimaryColor,
                   child: ContainerCorner(
                       color: kTransparentColor,
                       marginAll: 5,
@@ -299,9 +296,7 @@ class ZegoNormalLivePageState extends State<ZegoNormalLivePage> {
                       width: 23,
                       child: Center(
                         child: Icon(
-                          following
-                              ? Icons.done
-                              : Icons.person_add_alt,
+                          following ? Icons.done : Icons.person_add_alt,
                           color: Colors.white,
                           size: 12,
                         ),
@@ -325,8 +320,7 @@ class ZegoNormalLivePageState extends State<ZegoNormalLivePage> {
                 width: 23,
                 child: Padding(
                   padding: const EdgeInsets.all(3.0),
-                  child: Lottie.asset(
-                      "assets/lotties/ic_live_animation.json"),
+                  child: Lottie.asset("assets/lotties/ic_live_animation.json"),
                 ),
               ),
             ],
@@ -365,8 +359,7 @@ class ZegoNormalLivePageState extends State<ZegoNormalLivePage> {
     widget.mLiveStreaming!.save();
 
     ParseResponse parseResponse = await QuickCloudCode.followUser(
-        author: widget.currentUser!,
-        receiver: mUser);
+        author: widget.currentUser!, receiver: mUser);
 
     if (parseResponse.success) {
       QuickActions.createOrDeleteNotification(widget.currentUser!, mUser,
@@ -376,7 +369,7 @@ class ZegoNormalLivePageState extends State<ZegoNormalLivePage> {
 
   Widget getTopGifters() {
     QueryBuilder<GiftsSenderModel> query =
-    QueryBuilder<GiftsSenderModel>(GiftsSenderModel());
+        QueryBuilder<GiftsSenderModel>(GiftsSenderModel());
 
     query.includeObject([
       GiftsSenderModel.keyAuthor,
@@ -421,13 +414,13 @@ class ZegoNormalLivePageState extends State<ZegoNormalLivePage> {
 
   Widget countViewers() {
     QueryBuilder<LiveViewersModel> query =
-    QueryBuilder<LiveViewersModel>(LiveViewersModel());
+        QueryBuilder<LiveViewersModel>(LiveViewersModel());
 
     query.whereEqualTo(
         LiveViewersModel.keyLiveId, widget.mLiveStreaming!.objectId);
     query.whereEqualTo(LiveViewersModel.keyWatching, true);
-    query.whereEqualTo(LiveViewersModel.keyLiveAuthorId,
-        widget.mLiveStreaming!.getAuthorId);
+    query.whereEqualTo(
+        LiveViewersModel.keyLiveAuthorId, widget.mLiveStreaming!.getAuthorId);
 
     var viewers = [];
     int? indexToRemove;
@@ -761,8 +754,8 @@ class ZegoNormalLivePageState extends State<ZegoNormalLivePage> {
                 child: ListView(
                   padding: EdgeInsets.zero,
                   scrollDirection: Axis.horizontal,
-                  children: List.generate(
-                      QuickHelp.getLiveTagsList().length, (index) {
+                  children: List.generate(QuickHelp.getLiveTagsList().length,
+                      (index) {
                     bool isSelected = liveSubTypeSelected
                         .contains(QuickHelp.getLiveTagsList()[index]);
                     return ContainerCorner(
@@ -862,9 +855,9 @@ class ZegoNormalLivePageState extends State<ZegoNormalLivePage> {
     streamingModel.setFirstLive = widget.currentUser!.isFirstLive!;
     if (Setup.isDebug) print("Check live 7");
 
-    if(widget.currentUser!.getLiveCover != null) {
+    if (widget.currentUser!.getLiveCover != null) {
       streamingModel.setImage = widget.currentUser!.getLiveCover!;
-    }else{
+    } else {
       streamingModel.setImage = widget.currentUser!.getAvatar!;
     }
 
@@ -1170,8 +1163,8 @@ extension ZegoLivePageStateCommand on ZegoNormalLivePageState {
         // ! ** Warning: ZegoTokenUtils is only for use during testing. When your application goes live,
         // ! ** tokens must be generated by the server side. Please do not generate tokens on the client side!
         token = ZegoTokenUtils.generateToken(
-          SDKKeyCenter.appID,
-          SDKKeyCenter.serverSecret,
+          Setup.zegoLiveStreamAppID,
+          Setup.zegoLiveStreamServerSecret,
           ZEGOSDKManager().currentUser!.userID,
         );
       }
