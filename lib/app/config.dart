@@ -82,9 +82,19 @@ class Config {
   // Google Play and Apple Pay In-app Purchases IDs
   static final String credit100 = "joytox.100.credits";
   static final String credit200 = "joytox.200.credits";
-  static final String credit500 = "joytox.500.credits";
+  static final String credit400 = "joytox.400.credits";
+  static final String credit600 = "joytox.600.credits";
   static final String credit1000 = "joytox.1000.credits";
-  static final String credit2100 = "joytox.2100.credits";
-  static final String credit5250 = "joytox.5250.credits";
-  static final String credit10500 = "joytox.10500.credits";
+  static final String credit1600 = "joytox.1600.credits";
+  static final String credit2000 = "joytox.2000.credits";
+  static final String credit3000 = "joytox.3000.credits";
+  static final String credit4000 = "joytox.4000.credits";
+  static final String credit10000 = "joytox.10000.credits";
+  static final String credit21000 = "joytox.21000.credits";
+  static final String credit23000 = "joytox.23000.credits";
+  static final String credit35000 = "joytox.35000.credits";
+  static final String credit55000 = "joytox.55000.credits";
+  static final String credit100000 = "joytox.100000.credits";
+  static final String credit150000 = "joytox.150000.credits";
+  static final String credit300000 = "joytox.300000.credits";
 }

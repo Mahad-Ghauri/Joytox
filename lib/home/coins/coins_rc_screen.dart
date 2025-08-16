@@ -3,16 +3,17 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:parse_server_sdk/parse_server_sdk.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:trace/helpers/quick_help.dart';
 import 'package:trace/models/UserModel.dart';
 
+import '../../app/config.dart';
 import '../../helpers/quick_actions.dart';
 import '../../models/PaymentsModel.dart';
 import '../../models/others/in_app_model.dart';
 import '../../ui/container_with_corner.dart';
-import '../../ui/text_with_tap.dart';
 
 // ignore: must_be_immutable
 class CoinsScreen extends StatefulWidget {
@@ -55,6 +56,28 @@ class _CoinsScreenState extends State<CoinsScreen> {
       offerings = await Purchases.getOfferings();
       print(
           "💰 [INIT DEBUG] Initial offerings loaded with ${offerings.current?.availablePackages.length ?? 0} packages");
+
+      // Debug: Print all available offerings
+      print("💰 [DEBUG] Total offerings available: ${offerings.all.length}");
+      for (String key in offerings.all.keys) {
+        Offering offering = offerings.all[key]!;
+        print(
+            "💰 [DEBUG] Offering '$key' has ${offering.availablePackages.length} packages");
+        for (Package package in offering.availablePackages) {
+          print(
+              "💰 [DEBUG] - Package: ${package.storeProduct.identifier} (${package.storeProduct.priceString})");
+        }
+      }
+
+      // Debug: Print current offering details
+      if (offerings.current != null) {
+        print(
+            "💰 [DEBUG] Current offering identifier: ${offerings.current!.identifier}");
+        print(
+            "💰 [DEBUG] Current offering packages: ${offerings.current!.availablePackages.length}");
+      } else {
+        print("💰 [DEBUG] No current offering set!");
+      }
 
       if (offerings.current!.availablePackages.length > 0) {
         setState(() {
@@ -149,12 +172,25 @@ class _CoinsScreenState extends State<CoinsScreen> {
   List<InAppPurchaseModel> getInAppList() {
     List<Package> myProductList = offerings.current!.availablePackages;
 
+    // If current offering has very few packages, try to get from all offerings
+    if (myProductList.length < 3) {
+      print(
+          "💰 [FALLBACK DEBUG] Current offering only has ${myProductList.length} packages, checking all offerings...");
+      Set<Package> allPackages = {};
+      for (Offering offering in offerings.all.values) {
+        allPackages.addAll(offering.availablePackages);
+      }
+      if (allPackages.length > myProductList.length) {
+        myProductList = allPackages.toList();
+        print(
+            "💰 [FALLBACK DEBUG] Using ${myProductList.length} packages from all offerings");
+      }
+    }
+
     print(
         "💰 [CONVERSION DEBUG] Starting conversion of ${myProductList.length} packages");
 
     List<InAppPurchaseModel> inAppPurchaseList = [];
-    bool has100Credits = false;
-    bool has200Credits = false;
 
     for (Package package in myProductList) {
       print(
@@ -168,64 +204,134 @@ class _CoinsScreenState extends State<CoinsScreen> {
       inAppPurchaseModel.price = package.storeProduct.priceString;
       inAppPurchaseModel.currency = package.storeProduct.currencyCode;
 
-      // Extract coins from product identifier
-      if (package.storeProduct.identifier.contains('100')) {
-        inAppPurchaseModel.coins = 100;
-        inAppPurchaseModel.image = "assets/images/icon_jinbi.png";
-        has100Credits = true;
-        print(
-            "💰 [COINS DEBUG] Set 100 coins with image: ${inAppPurchaseModel.image}");
-      } else if (package.storeProduct.identifier.contains('200')) {
-        inAppPurchaseModel.coins = 200;
-        inAppPurchaseModel.image = "assets/images/icon_jinbi.png";
-        has200Credits = true;
-        print(
-            "💰 [COINS DEBUG] Set 200 coins with image: ${inAppPurchaseModel.image}");
+      // Extract coins from product identifier using regex to get the number
+      String identifier = package.storeProduct.identifier;
+      int coins = _extractCoinsFromIdentifier(identifier);
+
+      inAppPurchaseModel.coins = coins;
+
+      // Set image based on coin amount
+      if (coins >= 100 && coins <= 600) {
+        inAppPurchaseModel.image = "assets/svg/ic_coin_with_star.svg";
+      } else if (coins >= 1000 && coins <= 4000) {
+        inAppPurchaseModel.image = "assets/images/ic_coins_4000.png";
+      } else if (coins >= 10000 && coins <= 55000) {
+        inAppPurchaseModel.image = "assets/images/ic_coins_2.png";
+      } else if (coins >= 100000) {
+        inAppPurchaseModel.image = "assets/images/ic_coins_7.png";
       } else {
-        // Default fallback for unknown products
-        inAppPurchaseModel.coins = 0;
-        inAppPurchaseModel.image = "assets/images/icon_jinbi.png";
-        print(
-            "💰 [COINS DEBUG] Unknown product: ${package.storeProduct.identifier}");
+        inAppPurchaseModel.image = "assets/images/icon_jinbi.png"; // fallback
       }
 
-      // Set type based on coins amount
-      if (inAppPurchaseModel.coins == 200) {
+      print(
+          "💰 [COINS DEBUG] Set $coins coins for ${identifier} with image: ${inAppPurchaseModel.image}");
+
+      // Set type based on coins amount - mark popular packages
+      if (coins == 1000 ||
+          coins == 10000 ||
+          coins == 100000 ||
+          coins == 300000) {
         inAppPurchaseModel.type = InAppPurchaseModel.typePopular;
       } else {
         inAppPurchaseModel.type = InAppPurchaseModel.typeNormal;
       }
 
-      inAppPurchaseList.add(inAppPurchaseModel);
-      print(
-          "💰 [CONVERSION DEBUG] Added to list: ${inAppPurchaseModel.coins} coins, ${inAppPurchaseModel.price}");
+      // Only add if we successfully extracted coins
+      if (coins > 0) {
+        inAppPurchaseList.add(inAppPurchaseModel);
+        print(
+            "💰 [CONVERSION DEBUG] Added to list: ${inAppPurchaseModel.coins} coins, ${inAppPurchaseModel.price}");
+      } else {
+        print("💰 [CONVERSION DEBUG] Skipped unknown product: $identifier");
+      }
     }
 
-    // TEMPORARY WORKAROUND: If we only have 100 credits, manually add 200 credits for testing
-    if (has100Credits && !has200Credits && inAppPurchaseList.length == 1) {
-      print(
-          "💰 [WORKAROUND DEBUG] Only found 100 credits, adding 200 credits manually for testing");
-      InAppPurchaseModel mockInAppPurchaseModel = InAppPurchaseModel();
-      mockInAppPurchaseModel.coins = 200;
-      mockInAppPurchaseModel.image = "assets/images/icon_jinbi.png";
-      mockInAppPurchaseModel.price = "Rs 100.00"; // Mock price
-      mockInAppPurchaseModel.currency = "PKR";
-      mockInAppPurchaseModel.id = "joytox.200.credits";
-      mockInAppPurchaseModel.type = InAppPurchaseModel.typePopular;
-
-      // Note: This won't have a real package, so purchases won't work, but UI will show both options
-      inAppPurchaseList.add(mockInAppPurchaseModel);
-      print("💰 [WORKAROUND DEBUG] Added mock 200 credits for UI testing");
-    }
+    // Sort by coins amount for better UI display
+    inAppPurchaseList.sort((a, b) => a.coins!.compareTo(b.coins!));
 
     print("💰 [CONVERSION DEBUG] Final list size: ${inAppPurchaseList.length}");
     return inAppPurchaseList;
   }
 
+  int _extractCoinsFromIdentifier(String identifier) {
+    // Map of all possible credit amounts from config
+    Map<String, int> creditMap = {
+      Config.credit100: 100,
+      Config.credit200: 200,
+      Config.credit400: 400,
+      Config.credit600: 600,
+      Config.credit1000: 1000,
+      Config.credit1600: 1600,
+      Config.credit2000: 2000,
+      Config.credit3000: 3000,
+      Config.credit4000: 4000,
+      Config.credit10000: 10000,
+      Config.credit21000: 21000,
+      Config.credit23000: 23000,
+      Config.credit35000: 35000,
+      Config.credit55000: 55000,
+      Config.credit100000: 100000,
+      Config.credit150000: 150000,
+      Config.credit300000: 300000,
+    };
+
+    // Direct lookup first
+    if (creditMap.containsKey(identifier)) {
+      return creditMap[identifier]!;
+    }
+
+    // Fallback: try to extract number from identifier using regex
+    RegExp regExp = RegExp(r'(\d+)\.credits');
+    Match? match = regExp.firstMatch(identifier);
+    if (match != null) {
+      return int.tryParse(match.group(1)!) ?? 0;
+    }
+
+    return 0; // Unknown product
+  }
+
+  Widget _buildImageWidget(String imagePath) {
+    if (imagePath.endsWith('.svg')) {
+      return SvgPicture.asset(
+        imagePath,
+        height: 40,
+        width: 40,
+        fit: BoxFit.contain,
+        placeholderBuilder: (context) => Image.asset(
+          "assets/images/icon_jinbi.png",
+          height: 40,
+          width: 40,
+        ),
+      );
+    } else {
+      return Image.asset(
+        imagePath,
+        height: 40,
+        width: 40,
+        fit: BoxFit.contain,
+        errorBuilder: (context, error, stackTrace) {
+          return Image.asset(
+            "assets/images/icon_jinbi.png",
+            height: 40,
+            width: 40,
+          );
+        },
+      );
+    }
+  }
+
+  int _getCrossAxisCount(int itemCount) {
+    if (itemCount <= 4) return 2;
+    if (itemCount <= 9) return 3;
+    return 4;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: getBody(),
+      body: SafeArea(
+        child: getBody(),
+      ),
     );
   }
 
@@ -251,83 +357,115 @@ class _CoinsScreenState extends State<CoinsScreen> {
 
     return Column(
       children: [
-        // Add refresh button if only 1 product is showing
-        if (inAppList.length < 2)
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: ElevatedButton(
-              onPressed: () async {
-                print("💰 [MANUAL REFRESH] User requested manual refresh");
-                setState(() {
-                  _loading = true;
-                });
-                await initProducts();
-              },
-              child: Text("Refresh Packages"),
-            ),
+        // Add refresh button and show count
+        Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                "Available Packages: ${inAppList.length}",
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  print("💰 [MANUAL REFRESH] User requested manual refresh");
+                  setState(() {
+                    _loading = true;
+                  });
+                  await initProducts();
+                },
+                child: Text("Refresh"),
+              ),
+            ],
           ),
+        ),
         Expanded(
           child: Padding(
-            padding: const EdgeInsets.only(left: 15, right: 15),
-            child: GridView.count(
-              crossAxisCount: 3,
-              mainAxisSpacing: 10,
-              crossAxisSpacing: 10,
-              physics: canScroll ? NeverScrollableScrollPhysics() : null,
-              children: List.generate(inAppList.length, (index) {
-                InAppPurchaseModel inApp = inAppList[index];
-                print(
-                    "💰 [RENDER DEBUG] Rendering item $index: ${inApp.coins} coins");
-                return ContainerCorner(
-                  color: Colors.deepPurpleAccent.withOpacity(0.1),
-                  borderRadius: 8,
-                  onTap: () {
-                    _inAppPurchaseModel = inApp;
-                    _purchaseProduct(inApp);
-                  },
-                  child: Column(
-                    children: [
-                      TextWithTap(
-                        "${inApp.coins ?? 0} Credits",
-                        fontWeight: FontWeight.w700,
-                        fontSize: 18,
-                        marginTop: 5,
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            child: GridView.builder(
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: _getCrossAxisCount(inAppList.length),
+                  mainAxisSpacing: 12,
+                  crossAxisSpacing: 12,
+                  childAspectRatio: 0.85,
+                ),
+                itemCount: inAppList.length,
+                physics: canScroll
+                    ? const NeverScrollableScrollPhysics()
+                    : const BouncingScrollPhysics(),
+                itemBuilder: (context, index) {
+                  InAppPurchaseModel inApp = inAppList[index];
+                  print(
+                      "💰 [RENDER DEBUG] Rendering item $index: ${inApp.coins} coins");
+                  return ContainerCorner(
+                    color: Colors.deepPurpleAccent.withOpacity(0.1),
+                    borderRadius: 12,
+                    onTap: () {
+                      _inAppPurchaseModel = inApp;
+                      _purchaseProduct(inApp);
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          // Credits text
+                          Flexible(
+                            flex: 2,
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                "${inApp.coins ?? 0} Credits",
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 16,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ),
+                          // Image
+                          Flexible(
+                            flex: 4,
+                            child: Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 4.0),
+                              child: _buildImageWidget(inApp.image ??
+                                  "assets/images/icon_jinbi.png"),
+                            ),
+                          ),
+                          // Price button
+                          Flexible(
+                            flex: 2,
+                            child: Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: 6.0, horizontal: 8.0),
+                              decoration: BoxDecoration(
+                                color: Colors.deepPurpleAccent,
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(
+                                  "${inApp.price ?? 'No Price'}",
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                      Expanded(
-                        child: Image.asset(
-                          inApp.image ?? "assets/images/icon_jinbi.png",
-                          height: 20,
-                          width: 20,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Image.asset(
-                              "assets/images/icon_jinbi.png",
-                              height: 20,
-                              width: 20,
-                            );
-                          },
-                        ),
-                      ),
-                      ContainerCorner(
-                        borderRadius: 50,
-                        borderWidth: 0,
-                        height: 30,
-                        marginRight: 10,
-                        marginLeft: 10,
-                        color: Colors.deepPurpleAccent,
-                        marginBottom: 5,
-                        child: TextWithTap(
-                          "${inApp.price ?? 'No Price'}",
-                          color: Colors.white,
-                          alignment: Alignment.center,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }),
-            ),
+                    ),
+                  );
+                }),
           ),
         ),
       ],
