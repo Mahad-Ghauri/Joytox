@@ -76,75 +76,27 @@ class _CoinsFlowWidgetState extends State<_CoinsFlowWidget>
   bool _isAvailable = false;
   bool _loading = true;
   InAppPurchaseModel? _inAppPurchaseModel;
+  List<InAppPurchaseModel> _fallbackProducts = [];
 
   List<InAppPurchaseModel> getInAppList() {
-    List<Package> myProductList = offerings.current?.availablePackages ?? [];
-
-    // If current offering has very few packages, try to get from all offerings
-    if (myProductList.length < 3) {
-      print(
-          "💰 [FALLBACK DEBUG] Current offering only has ${myProductList.length} packages, checking all offerings...");
-      Set<Package> allPackages = {};
-      for (Offering offering in offerings.all.values) {
-        allPackages.addAll(offering.availablePackages);
-      }
-      if (allPackages.length > myProductList.length) {
-        myProductList = allPackages.toList();
-        print(
-            "💰 [FALLBACK DEBUG] Using ${myProductList.length} packages from all offerings");
-      }
-    }
+    List<Package> myProductList = offerings.current!.availablePackages;
 
     print(
         "💰 [PAYMENT CONVERSION DEBUG] Starting conversion of ${myProductList.length} packages");
 
     List<InAppPurchaseModel> inAppPurchaseList = [];
 
+    // Primary path: packages from offerings
     for (Package package in myProductList) {
-      print(
-          "💰 [PAYMENT CONVERSION DEBUG] Processing package: ${package.storeProduct.identifier}");
-      InAppPurchaseModel inAppPurchaseModel = InAppPurchaseModel();
+      final identifier = package.storeProduct.identifier;
+      print("💰 [PAYMENT CONVERSION DEBUG] Processing package: $identifier");
 
-      // Set basic package info
-      inAppPurchaseModel.package = package;
-      inAppPurchaseModel.storeProduct = package.storeProduct;
-      inAppPurchaseModel.id = package.storeProduct.identifier;
-      inAppPurchaseModel.price = package.storeProduct.priceString;
-      inAppPurchaseModel.currency = package.storeProduct.currencyCode;
-
-      // Extract coins from product identifier using helper method
-      String identifier = package.storeProduct.identifier;
-      int coins = _extractCoinsFromIdentifier(identifier);
-
-      inAppPurchaseModel.coins = coins;
-
-      // Set image based on coin amount
-      if (coins >= 100 && coins <= 600) {
-        inAppPurchaseModel.image = "assets/svg/ic_coin_with_star.svg";
-      } else if (coins >= 1000 && coins <= 4000) {
-        inAppPurchaseModel.image = "assets/images/ic_coins_4000.png";
-      } else if (coins >= 10000 && coins <= 50000) {
-        inAppPurchaseModel.image = "assets/images/ic_coins_2.png";
-      } else if (coins >= 100000) {
-        inAppPurchaseModel.image = "assets/images/ic_coins_7.png";
-      } else {
-        inAppPurchaseModel.image = "assets/images/icon_jinbi.png"; // fallback
-      }
+      final inAppPurchaseModel = InAppPurchaseModel.fromPackage(package);
+      final coins = inAppPurchaseModel.coins ?? 0;
 
       print(
-          "💰 [PAYMENT DEBUG] Set $coins coins for ${identifier} with image: ${inAppPurchaseModel.image}");
+          "💰 [PAYMENT DEBUG] Set $coins coins for $identifier with image: ${inAppPurchaseModel.image}");
 
-      // Set type based on coins amount - mark popular packages
-      if (coins == 1000 ||
-          coins == 10000 ||
-          coins == 100000 ||
-          coins == 300000) {
-        inAppPurchaseModel.type = InAppPurchaseModel.typePopular;
-      } else {
-        inAppPurchaseModel.type = InAppPurchaseModel.typeNormal;
-      }
-
-      // Only add if we successfully extracted coins
       if (coins > 0) {
         inAppPurchaseList.add(inAppPurchaseModel);
         print(
@@ -155,8 +107,20 @@ class _CoinsFlowWidgetState extends State<_CoinsFlowWidget>
       }
     }
 
+    // Fallback path: use directly-fetched StoreProducts if needed
+    if (inAppPurchaseList.length < 3 && _fallbackProducts.isNotEmpty) {
+      print(
+          "💰 [PAYMENT FALLBACK DEBUG] Using cached fallback products: ${_fallbackProducts.length}");
+      for (final model in _fallbackProducts) {
+        final exists = inAppPurchaseList.any((m) => m.id == model.id);
+        if (!exists && (model.coins ?? 0) > 0) {
+          inAppPurchaseList.add(model);
+        }
+      }
+    }
+
     // Sort by coins amount for better UI display
-    inAppPurchaseList.sort((a, b) => a.coins!.compareTo(b.coins!));
+    inAppPurchaseList.sort((a, b) => (a.coins ?? 0).compareTo(b.coins ?? 0));
 
     print(
         "💰 [PAYMENT CONVERSION DEBUG] Final list size: ${inAppPurchaseList.length}");
@@ -204,26 +168,26 @@ class _CoinsFlowWidgetState extends State<_CoinsFlowWidget>
     if (imagePath.endsWith('.svg')) {
       return SvgPicture.asset(
         imagePath,
-        height: 80,
-        width: 80,
+        height: 120, // Increased size
+        width: 120, // Increased size
         fit: BoxFit.contain,
         placeholderBuilder: (context) => Image.asset(
           "assets/images/coin_bling.webp",
-          height: 80,
-          width: 80,
+          height: 120,
+          width: 120,
         ),
       );
     } else {
       return Image.asset(
         imagePath,
-        height: 80,
-        width: 80,
+        height: 120, // Increased size
+        width: 120, // Increased size
         fit: BoxFit.contain,
         errorBuilder: (context, error, stackTrace) {
           return Image.asset(
             "assets/images/coin_bling.webp",
-            height: 80,
-            width: 80,
+            height: 120,
+            width: 120,
           );
         },
       );
@@ -248,10 +212,59 @@ class _CoinsFlowWidgetState extends State<_CoinsFlowWidget>
 
   initProducts() async {
     try {
+      // Identify user with RevenueCat if possible
+      try {
+        if (widget.currentUser.objectId != null) {
+          await Purchases.logIn(widget.currentUser.objectId!);
+          print(
+              "💰 [PAYMENT INIT DEBUG] Logged in user to RevenueCat: ${widget.currentUser.objectId}");
+        }
+      } catch (e) {
+        print("💰 [PAYMENT INIT DEBUG] RevenueCat logIn failed: $e");
+      }
+
+      // Invalidate caches to avoid stale offerings
+      try {
+        await Purchases.invalidateCustomerInfoCache();
+      } catch (_) {}
+
       print("💰 [PAYMENT INIT DEBUG] Starting to load offerings...");
       offerings = await Purchases.getOfferings();
       print(
           "💰 [PAYMENT INIT DEBUG] Initial offerings loaded with ${offerings.current?.availablePackages.length ?? 0} packages");
+
+      // Prefetch fallback StoreProducts by explicit IDs
+      try {
+        final ids = [
+          Config.credit100,
+          Config.credit200,
+          Config.credit400,
+          Config.credit600,
+          Config.credit1000,
+          Config.credit1600,
+          Config.credit2000,
+          Config.credit3000,
+          Config.credit4000,
+          Config.credit10000,
+          Config.credit20000,
+          Config.credit25000,
+          Config.credit40000,
+          Config.credit50000,
+          Config.credit100000,
+          Config.credit150000,
+          Config.credit300000,
+        ];
+        final products = await Purchases.getProducts(ids);
+        _fallbackProducts = products
+            .map((sp) => InAppPurchaseModel.fromStoreProduct(sp))
+            .where((m) => (m.coins ?? 0) > 0)
+            .toList();
+        print(
+            "💰 [PAYMENT INIT DEBUG] Prefetched fallback StoreProducts: ${_fallbackProducts.length}");
+      } catch (e) {
+        print(
+            "💰 [PAYMENT INIT DEBUG] Failed to prefetch fallback products: $e");
+      }
 
       if (offerings.current != null &&
           offerings.current!.availablePackages.length > 0) {
@@ -269,7 +282,7 @@ class _CoinsFlowWidgetState extends State<_CoinsFlowWidget>
       } else {
         print("💰 [PAYMENT INIT DEBUG] No products available");
         setState(() {
-          _isAvailable = false;
+          _isAvailable = _fallbackProducts.isNotEmpty;
           _loading = false;
         });
       }
@@ -278,13 +291,15 @@ class _CoinsFlowWidgetState extends State<_CoinsFlowWidget>
     } on PlatformException catch (e) {
       print("💰 [PAYMENT INIT DEBUG] Error loading offerings: ${e.message}");
       setState(() {
-        _isAvailable = false;
+        _isAvailable =
+            _fallbackProducts.isNotEmpty; // show fallback if possible
         _loading = false;
       });
     } catch (e) {
       print("💰 [PAYMENT INIT DEBUG] Unexpected error loading offerings: $e");
       setState(() {
-        _isAvailable = false;
+        _isAvailable =
+            _fallbackProducts.isNotEmpty; // show fallback if possible
         _loading = false;
       });
     }
@@ -345,7 +360,33 @@ class _CoinsFlowWidgetState extends State<_CoinsFlowWidget>
   }
 
   _purchaseProduct(InAppPurchaseModel inAppPurchaseModel) async {
+    // Validate product availability before attempting purchase
     if (inAppPurchaseModel.package == null) {
+      try {
+        await Purchases.invalidateCustomerInfoCache();
+        final fresh = await Purchases.getOfferings();
+        final targetId = inAppPurchaseModel.id;
+        Package? found;
+        for (final offering in fresh.all.values) {
+          for (final p in offering.availablePackages) {
+            if (p.storeProduct.identifier == targetId) {
+              found = p;
+              break;
+            }
+          }
+          if (found != null) break;
+        }
+        if (found != null) {
+          inAppPurchaseModel.package = found;
+        }
+      } catch (e) {
+        print("💰 [PAYMENT DEBUG] Failed to refresh package: $e");
+      }
+    }
+
+    // If still no Package, but we have a StoreProduct (fallback path), we will use it
+    if (inAppPurchaseModel.package == null &&
+        inAppPurchaseModel.storeProduct == null) {
       QuickHelp.showAppNotificationAdvanced(
         context: context,
         user: widget.currentUser,
@@ -362,8 +403,14 @@ class _CoinsFlowWidgetState extends State<_CoinsFlowWidget>
       print(
           "💰 [PAYMENT DEBUG] Attempting to purchase: ${inAppPurchaseModel.id} for ${inAppPurchaseModel.coins} coins");
 
-      CustomerInfo customerInfo =
-          await Purchases.purchasePackage(inAppPurchaseModel.package!);
+      CustomerInfo customerInfo;
+      if (inAppPurchaseModel.package != null) {
+        customerInfo =
+            await Purchases.purchasePackage(inAppPurchaseModel.package!);
+      } else {
+        customerInfo = await Purchases.purchaseStoreProduct(
+            inAppPurchaseModel.storeProduct!);
+      }
 
       print(
           "💰 [PAYMENT DEBUG] Purchase successful, adding ${inAppPurchaseModel.coins} coins to user");
@@ -372,6 +419,14 @@ class _CoinsFlowWidgetState extends State<_CoinsFlowWidget>
       await widget.currentUser.save();
 
       registerPayment(customerInfo, inAppPurchaseModel);
+
+      // Double-check entitlement/product status and finish transactions if needed (Android)
+      try {
+        if (QuickHelp.isAndroidPlatform()) {
+          await Purchases.invalidateCustomerInfoCache();
+          await Purchases.getCustomerInfo();
+        }
+      } catch (_) {}
 
       if (widget.onCoinsPurchased != null) {
         widget.onCoinsPurchased!(inAppPurchaseModel.coins!);
@@ -457,297 +512,272 @@ class _CoinsFlowWidgetState extends State<_CoinsFlowWidget>
 
   Widget _showGiftAndGetCoinsBottomSheet() {
     return StatefulBuilder(builder: (context, setState) {
-      return DraggableScrollableSheet(
-        initialChildSize: 0.95,
-        minChildSize: 0.5,
-        maxChildSize: 0.98,
-        expand: false,
-        builder: (context, scrollController) {
-          return Container(
-            decoration: BoxDecoration(
-              color: Colors.black
-                  .withOpacity(0.5), // 50% transparent black background
-              borderRadius: BorderRadius.only(
-                topLeft: const Radius.circular(24.0),
-                topRight: const Radius.circular(24.0),
-              ),
-            ),
-            child: ContainerCorner(
-              color: kTransparentColor,
-              child: IndexedStack(
-                index:
-                    widget.showOnlyCoinsPurchase! ? 1 : bottomSheetCurrentIndex,
-                children: [
-                  // Gifts Section
-                  Scaffold(
-                    backgroundColor: kTransparentColor,
-                    body: CustomScrollView(
-                      controller: scrollController,
-                      slivers: [
-                        // Modern App Bar
-                        SliverAppBar(
-                          expandedHeight: 100,
-                          floating: true,
-                          pinned: true,
-                          backgroundColor: Colors.transparent,
-                          elevation: 0,
-                          automaticallyImplyLeading: false,
-                          leading: Container(
-                            margin: EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.08),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: BackButton(color: Colors.white70),
-                          ),
-                          actions: [
-                            // Modern Get Coins Button
-                            Container(
-                              margin: EdgeInsets.all(8),
-                              child: _buildGetCoinsButton(setState),
-                            ),
-                          ],
-                          flexibleSpace: FlexibleSpaceBar(
-                            centerTitle: true,
-                            title: Container(
-                              width: double.infinity,
-                              padding: EdgeInsets.symmetric(
-                                  horizontal:
-                                      40), // Equal padding on both sides
-                              margin: EdgeInsets.only(
-                                  top:
-                                      10), // Move up a little bit (reduced from 16 to 10)
-                              child: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: [
-                                  _buildCoinsDisplay(),
-                                  Container(), // Empty container to balance the layout
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                        // Gifts Content
-                        SliverPadding(
-                          padding: EdgeInsets.symmetric(
-                              horizontal: 20, vertical: 16),
-                          sliver: SliverToBoxAdapter(
-                            child: _buildGiftsSection(setState),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  // Coins Section
-                  Scaffold(
-                    backgroundColor: kTransparentColor,
-                    body: CustomScrollView(
-                      controller: scrollController,
-                      slivers: [
-                        SliverAppBar(
-                          expandedHeight: 60, // Reduced from 80 to 60
-                          floating: true,
-                          pinned: true,
-                          backgroundColor: Colors.transparent,
-                          elevation: 0,
-                          automaticallyImplyLeading: false,
-                          leading: Container(
-                            margin: EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.08),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: BackButton(
-                              color: Colors.white70,
-                              onPressed: () {
-                                if (widget.showOnlyCoinsPurchase!) {
-                                  Navigator.of(context).pop();
-                                } else {
-                                  setState(() {
-                                    bottomSheetCurrentIndex = 0;
-                                  });
-                                }
-                              },
-                            ),
-                          ),
-                          actions: [],
-                          flexibleSpace: FlexibleSpaceBar(
-                            centerTitle: false,
-                            title: Container(
-                              width: double.infinity,
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      "message_screen.get_coins".tr(),
-                                      style: TextStyle(
-                                        fontSize: 12, // Reduced from 14 to 12
-                                        color: Colors.white,
-                                        fontWeight: FontWeight
-                                            .w500, // Reduced from w600 to w500
-                                      ),
-                                    ),
-                                  ),
-                                  _buildCoinsDisplay(),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                        SliverPadding(
-                          padding: EdgeInsets.only(
-                              left: 16,
-                              right: 16,
-                              top: 8,
-                              bottom: 16), // Reduced top padding from 16 to 8
-                          sliver: SliverToBoxAdapter(
-                            child: getBody(),
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                ],
-              ),
-            ),
-          );
-        },
-      );
-    });
-  }
-
-  // Modern Get Coins Button
-  Widget _buildGetCoinsButton(StateSetter setState) {
-    return Container(
-      height: 40,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
-        ),
-        borderRadius: BorderRadius.circular(25),
-        boxShadow: [
-          BoxShadow(
-            color: Color(0xFF6366F1).withOpacity(0.3),
-            blurRadius: 12,
-            offset: Offset(0, 4),
+      return Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Colors.black.withOpacity(0.8),
+              Colors.black.withOpacity(0.95),
+            ],
           ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(25),
-          onTap: () {
-            setState(() {
-              bottomSheetCurrentIndex = 1;
-            });
-          },
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SvgPicture.asset(
-                  "assets/svg/coin.svg",
-                  width: 12,
-                  height: 12,
-                ),
-                SizedBox(width: 8),
-                Text(
-                  "message_screen.get_coins".tr(),
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                )
-              ],
-            ),
+          borderRadius: BorderRadius.only(
+            topLeft: const Radius.circular(28.0),
+            topRight: const Radius.circular(28.0),
           ),
-        ),
-      ),
-    );
-  }
-
-  // Clean Coins Display
-  Widget _buildCoinsDisplay() {
-    return Container(
-      height: 24, // Reduced from 30 to 24
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            Colors.black.withOpacity(0.25),
-            Colors.black.withOpacity(0.15),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.3),
+              blurRadius: 20,
+              offset: Offset(0, -5),
+            ),
           ],
         ),
-        borderRadius: BorderRadius.circular(15), // Reduced from 20 to 15
-        border: Border.all(
-          color: Colors.white.withOpacity(0.2),
-          width: 1,
-        ),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: Padding(
-          padding:
-              const EdgeInsets.symmetric(horizontal: 8), // Reduced from 12 to 8
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.center,
+        child: ContainerCorner(
+          color: kTransparentColor,
+          child: IndexedStack(
+            index: widget.showOnlyCoinsPurchase! ? 1 : bottomSheetCurrentIndex,
             children: [
-              Container(
-                padding: EdgeInsets.all(1), // Reduced from 2 to 1
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Color(0xFFFACC15), Color(0xFFEAB308)],
+              Scaffold(
+                backgroundColor: kTransparentColor,
+                appBar: AppBar(
+                  automaticallyImplyLeading: false,
+                  elevation: 0,
+                  leading: Container(
+                    margin: EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.2),
+                        width: 1,
+                      ),
+                    ),
+                    child: BackButton(
+                      color: Colors.white,
+                    ),
                   ),
-                  borderRadius: BorderRadius.circular(4), // Reduced from 6 to 4
+                  actions: [
+                    Container(
+                      margin: EdgeInsets.only(right: 16, top: 8, bottom: 8),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            kWarninngColor,
+                            kWarninngColor.withOpacity(0.8),
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(25),
+                        boxShadow: [
+                          BoxShadow(
+                            color: kWarninngColor.withOpacity(0.3),
+                            blurRadius: 8,
+                            offset: Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: ContainerCorner(
+                        height: 36,
+                        borderRadius: 25,
+                        color: kTransparentColor,
+                        onTap: () {
+                          setState(() {
+                            bottomSheetCurrentIndex = 1;
+                          });
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              SvgPicture.asset(
+                                "assets/svg/coin.svg",
+                                width: 18,
+                                height: 18,
+                              ),
+                              SizedBox(width: 6),
+                              TextWithTap(
+                                "message_screen.get_coins".tr(),
+                                color: Colors.white,
+                                fontSize: 25,
+                                fontWeight: FontWeight.w600,
+                              )
+                            ],
+                          ),
+                        ),
+                      ),
+                    )
+                  ],
+                  backgroundColor: kTransparentColor,
+                  centerTitle: true,
+                  title: Container(
+                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.2),
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          padding: EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: Colors.amber.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: SvgPicture.asset(
+                            "assets/svg/ic_coin_with_star.svg",
+                            width: 20,
+                            height: 20,
+                          ),
+                        ),
+                        SizedBox(width: 8),
+                        TextWithTap(
+                          widget.currentUser.getCredits.toString(),
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        )
+                      ],
+                    ),
+                  ),
                 ),
-                child: SvgPicture.asset(
-                  "assets/svg/ic_coin_with_star.svg",
-                  width: 8, // Reduced from 10 to 8
-                  height: 8, // Reduced from 10 to 8
+                body: Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.transparent,
+                        Colors.black.withOpacity(0.1),
+                      ],
+                    ),
+                  ),
+                  child: SingleChildScrollView(
+                    physics: BouncingScrollPhysics(),
+                    child: Column(
+                      children: [
+                        SizedBox(height: 8),
+                        ContainerCorner(
+                            color: kTransparentColor,
+                            child: _tabSection(context, setState)),
+                      ],
+                    ),
+                  ),
                 ),
               ),
-              SizedBox(width: 6), // Reduced from 8 to 6
-              Text(
-                widget.currentUser.getCredits.toString(),
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 8, // Reduced from 10 to 8
-                  fontWeight: FontWeight.w500, // Reduced from w600 to w500
+              Scaffold(
+                backgroundColor: kTransparentColor,
+                appBar: AppBar(
+                  elevation: 0,
+                  actions: [
+                    Container(
+                      margin: EdgeInsets.only(right: 16, top: 8, bottom: 8),
+                      padding:
+                          EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.2),
+                          width: 1,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            padding: EdgeInsets.all(3),
+                            decoration: BoxDecoration(
+                              color: Colors.amber.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: SvgPicture.asset(
+                              "assets/svg/ic_coin_with_star.svg",
+                              width: 16,
+                              height: 16,
+                            ),
+                          ),
+                          SizedBox(width: 6),
+                          TextWithTap(
+                            widget.currentUser.getCredits.toString(),
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          )
+                        ],
+                      ),
+                    ),
+                  ],
+                  backgroundColor: kTransparentColor,
+                  title: Container(
+                    child: TextWithTap(
+                      "message_screen.get_coins".tr(),
+                      fontSize: 18,
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  centerTitle: true,
+                  automaticallyImplyLeading: false,
+                  leading: Container(
+                    margin: EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.2),
+                        width: 1,
+                      ),
+                    ),
+                    child: BackButton(
+                      color: Colors.white,
+                      onPressed: () {
+                        if (widget.showOnlyCoinsPurchase!) {
+                          Navigator.of(this.context).pop();
+                        } else {
+                          setState(() {
+                            bottomSheetCurrentIndex = 0;
+                          });
+                        }
+                      },
+                    ),
+                  ),
+                ),
+                body: Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.transparent,
+                        Colors.black.withOpacity(0.1),
+                      ],
+                    ),
+                  ),
+                  child: getBody(),
                 ),
               )
             ],
           ),
         ),
-      ),
-    );
+      );
+    });
   }
 
-  Widget _buildGiftsSection(StateSetter setState) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Minimal Header
-        Padding(
-          padding: EdgeInsets.only(bottom: 24),
-          child: Text(
-            "Choose a Gift to Send",
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 22,
-              fontWeight: FontWeight.w300, // Thin font
-              letterSpacing: 0.5,
-            ),
-          ),
-        ),
-        // Clean Gifts Grid
-        getGifts(GiftsModel.giftCategoryTypeClassic, setState),
-      ],
+  Widget _tabSection(BuildContext context, StateSetter stateSetter) {
+    return DefaultTabController(
+      length: 9,
+      child: Column(
+        children: [
+          getGifts(GiftsModel.giftCategoryTypeClassic, stateSetter),
+        ],
+      ),
     );
   }
 
@@ -989,207 +1019,253 @@ class _CoinsFlowWidgetState extends State<_CoinsFlowWidget>
       );
     } else if (_isAvailable) {
       List<InAppPurchaseModel> inAppList = getInAppList();
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Minimal header
-          Padding(
-            padding: EdgeInsets.only(bottom: 20), // Reduced from 24 to 20
-            child: Text(
-              "Choose Your Coin Package",
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 18, // Reduced from 22 to 18
-                fontWeight: FontWeight.w300,
-                letterSpacing: 0.5,
-              ),
-            ),
-          ),
-          // Clean grid
-          Container(
-            height: MediaQuery.of(context).size.height * 0.6,
-            child: GridView.builder(
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                crossAxisSpacing: 16, // Reduced from 20 to 16
-                mainAxisSpacing: 16, // Reduced from 20 to 16
-                childAspectRatio:
-                    0.95, // Reduced from 1.1 to 0.95 for taller containers to fix overflow
-              ),
-              itemCount: inAppList.length,
-              physics: const BouncingScrollPhysics(),
-              padding: EdgeInsets.only(bottom: 20),
-              itemBuilder: (context, index) {
-                InAppPurchaseModel inApp = inAppList[index];
-                bool isPopular = inApp.type == InAppPurchaseModel.typePopular;
-
-                return Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: isPopular
-                          ? [
-                              Color(0xFF6366F1).withOpacity(0.15),
-                              Color(0xFF8B5CF6).withOpacity(0.08),
-                            ]
-                          : [
-                              Colors.white.withOpacity(0.08),
-                              Colors.white.withOpacity(0.03),
-                            ],
-                    ),
-                    borderRadius:
-                        BorderRadius.circular(16), // Reduced from 20 to 16
-                    border: Border.all(
-                      color: isPopular
-                          ? Color(0xFF6366F1).withOpacity(0.3)
-                          : Colors.white.withOpacity(0.1),
-                      width: 1,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: isPopular
-                            ? Color(0xFF6366F1).withOpacity(0.2)
-                            : Colors.black.withOpacity(0.1),
-                        blurRadius: isPopular ? 16 : 8,
-                        offset: Offset(0, 4),
-                      ),
+      return SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header section
+              Container(
+                padding: EdgeInsets.all(20),
+                margin: EdgeInsets.only(bottom: 20),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      kWarninngColor.withOpacity(0.2),
+                      kWarninngColor.withOpacity(0.1),
                     ],
                   ),
-                  child: Stack(
-                    children: [
-                      // Popular badge
-                      if (isPopular)
-                        Positioned(
-                          top: 12,
-                          right: 12,
-                          child: Container(
-                            padding: EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
-                              ),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              "POPULAR",
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 9,
-                                fontWeight: FontWeight.w600,
-                                letterSpacing: 0.5,
-                              ),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: kWarninngColor.withOpacity(0.3),
+                    width: 1,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: kWarninngColor.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: SvgPicture.asset(
+                        "assets/svg/ic_coin_with_star.svg",
+                        width: 24,
+                        height: 24,
+                      ),
+                    ),
+                    SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "Choose Your Coin Package",
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
+                          SizedBox(height: 4),
+                          Text(
+                            "Select the perfect amount for your needs",
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Grid section
+              Expanded(
+                child: GridView.builder(
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2, // Force 2 columns for bigger items
+                    crossAxisSpacing: 20,
+                    mainAxisSpacing: 20,
+                    childAspectRatio: 0.75, // Make items taller
+                  ),
+                  itemCount: inAppList.length,
+                  physics: const BouncingScrollPhysics(),
+                  itemBuilder: (context, index) {
+                    InAppPurchaseModel inApp = inAppList[index];
+                    bool isPopular =
+                        inApp.type == InAppPurchaseModel.typePopular;
+
+                    return Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: isPopular
+                              ? [
+                                  kWarninngColor.withOpacity(0.3),
+                                  kWarninngColor.withOpacity(0.1),
+                                ]
+                              : [
+                                  Colors.white.withOpacity(0.1),
+                                  Colors.white.withOpacity(0.05),
+                                ],
                         ),
-                      // Main content
-                      Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(20),
-                          onTap: () {
-                            _inAppPurchaseModel = inApp;
-                            _purchaseProduct(inApp);
-                          },
-                          child: Padding(
-                            padding: const EdgeInsets.all(
-                                12.0), // Reduced from 16.0 to 12.0
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                              children: [
-                                // Credits text - larger and cleaner
-                                Text(
-                                  QuickHelp.checkFundsWithString(
-                                      amount: "${inApp.coins}"),
-                                  style: TextStyle(
-                                    fontWeight: FontWeight
-                                        .w600, // Reduced from w700 to w600
-                                    fontSize: 16, // Reduced from 20 to 16
-                                    color: Colors.white,
-                                    letterSpacing: 0.3,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                // Image with subtle glow
-                                Container(
-                                  width: 60, // Reduced from 70 to 60
-                                  height: 60, // Reduced from 70 to 60
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(
-                                        12), // Reduced from 16 to 12
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: isPopular
-                                            ? Color(0xFF6366F1).withOpacity(0.3)
-                                            : Colors.white.withOpacity(0.1),
-                                        blurRadius: 12,
-                                        offset: Offset(0, 4),
-                                      ),
-                                    ],
-                                  ),
-                                  child: _buildImageWidget(inApp.image ??
-                                      "assets/images/coin_bling.webp"),
-                                ),
-                                // Price button - sleek and flat
-                                Container(
-                                  width: double.infinity,
-                                  height: 36, // Reduced from 44 to 36
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      colors: isPopular
-                                          ? [
-                                              Color(0xFF6366F1),
-                                              Color(0xFF8B5CF6)
-                                            ]
-                                          : [
-                                              Color(0xFF4F46E5),
-                                              Color(0xFF7C3AED)
-                                            ],
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: isPopular
+                              ? kWarninngColor.withOpacity(0.5)
+                              : Colors.white.withOpacity(0.2),
+                          width: isPopular ? 2 : 1,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: isPopular
+                                ? kWarninngColor.withOpacity(0.2)
+                                : Colors.black.withOpacity(0.1),
+                            blurRadius: isPopular ? 12 : 8,
+                            offset: Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Stack(
+                        children: [
+                          // Popular badge
+                          if (isPopular)
+                            Positioned(
+                              top: 8,
+                              right: 8,
+                              child: Container(
+                                padding: EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: kWarninngColor,
+                                  borderRadius: BorderRadius.circular(12),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: kWarninngColor.withOpacity(0.3),
+                                      blurRadius: 4,
+                                      offset: Offset(0, 2),
                                     ),
-                                    borderRadius: BorderRadius.circular(22),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: (isPopular
-                                                ? Color(0xFF6366F1)
-                                                : Color(0xFF4F46E5))
-                                            .withOpacity(0.4),
-                                        blurRadius: 12,
-                                        offset: Offset(0, 4),
-                                      ),
-                                    ],
+                                  ],
+                                ),
+                                child: Text(
+                                  "POPULAR",
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
                                   ),
-                                  child: Center(
+                                ),
+                              ),
+                            ),
+                          // Main content
+                          ContainerCorner(
+                            color: kTransparentColor,
+                            borderRadius: 16,
+                            onTap: () {
+                              _inAppPurchaseModel = inApp;
+                              _purchaseProduct(inApp);
+                            },
+                            child: Padding(
+                              padding: const EdgeInsets.all(
+                                  20.0), // Increased padding
+                              child: Column(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceEvenly,
+                                children: [
+                                  // Credits text
+                                  Container(
+                                    width: double.infinity,
+                                    padding: EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                        vertical: 12), // Increased padding
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
                                     child: Text(
-                                      "${inApp.price}",
-                                      style: const TextStyle(
+                                      QuickHelp.checkFundsWithString(
+                                          amount: "${inApp.coins}"),
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 22, // Increased font size
                                         color: Colors.white,
-                                        fontSize: 14, // Reduced from 16 to 14
-                                        fontWeight: FontWeight
-                                            .w500, // Reduced from w600 to w500
-                                        letterSpacing: 0.3,
                                       ),
                                       textAlign: TextAlign.center,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
-                                ),
-                              ],
+                                  SizedBox(height: 16), // Added spacing
+                                  // Image
+                                  Container(
+                                    width: 130, // Fixed larger size
+                                    height: 130, // Fixed larger size
+                                    padding: const EdgeInsets.all(12.0),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withOpacity(0.05),
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                    child: _buildImageWidget(inApp.image ??
+                                        "assets/images/coin_bling.webp"),
+                                  ),
+                                  SizedBox(height: 16), // Added spacing
+                                  // Price button
+                                  Container(
+                                    width: double.infinity,
+                                    height: 55, // Fixed height for button
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        colors: isPopular
+                                            ? [
+                                                kWarninngColor,
+                                                kWarninngColor.withOpacity(0.8),
+                                              ]
+                                            : [
+                                                Colors.deepPurpleAccent,
+                                                Colors.deepPurpleAccent
+                                                    .withOpacity(0.8),
+                                              ],
+                                      ),
+                                      borderRadius: BorderRadius.circular(28),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: (isPopular
+                                                  ? kWarninngColor
+                                                  : Colors.deepPurpleAccent)
+                                              .withOpacity(0.4),
+                                          blurRadius: 10,
+                                          offset: Offset(0, 4),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Center(
+                                      child: Text(
+                                        "${inApp.price}",
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 18, // Increased font size
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
-                        ),
+                        ],
                       ),
-                    ],
-                  ),
-                );
-              },
-            ),
+                    );
+                  },
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       );
     } else {
       return Container(
