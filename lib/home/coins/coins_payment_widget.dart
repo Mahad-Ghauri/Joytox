@@ -73,6 +73,7 @@ class _CoinsFlowWidgetState extends State<_CoinsFlowWidget>
   bool _isAvailable = false;
   bool _loading = true;
   InAppPurchaseModel? _inAppPurchaseModel;
+  List<InAppPurchaseModel> _fallbackProducts = [];
 
   List<InAppPurchaseModel> getInAppList() {
     // Prefer current offering, but fallback to all offerings if too few packages
@@ -97,6 +98,7 @@ class _CoinsFlowWidgetState extends State<_CoinsFlowWidget>
 
     List<InAppPurchaseModel> inAppPurchaseList = [];
 
+    // Primary path: packages from offerings
     for (Package package in myProductList) {
       final identifier = package.storeProduct.identifier;
       print("💰 [PAYMENT CONVERSION DEBUG] Processing package: $identifier");
@@ -107,7 +109,6 @@ class _CoinsFlowWidgetState extends State<_CoinsFlowWidget>
       print(
           "💰 [PAYMENT DEBUG] Set $coins coins for $identifier with image: ${inAppPurchaseModel.image}");
 
-      // Only add if we successfully extracted coins
       if (coins > 0) {
         inAppPurchaseList.add(inAppPurchaseModel);
         print(
@@ -118,8 +119,20 @@ class _CoinsFlowWidgetState extends State<_CoinsFlowWidget>
       }
     }
 
+    // Fallback path: use directly-fetched StoreProducts if needed
+    if (inAppPurchaseList.length < 3 && _fallbackProducts.isNotEmpty) {
+      print(
+          "💰 [PAYMENT FALLBACK DEBUG] Using cached fallback products: ${_fallbackProducts.length}");
+      for (final model in _fallbackProducts) {
+        final exists = inAppPurchaseList.any((m) => m.id == model.id);
+        if (!exists && (model.coins ?? 0) > 0) {
+          inAppPurchaseList.add(model);
+        }
+      }
+    }
+
     // Sort by coins amount for better UI display
-    inAppPurchaseList.sort((a, b) => a.coins!.compareTo(b.coins!));
+    inAppPurchaseList.sort((a, b) => (a.coins ?? 0).compareTo(b.coins ?? 0));
 
     print(
         "💰 [PAYMENT CONVERSION DEBUG] Final list size: ${inAppPurchaseList.length}");
@@ -228,6 +241,39 @@ class _CoinsFlowWidgetState extends State<_CoinsFlowWidget>
       print(
           "💰 [PAYMENT INIT DEBUG] Initial offerings loaded with ${offerings.current?.availablePackages.length ?? 0} packages");
 
+      // Prefetch fallback StoreProducts by explicit IDs
+      try {
+        final ids = [
+          Config.credit100,
+          Config.credit200,
+          Config.credit400,
+          Config.credit600,
+          Config.credit1000,
+          Config.credit1600,
+          Config.credit2000,
+          Config.credit3000,
+          Config.credit4000,
+          Config.credit10000,
+          Config.credit20000,
+          Config.credit25000,
+          Config.credit40000,
+          Config.credit50000,
+          Config.credit100000,
+          Config.credit150000,
+          Config.credit300000,
+        ];
+        final products = await Purchases.getProducts(ids);
+        _fallbackProducts = products
+            .map((sp) => InAppPurchaseModel.fromStoreProduct(sp))
+            .where((m) => (m.coins ?? 0) > 0)
+            .toList();
+        print(
+            "💰 [PAYMENT INIT DEBUG] Prefetched fallback StoreProducts: ${_fallbackProducts.length}");
+      } catch (e) {
+        print(
+            "💰 [PAYMENT INIT DEBUG] Failed to prefetch fallback products: $e");
+      }
+
       if (offerings.current != null &&
           offerings.current!.availablePackages.length > 0) {
         // Display packages for sale
@@ -246,7 +292,7 @@ class _CoinsFlowWidgetState extends State<_CoinsFlowWidget>
       } else {
         print("💰 [PAYMENT INIT DEBUG] No products available");
         setState(() {
-          _isAvailable = false;
+          _isAvailable = _fallbackProducts.isNotEmpty;
           _loading = false;
         });
       }
@@ -256,13 +302,15 @@ class _CoinsFlowWidgetState extends State<_CoinsFlowWidget>
     } on PlatformException catch (e) {
       print("💰 [PAYMENT INIT DEBUG] Error loading offerings: ${e.message}");
       setState(() {
-        _isAvailable = false;
+        _isAvailable =
+            _fallbackProducts.isNotEmpty; // show fallback if possible
         _loading = false;
       });
     } catch (e) {
       print("💰 [PAYMENT INIT DEBUG] Unexpected error loading offerings: $e");
       setState(() {
-        _isAvailable = false;
+        _isAvailable =
+            _fallbackProducts.isNotEmpty; // show fallback if possible
         _loading = false;
       });
     }
@@ -373,7 +421,9 @@ class _CoinsFlowWidgetState extends State<_CoinsFlowWidget>
       }
     }
 
-    if (inAppPurchaseModel.package == null) {
+    // If still no Package, but we have a StoreProduct (fallback path), we will use it
+    if (inAppPurchaseModel.package == null &&
+        inAppPurchaseModel.storeProduct == null) {
       QuickHelp.showAppNotificationAdvanced(
         context: context,
         user: widget.currentUser,
@@ -390,8 +440,14 @@ class _CoinsFlowWidgetState extends State<_CoinsFlowWidget>
       print(
           "💰 [PAYMENT DEBUG] Attempting to purchase: ${inAppPurchaseModel.id} for ${inAppPurchaseModel.coins} coins");
 
-      CustomerInfo customerInfo =
-          await Purchases.purchasePackage(inAppPurchaseModel.package!);
+      CustomerInfo customerInfo;
+      if (inAppPurchaseModel.package != null) {
+        customerInfo =
+            await Purchases.purchasePackage(inAppPurchaseModel.package!);
+      } else {
+        customerInfo = await Purchases.purchaseStoreProduct(
+            inAppPurchaseModel.storeProduct!);
+      }
 
       print(
           "💰 [PAYMENT DEBUG] Purchase successful, adding ${inAppPurchaseModel.coins} coins to user");
