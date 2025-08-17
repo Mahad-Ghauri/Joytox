@@ -1309,7 +1309,12 @@
     "purchase_cancelled_title": "Purchase cancelled!",
     "purchase_cancelled": "You cancelled it, hope to see you here later",
     "invalid_purchase": "We couldn't verify your purchase, please try again",
-    "purchase_pending_error": "You already have pending purchase for this item. Wait until it will finish"
+    "purchase_pending_error": "You already have pending purchase for this item. Wait until it will finish",
+    "product_unavailable_title": "Product unavailable",
+    "product_unavailable_message": "This product is currently not available for purchase. Please try again later.",
+    "no_products_available_title": "No coin packages available",
+    "no_products_available_message": "Coin packages are currently unavailable. Please check your internet connection and try again.",
+    "retry_loading": "Retry"
   },
   "qr_code": {
     "user_not_found": "User not found!",

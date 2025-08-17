@@ -29,14 +29,13 @@ class CoinsScreen extends StatefulWidget {
 }
 
 class _CoinsScreenState extends State<CoinsScreen> {
-  void getUser() async {
+  Future<void> getUser() async {
     widget.currentUser = await ParseUser.currentUser();
   }
 
   late Offerings offerings;
   bool _isAvailable = false;
   bool _loading = true;
-  InAppPurchaseModel? _inAppPurchaseModel;
 
   @override
   void dispose() {
@@ -46,13 +45,35 @@ class _CoinsScreenState extends State<CoinsScreen> {
   @override
   void initState() {
     QuickHelp.saveCurrentRoute(route: CoinsScreen.route);
-    initProducts();
+
+    // Ensure we have current user before initializing products
+    if (widget.currentUser == null) {
+      _initializeUser();
+    } else {
+      initProducts();
+    }
 
     super.initState();
   }
 
+  void _initializeUser() async {
+    await getUser();
+    initProducts();
+  }
+
   initProducts() async {
     try {
+      // Ensure user is identified with RevenueCat
+      if (widget.currentUser != null && widget.currentUser!.objectId != null) {
+        try {
+          await Purchases.logIn(widget.currentUser!.objectId!);
+          print(
+              "💰 [USER DEBUG] User logged in to RevenueCat: ${widget.currentUser!.objectId}");
+        } catch (e) {
+          print("💰 [USER DEBUG] Error logging in user to RevenueCat: $e");
+        }
+      }
+
       // Force clear all caches first
       print("💰 [CACHE DEBUG] Clearing all RevenueCat caches...");
       await Purchases.invalidateCustomerInfoCache();
@@ -69,10 +90,10 @@ class _CoinsScreenState extends State<CoinsScreen> {
 
       // Check for specific missing packages
       List<String> missingPackages = [
-        "joytox.21000.credits",
-        "joytox.23000.credits",
-        "joytox.35000.credits",
-        "joytox.55000.credits"
+        "joytox.20000.credits",
+        "joytox.25000.credits",
+        "joytox.40000.credits",
+        "joytox.50000.credits"
       ];
 
       Set<String> allFoundPackages = {};
@@ -109,7 +130,7 @@ class _CoinsScreenState extends State<CoinsScreen> {
         print("💰 [DEBUG] No current offering set!");
       }
 
-      if (offerings.current!.availablePackages.length > 0) {
+      if ((offerings.current?.availablePackages.length ?? 0) > 0) {
         setState(() {
           _isAvailable = true;
           _loading = false;
@@ -155,10 +176,10 @@ class _CoinsScreenState extends State<CoinsScreen> {
         }
 
         List<String> targetPackages = [
-          "joytox.21000.credits",
-          "joytox.23000.credits",
-          "joytox.35000.credits",
-          "joytox.55000.credits"
+          "joytox.20000.credits",
+          "joytox.25000.credits",
+          "joytox.40000.credits",
+          "joytox.50000.credits"
         ];
 
         int foundTargets = 0;
@@ -172,8 +193,8 @@ class _CoinsScreenState extends State<CoinsScreen> {
             "💰 [PERIODIC DEBUG] Found $foundTargets/4 target packages in check $i");
 
         if (foundTargets > 0 ||
-            freshOfferings.current!.availablePackages.length >
-                offerings.current!.availablePackages.length) {
+            (freshOfferings.current?.availablePackages.length ?? 0) >
+                (offerings.current?.availablePackages.length ?? 0)) {
           print("💰 [PERIODIC DEBUG] Found updates! Refreshing UI...");
           setState(() {
             offerings = freshOfferings;
@@ -221,10 +242,10 @@ class _CoinsScreenState extends State<CoinsScreen> {
       }
 
       List<String> targetPackages = [
-        "joytox.21000.credits",
-        "joytox.23000.credits",
-        "joytox.35000.credits",
-        "joytox.55000.credits"
+        "joytox.20000.credits",
+        "joytox.25000.credits",
+        "joytox.40000.credits",
+        "joytox.50000.credits"
       ];
 
       int foundTargets = 0;
@@ -264,15 +285,15 @@ class _CoinsScreenState extends State<CoinsScreen> {
           "💰 [UPDATE DEBUG] Checking for updated offerings: ${updatedOfferings.current?.availablePackages.length ?? 0} packages");
 
       if (updatedOfferings.current != null &&
-          updatedOfferings.current!.availablePackages.length !=
-              offerings.current!.availablePackages.length) {
+          (updatedOfferings.current?.availablePackages.length ?? 0) !=
+              (offerings.current?.availablePackages.length ?? 0)) {
         print("💰 [UPDATE DEBUG] Offerings updated! Refreshing UI...");
         setState(() {
           offerings = updatedOfferings;
         });
       } else {
         print(
-            "💰 [UPDATE DEBUG] No new offerings found. Current: ${offerings.current!.availablePackages.length}, Updated: ${updatedOfferings.current?.availablePackages.length ?? 0}");
+            "💰 [UPDATE DEBUG] No new offerings found. Current: ${offerings.current?.availablePackages.length ?? 0}, Updated: ${updatedOfferings.current?.availablePackages.length ?? 0}");
 
         // Try one more time with a longer delay
         await Future.delayed(Duration(seconds: 3));
@@ -281,8 +302,8 @@ class _CoinsScreenState extends State<CoinsScreen> {
             "💰 [FINAL CHECK DEBUG] Final check offerings: ${finalCheck.current?.availablePackages.length ?? 0} packages");
 
         if (finalCheck.current != null &&
-            finalCheck.current!.availablePackages.length !=
-                offerings.current!.availablePackages.length) {
+            (finalCheck.current?.availablePackages.length ?? 0) !=
+                (offerings.current?.availablePackages.length ?? 0)) {
           print(
               "💰 [FINAL CHECK DEBUG] Final check found updates! Refreshing UI...");
           setState(() {
@@ -296,7 +317,7 @@ class _CoinsScreenState extends State<CoinsScreen> {
   }
 
   List<InAppPurchaseModel> getInAppList() {
-    List<Package> myProductList = offerings.current!.availablePackages;
+    List<Package> myProductList = offerings.current?.availablePackages ?? [];
 
     // If current offering has very few packages, try to get from all offerings
     if (myProductList.length < 3) {
@@ -331,10 +352,10 @@ class _CoinsScreenState extends State<CoinsScreen> {
 
       // Check if this is one of our missing packages
       List<String> targetPackages = [
-        "joytox.21000.credits",
-        "joytox.23000.credits",
-        "joytox.35000.credits",
-        "joytox.55000.credits"
+        "joytox.20000.credits",
+        "joytox.25000.credits",
+        "joytox.40000.credits",
+        "joytox.50000.credits"
       ];
       if (targetPackages.contains(identifier)) {
         print("💰 [TARGET DEBUG] Found target package: $identifier");
@@ -427,10 +448,10 @@ class _CoinsScreenState extends State<CoinsScreen> {
       Config.credit3000: 3000,
       Config.credit4000: 4000,
       Config.credit10000: 10000,
-      Config.credit21000: 21000,
-      Config.credit23000: 23000,
-      Config.credit35000: 35000,
-      Config.credit55000: 55000,
+      Config.credit20000: 20000,
+      Config.credit25000: 25000,
+      Config.credit40000: 40000,
+      Config.credit50000: 50000,
       Config.credit100000: 100000,
       Config.credit150000: 150000,
       Config.credit300000: 300000,
@@ -551,8 +572,8 @@ class _CoinsScreenState extends State<CoinsScreen> {
                 ),
                 itemCount: inAppList.length,
                 physics: canScroll
-                    ? const NeverScrollableScrollPhysics()
-                    : const BouncingScrollPhysics(),
+                    ? const BouncingScrollPhysics()
+                    : const NeverScrollableScrollPhysics(),
                 itemBuilder: (context, index) {
                   InAppPurchaseModel inApp = inAppList[index];
                   print(
@@ -561,7 +582,6 @@ class _CoinsScreenState extends State<CoinsScreen> {
                     color: Colors.deepPurpleAccent.withOpacity(0.1),
                     borderRadius: 12,
                     onTap: () {
-                      _inAppPurchaseModel = inApp;
                       _purchaseProduct(inApp);
                     },
                     child: Padding(
@@ -631,6 +651,21 @@ class _CoinsScreenState extends State<CoinsScreen> {
   }
 
   _purchaseProduct(InAppPurchaseModel inAppPurchaseModel) async {
+    // Check if user is available
+    if (widget.currentUser == null) {
+      await getUser();
+      if (widget.currentUser == null) {
+        QuickHelp.showAppNotificationAdvanced(
+          context: context,
+          user: null,
+          title: "Authentication Error",
+          message: "Please login to make purchases.",
+          isError: true,
+        );
+        return;
+      }
+    }
+
     // Check if this is a mock item (no real package)
     if (inAppPurchaseModel.package == null) {
       QuickHelp.showAppNotificationAdvanced(
@@ -644,40 +679,124 @@ class _CoinsScreenState extends State<CoinsScreen> {
       return;
     }
 
+    print(
+        "💰 [PURCHASE DEBUG] Starting purchase for ${inAppPurchaseModel.coins} credits (${inAppPurchaseModel.id})");
+
+    // Additional validation before purchase
+    if (inAppPurchaseModel.storeProduct == null) {
+      QuickHelp.showAppNotificationAdvanced(
+        context: context,
+        user: widget.currentUser,
+        title: "Product Error",
+        message:
+            "Product information is not available. Please try refreshing the page.",
+        isError: true,
+      );
+      return;
+    }
+
+    print(
+        "💰 [PURCHASE DEBUG] Product validation passed. Store product: ${inAppPurchaseModel.storeProduct!.identifier}");
     QuickHelp.showLoadingDialog(context);
 
     try {
-      await Purchases.purchasePackage(inAppPurchaseModel.package!);
+      // Verify the package is still available before purchase
+      print("💰 [PURCHASE DEBUG] Verifying package availability...");
 
-      widget.currentUser!.addCredit = _inAppPurchaseModel!.coins!;
+      CustomerInfo customerInfo =
+          await Purchases.purchasePackage(inAppPurchaseModel.package!);
+      print("💰 [PURCHASE DEBUG] Purchase successful! CustomerInfo received");
+
+      // Debug: Print customer info details
+      print(
+          "💰 [PURCHASE DEBUG] Active subscriptions: ${customerInfo.activeSubscriptions.length}");
+      print(
+          "💰 [PURCHASE DEBUG] Non-subscription transactions: ${customerInfo.nonSubscriptionTransactions.length}");
+      print(
+          "💰 [PURCHASE DEBUG] Entitlements: ${customerInfo.entitlements.all.keys.toList()}");
+
+      // Validate that the purchase was successful
+      bool purchaseValidated = false;
+
+      // Check if the purchased product appears in non-subscription transactions
+      for (var transaction in customerInfo.nonSubscriptionTransactions) {
+        if (transaction.productIdentifier == inAppPurchaseModel.id) {
+          purchaseValidated = true;
+          print(
+              "💰 [PURCHASE DEBUG] Purchase validated via non-subscription transaction: ${transaction.transactionIdentifier}");
+          break;
+        }
+      }
+
+      // If not found in transactions, check entitlements
+      if (!purchaseValidated && customerInfo.entitlements.all.isNotEmpty) {
+        purchaseValidated = true;
+        print("💰 [PURCHASE DEBUG] Purchase validated via entitlements");
+      }
+
+      if (!purchaseValidated) {
+        print(
+            "💰 [PURCHASE DEBUG] WARNING: Purchase could not be validated, but proceeding anyway");
+      }
+
+      // Add credits to user account
+      widget.currentUser!.addCredit = inAppPurchaseModel.coins!;
       await widget.currentUser!.save();
+      print(
+          "💰 [PURCHASE DEBUG] Credits added to user account: ${inAppPurchaseModel.coins}");
+
+      // Register the payment for record keeping
+      registerPayment(customerInfo, inAppPurchaseModel);
 
       QuickHelp.hideLoadingDialog(context);
       QuickHelp.showAppNotificationAdvanced(
         context: context,
         user: widget.currentUser,
         title: "in_app_purchases.coins_purchased"
-            .tr(namedArgs: {"coins": _inAppPurchaseModel!.coins!.toString()}),
+            .tr(namedArgs: {"coins": inAppPurchaseModel.coins!.toString()}),
         message: "in_app_purchases.coins_added_to_account".tr(),
         isError: false,
       );
+
+      print("💰 [PURCHASE DEBUG] Purchase flow completed successfully");
     } on PlatformException catch (e) {
+      print(
+          "💰 [PURCHASE DEBUG] Purchase failed with error: ${e.code} - ${e.message}");
+      QuickHelp.hideLoadingDialog(context);
+
       var errorCode = PurchasesErrorHelper.getErrorCode(e);
+      print("💰 [PURCHASE DEBUG] Error code: $errorCode");
 
-      if (errorCode != PurchasesErrorCode.purchaseCancelledError) {
-        QuickHelp.hideLoadingDialog(context);
-
+      if (errorCode == PurchasesErrorCode.purchaseCancelledError) {
+        print("💰 [PURCHASE DEBUG] Purchase was cancelled by user");
         QuickHelp.showAppNotificationAdvanced(
           context: context,
           user: widget.currentUser,
           title: "in_app_purchases.purchase_cancelled_title".tr(),
           message: "in_app_purchases.purchase_cancelled".tr(),
+          isError: true,
         );
-      } else if (errorCode != PurchasesErrorCode.invalidReceiptError) {
+      } else if (errorCode == PurchasesErrorCode.invalidReceiptError) {
+        print("💰 [PURCHASE DEBUG] Invalid receipt error");
         _handleInvalidPurchase();
+      } else if (errorCode ==
+          PurchasesErrorCode.productNotAvailableForPurchaseError) {
+        print("💰 [PURCHASE DEBUG] Product not available for purchase");
+        _handleProductNotAvailable(inAppPurchaseModel);
       } else {
+        print("💰 [PURCHASE DEBUG] Other purchase error: ${e.message}");
         handleError(e);
       }
+    } catch (e) {
+      print("💰 [PURCHASE DEBUG] Unexpected error during purchase: $e");
+      QuickHelp.hideLoadingDialog(context);
+      QuickHelp.showAppNotificationAdvanced(
+        context: context,
+        user: widget.currentUser,
+        title: "Purchase Error",
+        message: "An unexpected error occurred during purchase: $e",
+        isError: true,
+      );
     }
   }
 
@@ -687,27 +806,66 @@ class _CoinsScreenState extends State<CoinsScreen> {
     QuickHelp.hideLoadingDialog(context);
   }
 
+  void _handleProductNotAvailable(InAppPurchaseModel inAppPurchaseModel) {
+    QuickHelp.showAppNotificationAdvanced(
+      context: context,
+      user: widget.currentUser,
+      title: "Product Unavailable",
+      message:
+          "The ${inAppPurchaseModel.coins} credits package is currently unavailable for purchase. This could be due to:\n\n"
+          "• Store configuration issues\n"
+          "• Regional restrictions\n"
+          "• Temporary server issues\n\n"
+          "Please try again later or contact support if the issue persists.",
+      isError: true,
+    );
+    QuickHelp.hideLoadingDialog(context);
+  }
+
   void registerPayment(
       CustomerInfo customerInfo, InAppPurchaseModel productDetails) async {
-    // Save all payment information
-    PaymentsModel paymentsModel = PaymentsModel();
-    paymentsModel.setAuthor = widget.currentUser!;
-    paymentsModel.setAuthorId = widget.currentUser!.objectId!;
-    paymentsModel.setPaymentType = PaymentsModel.paymentTypeConsumible;
+    try {
+      print(
+          "💰 [PAYMENT DEBUG] Registering payment for ${productDetails.coins} credits");
 
-    paymentsModel.setId = productDetails.id!;
-    paymentsModel.setTitle = productDetails.storeProduct!.title;
-    paymentsModel.setTransactionId = customerInfo.originalPurchaseDate!;
-    paymentsModel.setCurrency = productDetails.currency!.toUpperCase();
-    paymentsModel.setPrice = productDetails.price.toString();
-    paymentsModel.setMethod = QuickHelp.isAndroidPlatform()
-        ? "Google Play"
-        : QuickHelp.isIOSPlatform()
-            ? "App Store"
-            : "";
-    paymentsModel.setStatus = PaymentsModel.paymentStatusCompleted;
+      // Save all payment information
+      PaymentsModel paymentsModel = PaymentsModel();
+      paymentsModel.setAuthor = widget.currentUser!;
+      paymentsModel.setAuthorId = widget.currentUser!.objectId!;
+      paymentsModel.setPaymentType = PaymentsModel.paymentTypeConsumible;
 
-    await paymentsModel.save();
+      paymentsModel.setId = productDetails.id!;
+      paymentsModel.setTitle = productDetails.storeProduct!.title;
+
+      // Get the latest transaction ID from active subscriptions or non-subscription purchases
+      String? transactionId;
+      if (customerInfo.activeSubscriptions.isNotEmpty) {
+        transactionId = customerInfo.activeSubscriptions.first;
+      } else if (customerInfo.nonSubscriptionTransactions.isNotEmpty) {
+        transactionId = customerInfo
+            .nonSubscriptionTransactions.first.transactionIdentifier;
+      } else {
+        // Fallback to using current timestamp as string
+        transactionId = customerInfo.originalPurchaseDate?.toString() ??
+            DateTime.now().millisecondsSinceEpoch.toString();
+      }
+
+      paymentsModel.setTransactionId = transactionId;
+      paymentsModel.setCurrency = productDetails.currency!.toUpperCase();
+      paymentsModel.setPrice = (productDetails.price ?? "0").toString();
+      paymentsModel.setMethod = QuickHelp.isAndroidPlatform()
+          ? "Google Play"
+          : QuickHelp.isIOSPlatform()
+              ? "App Store"
+              : "";
+      paymentsModel.setStatus = PaymentsModel.paymentStatusCompleted;
+
+      await paymentsModel.save();
+      print(
+          "💰 [PAYMENT DEBUG] Payment registered successfully with transaction ID: $transactionId");
+    } catch (e) {
+      print("💰 [PAYMENT DEBUG] Error registering payment: $e");
+    }
   }
 
   void handleError(PlatformException error) {

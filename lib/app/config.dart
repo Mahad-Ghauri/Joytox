@@ -90,10 +90,10 @@ class Config {
   static final String credit3000 = "joytox.3000.credits";
   static final String credit4000 = "joytox.4000.credits";
   static final String credit10000 = "joytox.10000.credits";
-  static final String credit21000 = "joytox.21000.credits";
-  static final String credit23000 = "joytox.23000.credits";
-  static final String credit35000 = "joytox.35000.credits";
-  static final String credit55000 = "joytox.55000.credits";
+  static final String credit20000 = "joytox.20000.credits";
+  static final String credit25000 = "joytox.25000.credits";
+  static final String credit40000 = "joytox.40000.credits";
+  static final String credit50000 = "joytox.50000.credits";
   static final String credit100000 = "joytox.100000.credits";
   static final String credit150000 = "joytox.150000.credits";
   static final String credit300000 = "joytox.300000.credits";

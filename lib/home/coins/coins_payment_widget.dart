@@ -105,7 +105,7 @@ class _CoinsFlowWidgetState extends State<_CoinsFlowWidget>
         inAppPurchaseModel.image = "assets/svg/ic_coin_with_star.svg";
       } else if (coins >= 1000 && coins <= 4000) {
         inAppPurchaseModel.image = "assets/images/ic_coins_4000.png";
-      } else if (coins >= 10000 && coins <= 55000) {
+      } else if (coins >= 10000 && coins <= 50000) {
         inAppPurchaseModel.image = "assets/images/ic_coins_2.png";
       } else if (coins >= 100000) {
         inAppPurchaseModel.image = "assets/images/ic_coins_7.png";
@@ -158,10 +158,10 @@ class _CoinsFlowWidgetState extends State<_CoinsFlowWidget>
       Config.credit3000: 3000,
       Config.credit4000: 4000,
       Config.credit10000: 10000,
-      Config.credit21000: 21000,
-      Config.credit23000: 23000,
-      Config.credit35000: 35000,
-      Config.credit55000: 55000,
+      Config.credit20000: 20000,
+      Config.credit25000: 25000,
+      Config.credit40000: 40000,
+      Config.credit50000: 50000,
       Config.credit100000: 100000,
       Config.credit150000: 150000,
       Config.credit300000: 300000,
@@ -232,25 +232,44 @@ class _CoinsFlowWidgetState extends State<_CoinsFlowWidget>
 
   initProducts() async {
     try {
+      print("💰 [PAYMENT INIT DEBUG] Starting to load offerings...");
       offerings = await Purchases.getOfferings();
       print(
           "💰 [PAYMENT INIT DEBUG] Initial offerings loaded with ${offerings.current?.availablePackages.length ?? 0} packages");
 
-      if (offerings.current!.availablePackages.length > 0) {
+      if (offerings.current != null &&
+          offerings.current!.availablePackages.length > 0) {
         // Display packages for sale
-
+        print(
+            "💰 [PAYMENT INIT DEBUG] Products available, setting state to available");
         setState(() {
           _isAvailable = true;
           _loading = false;
         });
-        // Display packages for sale
+
+        // Log available products for debugging
+        for (var package in offerings.current!.availablePackages) {
+          print(
+              "💰 [PAYMENT INIT DEBUG] Available product: ${package.storeProduct.identifier} - ${package.storeProduct.priceString}");
+        }
+      } else {
+        print("💰 [PAYMENT INIT DEBUG] No products available");
+        setState(() {
+          _isAvailable = false;
+          _loading = false;
+        });
       }
 
       // Set up a timer to check for updated offerings periodically
       _checkForUpdatedOfferings();
-    } on PlatformException {
-      // optional error handling
-
+    } on PlatformException catch (e) {
+      print("💰 [PAYMENT INIT DEBUG] Error loading offerings: ${e.message}");
+      setState(() {
+        _isAvailable = false;
+        _loading = false;
+      });
+    } catch (e) {
+      print("💰 [PAYMENT INIT DEBUG] Unexpected error loading offerings: $e");
       setState(() {
         _isAvailable = false;
         _loading = false;
@@ -270,30 +289,55 @@ class _CoinsFlowWidgetState extends State<_CoinsFlowWidget>
           "💰 [PAYMENT UPDATE DEBUG] Checking for updated offerings: ${updatedOfferings.current?.availablePackages.length ?? 0} packages");
 
       if (updatedOfferings.current != null &&
-          updatedOfferings.current!.availablePackages.length !=
-              offerings.current!.availablePackages.length) {
-        print("💰 [PAYMENT UPDATE DEBUG] Offerings updated! Refreshing UI...");
-        setState(() {
-          offerings = updatedOfferings;
-        });
+          updatedOfferings.current!.availablePackages.length > 0) {
+        // Check if we have different offerings or if we previously had no offerings
+        bool shouldUpdate = false;
+
+        if (offerings.current == null ||
+            offerings.current!.availablePackages.length == 0) {
+          // We previously had no offerings, now we have some
+          shouldUpdate = true;
+          print(
+              "💰 [PAYMENT UPDATE DEBUG] Found offerings when we had none before!");
+        } else if (updatedOfferings.current!.availablePackages.length !=
+            offerings.current!.availablePackages.length) {
+          // Different number of offerings
+          shouldUpdate = true;
+          print(
+              "💰 [PAYMENT UPDATE DEBUG] Different number of offerings found!");
+        }
+
+        if (shouldUpdate) {
+          print(
+              "💰 [PAYMENT UPDATE DEBUG] Offerings updated! Refreshing UI...");
+          setState(() {
+            offerings = updatedOfferings;
+            _isAvailable = true;
+            _loading = false;
+          });
+        }
       } else {
         print(
-            "💰 [PAYMENT UPDATE DEBUG] No new offerings found. Current: ${offerings.current!.availablePackages.length}, Updated: ${updatedOfferings.current?.availablePackages.length ?? 0}");
+            "💰 [PAYMENT UPDATE DEBUG] No new offerings found. Current: ${offerings.current?.availablePackages.length ?? 0}, Updated: ${updatedOfferings.current?.availablePackages.length ?? 0}");
 
-        // Try one more time with a longer delay
-        await Future.delayed(Duration(seconds: 3));
-        Offerings finalCheck = await Purchases.getOfferings();
-        print(
-            "💰 [PAYMENT FINAL CHECK DEBUG] Final check offerings: ${finalCheck.current?.availablePackages.length ?? 0} packages");
-
-        if (finalCheck.current != null &&
-            finalCheck.current!.availablePackages.length !=
-                offerings.current!.availablePackages.length) {
+        // Try one more time with a longer delay if we still have no products
+        if (offerings.current == null ||
+            offerings.current!.availablePackages.length == 0) {
+          await Future.delayed(Duration(seconds: 5));
+          Offerings finalCheck = await Purchases.getOfferings();
           print(
-              "💰 [PAYMENT FINAL CHECK DEBUG] Final check found updates! Refreshing UI...");
-          setState(() {
-            offerings = finalCheck;
-          });
+              "💰 [PAYMENT FINAL CHECK DEBUG] Final check offerings: ${finalCheck.current?.availablePackages.length ?? 0} packages");
+
+          if (finalCheck.current != null &&
+              finalCheck.current!.availablePackages.length > 0) {
+            print(
+                "💰 [PAYMENT FINAL CHECK DEBUG] Final check found products! Refreshing UI...");
+            setState(() {
+              offerings = finalCheck;
+              _isAvailable = true;
+              _loading = false;
+            });
+          }
         }
       }
     } catch (e) {
@@ -313,36 +357,77 @@ class _CoinsFlowWidgetState extends State<_CoinsFlowWidget>
   }
 
   _purchaseProduct(InAppPurchaseModel inAppPurchaseModel) async {
+    // Validate product availability before attempting purchase
+    if (inAppPurchaseModel.package == null) {
+      QuickHelp.showAppNotificationAdvanced(
+        context: context,
+        user: widget.currentUser,
+        title: "in_app_purchases.product_unavailable_title".tr(),
+        message: "in_app_purchases.product_unavailable_message".tr(),
+        isError: true,
+      );
+      return;
+    }
+
     QuickHelp.showLoadingDialog(context);
 
     try {
-      await Purchases.purchasePackage(inAppPurchaseModel.package!);
+      print(
+          "💰 [PAYMENT DEBUG] Attempting to purchase: ${inAppPurchaseModel.id} for ${inAppPurchaseModel.coins} coins");
 
-      widget.currentUser.addCredit = _inAppPurchaseModel!.coins!;
+      CustomerInfo customerInfo =
+          await Purchases.purchasePackage(inAppPurchaseModel.package!);
+
+      print(
+          "💰 [PAYMENT DEBUG] Purchase successful, adding ${inAppPurchaseModel.coins} coins to user");
+
+      // Use the correct inAppPurchaseModel instead of _inAppPurchaseModel
+      widget.currentUser.addCredit = inAppPurchaseModel.coins!;
       await widget.currentUser.save();
+
+      // Register the payment
+      registerPayment(customerInfo, inAppPurchaseModel);
+
+      // Call the callback if provided
+      if (widget.onCoinsPurchased != null) {
+        widget.onCoinsPurchased!(inAppPurchaseModel.coins!);
+      }
 
       QuickHelp.hideLoadingDialog(context);
       QuickHelp.showAppNotificationAdvanced(
         context: context,
         user: widget.currentUser,
         title: "in_app_purchases.coins_purchased"
-            .tr(namedArgs: {"coins": _inAppPurchaseModel!.coins!.toString()}),
+            .tr(namedArgs: {"coins": inAppPurchaseModel.coins!.toString()}),
         message: "in_app_purchases.coins_added_to_account".tr(),
         isError: false,
       );
     } on PlatformException catch (e) {
       var errorCode = PurchasesErrorHelper.getErrorCode(e);
+      QuickHelp.hideLoadingDialog(context);
 
-      if (errorCode != PurchasesErrorCode.purchaseCancelledError) {
-        QuickHelp.hideLoadingDialog(context);
+      print(
+          "💰 [PAYMENT ERROR DEBUG] Error code: $errorCode, Message: ${e.message}");
 
+      if (errorCode == PurchasesErrorCode.purchaseCancelledError) {
+        // User cancelled the purchase
         QuickHelp.showAppNotificationAdvanced(
           context: context,
           user: widget.currentUser,
           title: "in_app_purchases.purchase_cancelled_title".tr(),
           message: "in_app_purchases.purchase_cancelled".tr(),
         );
-      } else if (errorCode != PurchasesErrorCode.invalidReceiptError) {
+      } else if (errorCode ==
+          PurchasesErrorCode.productNotAvailableForPurchaseError) {
+        // Product not available for purchase
+        QuickHelp.showAppNotificationAdvanced(
+          context: context,
+          user: widget.currentUser,
+          title: "in_app_purchases.product_unavailable_title".tr(),
+          message: "in_app_purchases.product_unavailable_message".tr(),
+          isError: true,
+        );
+      } else if (errorCode == PurchasesErrorCode.invalidReceiptError) {
         _handleInvalidPurchase();
       } else {
         handleError(e);
@@ -479,7 +564,7 @@ class _CoinsFlowWidgetState extends State<_CoinsFlowWidget>
                               TextWithTap(
                                 "message_screen.get_coins".tr(),
                                 color: Colors.white,
-                                fontSize: 13,
+                                fontSize: 25,
                                 fontWeight: FontWeight.w600,
                               )
                             ],
@@ -1229,19 +1314,57 @@ class _CoinsFlowWidgetState extends State<_CoinsFlowWidget>
             ),
             SizedBox(height: 20),
             Text(
-              "No coin packages available",
+              "in_app_purchases.no_products_available_title".tr(),
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
               ),
+              textAlign: TextAlign.center,
             ),
             SizedBox(height: 8),
             Text(
-              "Please try again later",
+              "in_app_purchases.no_products_available_message".tr(),
               style: TextStyle(
                 color: Colors.white70,
                 fontSize: 14,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: 24),
+            // Retry button
+            Container(
+              width: double.infinity,
+              height: 50,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    kWarninngColor,
+                    kWarninngColor.withOpacity(0.8),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(25),
+                boxShadow: [
+                  BoxShadow(
+                    color: kWarninngColor.withOpacity(0.3),
+                    blurRadius: 8,
+                    offset: Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: TextWithTap(
+                "in_app_purchases.retry_loading".tr(),
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                alignment: Alignment.center,
+                onTap: () {
+                  setState(() {
+                    _loading = true;
+                    _isAvailable = false;
+                  });
+                  initProducts();
+                },
               ),
             ),
           ],
@@ -1250,7 +1373,7 @@ class _CoinsFlowWidgetState extends State<_CoinsFlowWidget>
     }
   }
 
-  _testGiftDatabase() async {
+  x() async {
     print("💰 [DATABASE TEST] ===== TESTING GIFT DATABASE =====");
 
     try {
