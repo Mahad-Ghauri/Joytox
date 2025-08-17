@@ -75,7 +75,22 @@ class _CoinsFlowWidgetState extends State<_CoinsFlowWidget>
   InAppPurchaseModel? _inAppPurchaseModel;
 
   List<InAppPurchaseModel> getInAppList() {
-    List<Package> myProductList = offerings.current!.availablePackages;
+    // Prefer current offering, but fallback to all offerings if too few packages
+    List<Package> myProductList = offerings.current?.availablePackages ?? [];
+
+    if (myProductList.length < 3) {
+      print(
+          "💰 [PAYMENT FALLBACK DEBUG] Current offering has ${myProductList.length} packages, aggregating from all offerings...");
+      final Set<Package> allPackages = {};
+      for (final offering in offerings.all.values) {
+        allPackages.addAll(offering.availablePackages);
+      }
+      if (allPackages.isNotEmpty) {
+        myProductList = allPackages.toList();
+        print(
+            "💰 [PAYMENT FALLBACK DEBUG] Using ${myProductList.length} aggregated packages from all offerings");
+      }
+    }
 
     print(
         "💰 [PAYMENT CONVERSION DEBUG] Starting conversion of ${myProductList.length} packages");
@@ -83,48 +98,14 @@ class _CoinsFlowWidgetState extends State<_CoinsFlowWidget>
     List<InAppPurchaseModel> inAppPurchaseList = [];
 
     for (Package package in myProductList) {
-      print(
-          "💰 [PAYMENT CONVERSION DEBUG] Processing package: ${package.storeProduct.identifier}");
-      InAppPurchaseModel inAppPurchaseModel = InAppPurchaseModel();
+      final identifier = package.storeProduct.identifier;
+      print("💰 [PAYMENT CONVERSION DEBUG] Processing package: $identifier");
 
-      // Set basic package info
-      inAppPurchaseModel.package = package;
-      inAppPurchaseModel.storeProduct = package.storeProduct;
-      inAppPurchaseModel.id = package.storeProduct.identifier;
-      inAppPurchaseModel.price = package.storeProduct.priceString;
-      inAppPurchaseModel.currency = package.storeProduct.currencyCode;
-
-      // Extract coins from product identifier using helper method
-      String identifier = package.storeProduct.identifier;
-      int coins = _extractCoinsFromIdentifier(identifier);
-
-      inAppPurchaseModel.coins = coins;
-
-      // Set image based on coin amount
-      if (coins >= 100 && coins <= 600) {
-        inAppPurchaseModel.image = "assets/svg/ic_coin_with_star.svg";
-      } else if (coins >= 1000 && coins <= 4000) {
-        inAppPurchaseModel.image = "assets/images/ic_coins_4000.png";
-      } else if (coins >= 10000 && coins <= 50000) {
-        inAppPurchaseModel.image = "assets/images/ic_coins_2.png";
-      } else if (coins >= 100000) {
-        inAppPurchaseModel.image = "assets/images/ic_coins_7.png";
-      } else {
-        inAppPurchaseModel.image = "assets/images/icon_jinbi.png"; // fallback
-      }
+      final inAppPurchaseModel = InAppPurchaseModel.fromPackage(package);
+      final coins = inAppPurchaseModel.coins ?? 0;
 
       print(
-          "💰 [PAYMENT DEBUG] Set $coins coins for ${identifier} with image: ${inAppPurchaseModel.image}");
-
-      // Set type based on coins amount - mark popular packages
-      if (coins == 1000 ||
-          coins == 10000 ||
-          coins == 100000 ||
-          coins == 300000) {
-        inAppPurchaseModel.type = InAppPurchaseModel.typePopular;
-      } else {
-        inAppPurchaseModel.type = InAppPurchaseModel.typeNormal;
-      }
+          "💰 [PAYMENT DEBUG] Set $coins coins for $identifier with image: ${inAppPurchaseModel.image}");
 
       // Only add if we successfully extracted coins
       if (coins > 0) {
@@ -186,26 +167,20 @@ class _CoinsFlowWidgetState extends State<_CoinsFlowWidget>
     if (imagePath.endsWith('.svg')) {
       return SvgPicture.asset(
         imagePath,
-        height: 120, // Increased size
-        width: 120, // Increased size
         fit: BoxFit.contain,
         placeholderBuilder: (context) => Image.asset(
           "assets/images/coin_bling.webp",
-          height: 120,
-          width: 120,
+          fit: BoxFit.contain,
         ),
       );
     } else {
       return Image.asset(
         imagePath,
-        height: 120, // Increased size
-        width: 120, // Increased size
         fit: BoxFit.contain,
         errorBuilder: (context, error, stackTrace) {
           return Image.asset(
             "assets/images/coin_bling.webp",
-            height: 120,
-            width: 120,
+            fit: BoxFit.contain,
           );
         },
       );
@@ -232,6 +207,22 @@ class _CoinsFlowWidgetState extends State<_CoinsFlowWidget>
 
   initProducts() async {
     try {
+      // Identify user with RevenueCat if possible
+      try {
+        if (widget.currentUser.objectId != null) {
+          await Purchases.logIn(widget.currentUser.objectId!);
+          print(
+              "💰 [PAYMENT INIT DEBUG] Logged in user to RevenueCat: ${widget.currentUser.objectId}");
+        }
+      } catch (e) {
+        print("💰 [PAYMENT INIT DEBUG] RevenueCat logIn failed: $e");
+      }
+
+      // Invalidate caches to avoid stale offerings
+      try {
+        await Purchases.invalidateCustomerInfoCache();
+      } catch (_) {}
+
       print("💰 [PAYMENT INIT DEBUG] Starting to load offerings...");
       offerings = await Purchases.getOfferings();
       print(
@@ -358,6 +349,30 @@ class _CoinsFlowWidgetState extends State<_CoinsFlowWidget>
 
   _purchaseProduct(InAppPurchaseModel inAppPurchaseModel) async {
     // Validate product availability before attempting purchase
+    // Try to recover a missing package by reloading offerings and matching by id
+    if (inAppPurchaseModel.package == null) {
+      try {
+        await Purchases.invalidateCustomerInfoCache();
+        final fresh = await Purchases.getOfferings();
+        final targetId = inAppPurchaseModel.id;
+        Package? found;
+        for (final offering in fresh.all.values) {
+          for (final p in offering.availablePackages) {
+            if (p.storeProduct.identifier == targetId) {
+              found = p;
+              break;
+            }
+          }
+          if (found != null) break;
+        }
+        if (found != null) {
+          inAppPurchaseModel.package = found;
+        }
+      } catch (e) {
+        print("💰 [PAYMENT DEBUG] Failed to refresh package: $e");
+      }
+    }
+
     if (inAppPurchaseModel.package == null) {
       QuickHelp.showAppNotificationAdvanced(
         context: context,
@@ -387,6 +402,14 @@ class _CoinsFlowWidgetState extends State<_CoinsFlowWidget>
 
       // Register the payment
       registerPayment(customerInfo, inAppPurchaseModel);
+
+      // Double-check entitlement/product status and finish transactions if needed (Android)
+      try {
+        if (QuickHelp.isAndroidPlatform()) {
+          await Purchases.invalidateCustomerInfoCache();
+          await Purchases.getCustomerInfo();
+        }
+      } catch (_) {}
 
       // Call the callback if provided
       if (widget.onCoinsPurchased != null) {
@@ -564,7 +587,7 @@ class _CoinsFlowWidgetState extends State<_CoinsFlowWidget>
                               TextWithTap(
                                 "message_screen.get_coins".tr(),
                                 color: Colors.white,
-                                fontSize: 25,
+                                fontSize: 13,
                                 fontWeight: FontWeight.w600,
                               )
                             ],
@@ -1111,9 +1134,9 @@ class _CoinsFlowWidgetState extends State<_CoinsFlowWidget>
                 child: GridView.builder(
                   gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2, // Force 2 columns for bigger items
-                    crossAxisSpacing: 20,
-                    mainAxisSpacing: 20,
-                    childAspectRatio: 0.75, // Make items taller
+                    crossAxisSpacing: 16,
+                    mainAxisSpacing: 16,
+                    childAspectRatio: 0.70, // Slightly taller to avoid overflow
                   ),
                   itemCount: inAppList.length,
                   physics: const BouncingScrollPhysics(),
@@ -1210,26 +1233,29 @@ class _CoinsFlowWidgetState extends State<_CoinsFlowWidget>
                                       color: Colors.white.withOpacity(0.1),
                                       borderRadius: BorderRadius.circular(12),
                                     ),
-                                    child: Text(
-                                      QuickHelp.checkFundsWithString(
-                                          amount: "${inApp.coins}"),
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.w800,
-                                        fontSize: 22, // Increased font size
-                                        color: Colors.white,
+                                    child: FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      child: Text(
+                                        QuickHelp.checkFundsWithString(
+                                            amount: "${inApp.coins}"),
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w800,
+                                          fontSize: 20, // Slightly smaller
+                                          color: Colors.white,
+                                        ),
+                                        textAlign: TextAlign.center,
                                       ),
-                                      textAlign: TextAlign.center,
                                     ),
                                   ),
                                   SizedBox(height: 16), // Added spacing
                                   // Image
                                   Container(
-                                    width: 130, // Fixed larger size
-                                    height: 130, // Fixed larger size
-                                    padding: const EdgeInsets.all(12.0),
+                                    width: 110, // Reduced size
+                                    height: 110, // Reduced size
+                                    padding: const EdgeInsets.all(10.0),
                                     decoration: BoxDecoration(
                                       color: Colors.white.withOpacity(0.05),
-                                      borderRadius: BorderRadius.circular(16),
+                                      borderRadius: BorderRadius.circular(14),
                                     ),
                                     child: _buildImageWidget(inApp.image ??
                                         "assets/images/coin_bling.webp"),
@@ -1265,14 +1291,17 @@ class _CoinsFlowWidgetState extends State<_CoinsFlowWidget>
                                       ],
                                     ),
                                     child: Center(
-                                      child: Text(
-                                        "${inApp.price}",
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 18, // Increased font size
-                                          fontWeight: FontWeight.w700,
+                                      child: FittedBox(
+                                        fit: BoxFit.scaleDown,
+                                        child: Text(
+                                          "${inApp.price}",
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 16, // Slightly smaller
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                          textAlign: TextAlign.center,
                                         ),
-                                        textAlign: TextAlign.center,
                                       ),
                                     ),
                                   ),
