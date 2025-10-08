@@ -13,7 +13,8 @@ import 'package:trace/ui/container_with_corner.dart';
 import 'package:trace/ui/text_with_tap.dart';
 import 'package:trace/utils/colors.dart';
 import 'package:video_thumbnail/video_thumbnail.dart';
-import 'package:wechat_assets_picker/wechat_assets_picker.dart';
+// import 'package:wechat_assets_picker/wechat_assets_picker.dart';  // Temporarily disabled due to Flutter 3.35 compatibility
+import 'package:image_picker/image_picker.dart';
 
 import '../../app/setup.dart';
 import '../../helpers/quick_help.dart';
@@ -27,8 +28,7 @@ class ReportScreen extends StatefulWidget {
 
   UserModel? currentUser, userToReport;
 
-  ReportScreen(
-      {this.currentUser, this.userToReport, Key? key})
+  ReportScreen({this.currentUser, this.userToReport, Key? key})
       : super(key: key);
 
   @override
@@ -629,16 +629,12 @@ class _ReportScreenState extends State<ReportScreen> {
   }
 
   _pickVideoFile() async {
-    final List<AssetEntity>? result = await AssetPicker.pickAssets(
-      context,
-      pickerConfig: AssetPickerConfig(
-        maxAssets: 1,
-        requestType: RequestType.video,
-      ),
-    );
+    // Temporarily replaced with ImagePicker due to wechat package compatibility issues
+    final ImagePicker picker = ImagePicker();
+    final XFile? video = await picker.pickVideo(source: ImageSource.gallery);
 
-    if (result != null && result.length > 0) {
-      final File? file = await result.first.file;
+    if (video != null) {
+      final File? file = File(video.path);
 
       if (file!.lengthSync() <= Setup.maxVideoSize * 1024 * 1024) {
         String? mimeStr = lookupMimeType(file.path);
@@ -679,13 +675,12 @@ class _ReportScreenState extends State<ReportScreen> {
     });
 
     if (selectedVideos[0].absolute.path.isNotEmpty) {
-      parseVideoFile =  await ParseFile(File(videoFile!.absolute.path),
+      parseVideoFile = await ParseFile(File(videoFile!.absolute.path),
           name: "video_${date.second}_${date.millisecond}.mp4");
     } else {
       parseVideoFile = await ParseWebFile(videoFile!.readAsBytesSync(),
           name: "video_${date.second}_${date.millisecond}.pm4");
     }
-
   }
 
   Future<void> checkPermission(bool selectVideo) async {
@@ -768,23 +763,12 @@ class _ReportScreenState extends State<ReportScreen> {
   }
 
   _choosePhoto() async {
-    final List<AssetEntity>? result = await AssetPicker.pickAssets(
-      context,
-      pickerConfig: AssetPickerConfig(
-        maxAssets: 9 - selectedPictures.length,
-        requestType: RequestType.image,
-        filterOptions: FilterOptionGroup(
-          containsLivePhotos: false,
-        ),
-      ),
-    );
+    // Temporarily replaced with ImagePicker due to wechat package compatibility issues
+    final ImagePicker picker = ImagePicker();
+    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
 
-    if (result != null && result.length > 0) {
-      final List<File>? images = [];
-
-      for (int i = 0; i < result.length; i++) {
-        images!.add(await result[i].file as File);
-      }
+    if (image != null) {
+      final List<File> images = [File(image.path)];
 
       final tempDir = await getTemporaryDirectory();
       List<String> savedImagesPaths = [];
@@ -876,19 +860,19 @@ class _ReportScreenState extends State<ReportScreen> {
           captionTextEditing.text = "";
         });
         QuickHelp.goToNavigatorScreen(
-            context,
-            ContactCustomerServiceScreen(
-              reportModel: crestedReport,
-              currentUser: widget.currentUser,
-            ),
+          context,
+          ContactCustomerServiceScreen(
+            reportModel: crestedReport,
+            currentUser: widget.currentUser,
+          ),
         );
       } else {
         QuickHelp.hideLoadingDialog(context);
         QuickHelp.showAppNotificationAdvanced(
-            title: "report_screen.report_failed_title".tr(),
-            context: context,
-            isError: false,
-            message: "report_screen.report_failed_explain".tr(),
+          title: "report_screen.report_failed_title".tr(),
+          context: context,
+          isError: false,
+          message: "report_screen.report_failed_explain".tr(),
         );
       }
     }

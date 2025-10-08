@@ -9,7 +9,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:trace/home/feed/comment_post_screen.dart';
 import 'package:trace/home/feed/visualize_multiple_pictures_screen.dart';
-import 'package:wechat_assets_picker/wechat_assets_picker.dart';
+// import 'package:wechat_assets_picker/wechat_assets_picker.dart';  // Temporarily disabled due to Flutter 3.35 compatibility
+import 'package:image_picker/image_picker.dart';
 
 import '../../app/setup.dart';
 import '../../helpers/quick_actions.dart';
@@ -83,13 +84,11 @@ class _EditPicturesPostState extends State<EditPicturesPost> {
           actions: [
             TextButton(
               onPressed: () {
-
-               if(deletedImagesFromDataBase.isNotEmpty) {
+                if (deletedImagesFromDataBase.isNotEmpty) {
                   deleteImageFromDatabase();
-                }else{
+                } else {
                   updatePost();
                 }
-
               },
               child: TextWithTap(
                 "edit_post_screen.update_".tr(),
@@ -143,7 +142,8 @@ class _EditPicturesPostState extends State<EditPicturesPost> {
                                     context,
                                     VisualizeMultiplePicturesScreen(
                                       initialIndex: index,
-                                      picturesFromDataBase: picturesFromDataBase,
+                                      picturesFromDataBase:
+                                          picturesFromDataBase,
                                     ),
                                   );
                                 },
@@ -164,7 +164,8 @@ class _EditPicturesPostState extends State<EditPicturesPost> {
                                   onTap: () {
                                     setState(
                                       () {
-                                        deletedImagesFromDataBase.add(picturesFromDataBase[index]);
+                                        deletedImagesFromDataBase
+                                            .add(picturesFromDataBase[index]);
                                         picturesFromDataBase.removeAt(index);
                                       },
                                     );
@@ -332,7 +333,7 @@ class _EditPicturesPostState extends State<EditPicturesPost> {
     );
   }
 
-  deleteImageFromDatabase() async{
+  deleteImageFromDatabase() async {
     QuickHelp.showLoadingDialog(context);
     widget.postsModel!.removeImageListFromList = deletedImagesFromDataBase;
 
@@ -343,7 +344,7 @@ class _EditPicturesPostState extends State<EditPicturesPost> {
 
       widget.postsModel = parseResponse.result;
       updatePost();
-    }else{
+    } else {
       QuickHelp.hideLoadingDialog(context);
 
       QuickHelp.showAppNotificationAdvanced(
@@ -658,24 +659,13 @@ class _EditPicturesPostState extends State<EditPicturesPost> {
   }
 
   _choosePhoto(bool isAvatar) async {
-    final List<AssetEntity>? result = await AssetPicker.pickAssets(
-      context,
-      pickerConfig: AssetPickerConfig(
-        //maxAssets: 9 - selectedPictures.length,
-        maxAssets: (9 - picturesFromDataBase.length - selectedPictures.length),
-        requestType: RequestType.image,
-        filterOptions: FilterOptionGroup(
-          containsLivePhotos: false,
-        ),
-      ),
-    );
+    // Temporarily replaced with ImagePicker due to wechat package compatibility issues
+    final ImagePicker picker = ImagePicker();
+    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
 
-    if (result != null && result.length > 0) {
-      final List<File>? images = [];
-
-      for (int i = 0; i < result.length; i++) {
-        images!.add(await result[i].file as File);
-      }
+    if (image != null) {
+      // Simulate single asset result for compatibility
+      final List<File> images = [File(image.path)];
 
       final tempDir = await getTemporaryDirectory();
       List<String> savedImagesPaths = [];
@@ -721,7 +711,7 @@ class _EditPicturesPostState extends State<EditPicturesPost> {
     widget.postsModel!.setAuthorId = widget.currentUser!.objectId!;
     widget.postsModel!.setNumberOfPictures = maxImagesLength;
 
-    if(selectedUser.isNotEmpty && selectedUserIds.isNotEmpty) {
+    if (selectedUser.isNotEmpty && selectedUserIds.isNotEmpty) {
       widget.postsModel!.setTargetPeople = selectedUser;
       widget.postsModel!.setTargetPeopleID = selectedUserIds;
     }
@@ -764,5 +754,4 @@ class _EditPicturesPostState extends State<EditPicturesPost> {
       );
     }
   }
-
 }

@@ -577,22 +577,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.3.0"
-  extended_image:
-    dependency: transitive
-    description:
-      name: extended_image
-      sha256: f6cbb1d798f51262ed1a3d93b4f1f2aa0d76128df39af18ecb77fa740f88b2e0
-      url: "https://pub.dev"
-    source: hosted
-    version: "10.0.1"
-  extended_image_library:
-    dependency: transitive
-    description:
-      name: extended_image_library
-      sha256: "1f9a24d3a00c2633891c6a7b5cab2807999eb2d5b597e5133b63f49d113811fe"
-      url: "https://pub.dev"
-    source: hosted
-    version: "5.0.1"
   fade_shimmer:
     dependency: "direct main"
     description:
@@ -1365,14 +1349,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.5.0"
-  http_client_helper:
-    dependency: transitive
-    description:
-      name: http_client_helper
-      sha256: "8a9127650734da86b5c73760de2b404494c968a3fd55602045ffec789dac3cb1"
-      url: "https://pub.dev"
-    source: hosted
-    version: "3.0.0"
   http_multi_server:
     dependency: transitive
     description:
@@ -2109,22 +2085,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.4.2"
-  sensors_plus:
-    dependency: transitive
-    description:
-      name: sensors_plus
-      sha256: "905282c917c6bb731c242f928665c2ea15445aa491249dea9d98d7c79dc8fd39"
-      url: "https://pub.dev"
-    source: hosted
-    version: "6.1.1"
-  sensors_plus_platform_interface:
-    dependency: transitive
-    description:
-      name: sensors_plus_platform_interface
-      sha256: "58815d2f5e46c0c41c40fb39375d3f127306f7742efe3b891c0b1c87e2b5cd5d"
-      url: "https://pub.dev"
-    source: hosted
-    version: "2.0.1"
   share_plus:
     dependency: "direct main"
     description:
@@ -2754,30 +2714,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.23.0"
-  wechat_assets_picker:
-    dependency: "direct main"
-    description:
-      name: wechat_assets_picker
-      sha256: "8bffdf50d250e802fa6ac8a557594c9bfbb0080fc52220513aeb7a5040729fcd"
-      url: "https://pub.dev"
-    source: hosted
-    version: "9.6.0"
-  wechat_camera_picker:
-    dependency: "direct main"
-    description:
-      name: wechat_camera_picker
-      sha256: "431cb1fdc3440156416af9ab29e5633b605483124ec8f8ca9905b163aa2cc5ac"
-      url: "https://pub.dev"
-    source: hosted
-    version: "4.3.7"
-  wechat_picker_library:
-    dependency: transitive
-    description:
-      name: wechat_picker_library
-      sha256: a42e09cb85b15fc9410f6a69671371cc60aa99c4a1f7967f6593a7f665f6f47a
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.0.5"
   whatsapp_unilink:
     dependency: "direct main"
     description:

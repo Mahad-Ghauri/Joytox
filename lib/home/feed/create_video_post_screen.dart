@@ -14,7 +14,8 @@ import 'package:trace/helpers/quick_help.dart';
 import 'package:trace/home/feed/video_player_screen.dart';
 import 'package:trace/home/home_screen.dart';
 import 'package:trace/models/PostsModel.dart';
-import 'package:wechat_assets_picker/wechat_assets_picker.dart';
+// import 'package:wechat_assets_picker/wechat_assets_picker.dart';  // Temporarily disabled due to Flutter 3.35 compatibility
+import 'package:image_picker/image_picker.dart';
 
 import '../../app/setup.dart';
 import '../../helpers/quick_actions.dart';
@@ -25,7 +26,6 @@ import '../../ui/text_with_tap.dart';
 import '../../utils/colors.dart';
 
 import 'package:trace/widgets/dospace/dospace.dart' as dospace;
-
 
 class CreateVideoPostScreen extends StatefulWidget {
   static String route = "/create/video/post";
@@ -88,9 +88,9 @@ class _CreateVideoPostScreenState extends State<CreateVideoPostScreen> {
                   } else {
                     QuickHelp.showAppNotificationAdvanced(
                       title:
-                      "create_post_screen.choose_video_advise_title".tr(),
+                          "create_post_screen.choose_video_advise_title".tr(),
                       message:
-                      "create_post_screen.choose_video_advise_explain".tr(),
+                          "create_post_screen.choose_video_advise_explain".tr(),
                       context: context,
                     );
                   }
@@ -389,10 +389,10 @@ class _CreateVideoPostScreenState extends State<CreateVideoPostScreen> {
                               duration: Duration(milliseconds: 30),
                               childBuilder: (BuildContext context,
                                   ParseLiveListElementSnapshot<UserModel>
-                                  snapshot) {
+                                      snapshot) {
                                 if (snapshot.hasData) {
                                   UserModel user =
-                                  snapshot.loadedData as UserModel;
+                                      snapshot.loadedData as UserModel;
                                   bool isMale =
                                       user.getGender == UserModel.keyGenderMale;
 
@@ -405,8 +405,8 @@ class _CreateVideoPostScreenState extends State<CreateVideoPostScreen> {
                                           if (selectedUserIds
                                               .contains(user.objectId)) {
                                             for (int i = 0;
-                                            i < selectedUserIds.length;
-                                            i++) {
+                                                i < selectedUserIds.length;
+                                                i++) {
                                               if (user.objectId ==
                                                   selectedUserIds[i]) {
                                                 indexSelected = i;
@@ -441,12 +441,12 @@ class _CreateVideoPostScreenState extends State<CreateVideoPostScreen> {
                                                   ),
                                                   Padding(
                                                     padding:
-                                                    const EdgeInsets.only(
-                                                        left: 15),
+                                                        const EdgeInsets.only(
+                                                            left: 15),
                                                     child: Column(
                                                       crossAxisAlignment:
-                                                      CrossAxisAlignment
-                                                          .start,
+                                                          CrossAxisAlignment
+                                                              .start,
                                                       children: [
                                                         TextWithTap(
                                                           user.getFullName!,
@@ -463,19 +463,19 @@ class _CreateVideoPostScreenState extends State<CreateVideoPostScreen> {
                                             ),
                                           ),
                                           selectedUserIds
-                                              .contains(user.objectId)
+                                                  .contains(user.objectId)
                                               ? Icon(
-                                            Icons.check_circle,
-                                            color: isMale
-                                                ? Colors.lightBlue
-                                                : Colors.redAccent,
-                                          )
+                                                  Icons.check_circle,
+                                                  color: isMale
+                                                      ? Colors.lightBlue
+                                                      : Colors.redAccent,
+                                                )
                                               : Icon(
-                                            Icons.radio_button_unchecked,
-                                            color: isMale
-                                                ? Colors.lightBlue
-                                                : Colors.redAccent,
-                                          ),
+                                                  Icons.radio_button_unchecked,
+                                                  color: isMale
+                                                      ? Colors.lightBlue
+                                                      : Colors.redAccent,
+                                                ),
                                         ],
                                       ),
                                     ),
@@ -659,7 +659,7 @@ class _CreateVideoPostScreenState extends State<CreateVideoPostScreen> {
           ].request();
 
           if (statuses[Permission.camera]!.isGranted &&
-              statuses[Permission.photos]!.isGranted ||
+                  statuses[Permission.photos]!.isGranted ||
               statuses[Permission.storage]!.isGranted ||
               statuses[Permission.videos]!.isGranted) {
             _pickVideoFile();
@@ -728,7 +728,7 @@ class _CreateVideoPostScreenState extends State<CreateVideoPostScreen> {
   _sendPushToFollowers(PostsModel post) async {
     if (widget.currentUser!.getFollowers!.isNotEmpty) {
       QueryBuilder<UserModel> queryUsers =
-      QueryBuilder<UserModel>(UserModel.forQuery());
+          QueryBuilder<UserModel>(UserModel.forQuery());
 
       queryUsers.whereContainedIn(
         UserModel.keyObjectId,
@@ -755,56 +755,38 @@ class _CreateVideoPostScreenState extends State<CreateVideoPostScreen> {
   }
 
   _pickVideoFile() async {
-    final List<AssetEntity>? result = await AssetPicker.pickAssets(
-      context,
-      pickerConfig: AssetPickerConfig(
-        maxAssets: 1,
-        requestType: RequestType.video,
-        previewThumbnailSize: const ThumbnailSize(1080, 1080),
-        textDelegate: AssetPickerTextDelegate(),
-      ),
-    );
+    // Temporarily replaced with ImagePicker due to wechat package compatibility issues
+    final ImagePicker picker = ImagePicker();
+    final XFile? video = await picker.pickVideo(source: ImageSource.gallery);
 
-    if (result != null && result.length > 0) {
-      // Verificar duração do vídeo
-      final int? durationInSeconds = await result.first.duration;
-      if (durationInSeconds != null && durationInSeconds > videoDuration) {
-        QuickHelp.showAppNotificationAdvanced(
-          context: context,
-          title: "video_upload.video_too_long".tr(),
-          message: "video_upload.video_duration_limit".tr(namedArgs: {"duration": "$videoDuration"}),
-          isError: true,
-        );
-        return;
-      }
-
-      final File? file = await result.first.file;
+    if (video != null) {
+      final File? file = File(video.path);
       if (file == null) return;
-
 
       if (file.lengthSync() > videoMegaByte * 1024 * 1024) {
         QuickHelp.showAppNotificationAdvanced(
           context: context,
           title: "video_upload.video_too_large".tr(),
-          message: "video_upload.video_size_limit".tr(namedArgs: {"size": "$videoMegaByte"}),
+          message: "video_upload.video_size_limit"
+              .tr(namedArgs: {"size": "$videoMegaByte"}),
           isError: true,
         );
         return;
       }
 
-      final preview = await result.first.thumbnailData;
-      if (preview == null) return;
+      // Skip thumbnail generation for now since ImagePicker doesn't provide thumbnailData
+      // TODO: Generate thumbnail using video_player or similar package
 
       String? mimeStr = lookupMimeType(file.path);
       var fileType = mimeStr!.split('/');
 
       print('Selected file type $fileType');
 
-      prepareVideo(file, preview);
+      prepareVideo(file, null); // No preview available with ImagePicker
     }
   }
 
-  prepareVideo(File file, Uint8List previewPath) async {
+  prepareVideo(File file, Uint8List? previewPath) async {
     DateTime date = DateTime.now();
 
     // Criar arquivo de thumbnail
@@ -812,7 +794,13 @@ class _CreateVideoPostScreenState extends State<CreateVideoPostScreen> {
     String videoThumbnailName =
         'thumbnail_${date.second}_${date.millisecond}.jpg';
     File videoThumbnailFile = File('${tempDir.path}/$videoThumbnailName');
-    await videoThumbnailFile.writeAsBytes(previewPath);
+
+    if (previewPath != null) {
+      await videoThumbnailFile.writeAsBytes(previewPath);
+    } else {
+      // Create a placeholder thumbnail file since we don't have preview data
+      await videoThumbnailFile.writeAsBytes([]);
+    }
 
     // Configurar arquivo de vídeo
     videoFile = file;
@@ -848,11 +836,11 @@ class _CreateVideoPostScreenState extends State<CreateVideoPostScreen> {
         "video_file_${widget.currentUser!.objectId!}_${DateTime.now().toLocal().millisecond}_${QuickHelp.generateUId()}.mp4";
     String url = "$fileName";
     String? etag = await spaces.bucket("").uploadFile(
-      fileName,
-      videoFile,
-      'video/mp4',
-      dospace.Permissions.public,
-    );
+          fileName,
+          videoFile,
+          'video/mp4',
+          dospace.Permissions.public,
+        );
 
     print('upload: $etag');
     print('Url: $url');

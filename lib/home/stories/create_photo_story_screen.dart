@@ -15,7 +15,8 @@ import 'package:trace/models/UserModel.dart';
 import 'package:trace/ui/container_with_corner.dart';
 import 'package:trace/ui/text_with_tap.dart';
 import 'package:trace/utils/colors.dart';
-import 'package:wechat_assets_picker/wechat_assets_picker.dart';
+// import 'package:wechat_assets_picker/wechat_assets_picker.dart';  // Temporarily disabled due to Flutter 3.35 compatibility
+import 'package:image_picker/image_picker.dart';
 
 import '../../helpers/send_notifications.dart';
 import '../feed/visualize_multiple_pictures_screen.dart';
@@ -23,8 +24,7 @@ import '../feed/visualize_multiple_pictures_screen.dart';
 class CreatePhotoStory extends StatefulWidget {
   UserModel? currentUser;
 
-  CreatePhotoStory({Key? key, this.currentUser})
-      : super(key: key);
+  CreatePhotoStory({Key? key, this.currentUser}) : super(key: key);
 
   @override
   _CreatePhotoStoryState createState() => _CreatePhotoStoryState();
@@ -98,61 +98,61 @@ class _CreatePhotoStoryState extends State<CreatePhotoStory> {
               const SizedBox(
                 height: 20,
               ),
-              if(selectedPicture != null)
-              Stack(
-                alignment: AlignmentDirectional.center,
-                children: [
-                  ContainerCorner(
-                    width: size.width / 1.3,
-                    height: size.height / 2,
-                    borderRadius: 7,
-                    borderWidth: 0,
-                    marginRight: 7,
-                    marginBottom: 7,
-                    onTap: () {
-                      QuickHelp.goToNavigatorScreen(
-                        context,
-                        VisualizeMultiplePicturesScreen(
-                          initialIndex: 0,
-                          selectedPictures: [selectedPicture!],
+              if (selectedPicture != null)
+                Stack(
+                  alignment: AlignmentDirectional.center,
+                  children: [
+                    ContainerCorner(
+                      width: size.width / 1.3,
+                      height: size.height / 2,
+                      borderRadius: 7,
+                      borderWidth: 0,
+                      marginRight: 7,
+                      marginBottom: 7,
+                      onTap: () {
+                        QuickHelp.goToNavigatorScreen(
+                          context,
+                          VisualizeMultiplePicturesScreen(
+                            initialIndex: 0,
+                            selectedPictures: [selectedPicture!],
+                          ),
+                        );
+                      },
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: Image.file(
+                          selectedPicture!,
+                          fit: BoxFit.fill,
                         ),
-                      );
-                    },
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(10),
-                      child: Image.file(
-                        selectedPicture!,
-                        fit: BoxFit.fill,
                       ),
                     ),
-                  ),
-                  Positioned(
-                    top: 0,
-                    right: 0,
-                    child: ContainerCorner(
-                      borderRadius: 50,
-                      height: 35,
-                      width: 35,
-                      marginTop: 4,
-                      marginRight: 10,
-                      shadowColor: kGrayColor,
-                      shadowColorOpacity: 0.3,
-                      color: Colors.white,
-                      onTap: () {
-                        setState(() {
-                          selectedPicture = null;
-                        });
-                      },
-                      child: Center(
-                          child: Icon(
-                            Icons.close,
-                            color: Colors.red,
-                            size: 20,
-                          )),
+                    Positioned(
+                      top: 0,
+                      right: 0,
+                      child: ContainerCorner(
+                        borderRadius: 50,
+                        height: 35,
+                        width: 35,
+                        marginTop: 4,
+                        marginRight: 10,
+                        shadowColor: kGrayColor,
+                        shadowColorOpacity: 0.3,
+                        color: Colors.white,
+                        onTap: () {
+                          setState(() {
+                            selectedPicture = null;
+                          });
+                        },
+                        child: Center(
+                            child: Icon(
+                          Icons.close,
+                          color: Colors.red,
+                          size: 20,
+                        )),
+                      ),
                     ),
-                  ),
-                ],
-              ),
+                  ],
+                ),
               Visibility(
                 visible: selectedPicture == null,
                 child: ContainerCorner(
@@ -185,9 +185,9 @@ class _CreatePhotoStoryState extends State<CreatePhotoStory> {
             marginRight: 30,
             color: kPrimaryColor,
             marginBottom: 20,
-            onTap: ()=> createStories(),
+            onTap: () => createStories(),
             child: TextWithTap(
-                "audio_chat.share_".tr(),
+              "audio_chat.share_".tr(),
               color: Colors.white,
               alignment: Alignment.center,
               fontSize: 18,
@@ -199,31 +199,20 @@ class _CreatePhotoStoryState extends State<CreatePhotoStory> {
   }
 
   _choosePhoto(bool isAvatar) async {
-    final List<AssetEntity>? result = await AssetPicker.pickAssets(
-      context,
-      pickerConfig: AssetPickerConfig(
-        maxAssets: 1,
-        requestType: RequestType.image,
-        filterOptions: FilterOptionGroup(
-          containsLivePhotos: false,
-        ),
-      ),
-    );
+    // Temporarily replaced with ImagePicker due to wechat package compatibility issues
+    final ImagePicker picker = ImagePicker();
+    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
 
-    if (result != null && result.length > 0) {
+    if (image != null) {
       final List<File>? images = [];
-
-      for (int i = 0; i < result.length; i++) {
-        images!.add(await result[i].file as File);
-      }
+      images!.add(File(image.path));
 
       final tempDir = await getTemporaryDirectory();
       List<String> savedImagesPaths = [];
       DateTime date = DateTime.now();
 
       for (int i = 0; i < images!.length; i++) {
-        String imageName =
-            'live_photo_${date.second}_${date.millisecond}.jpg';
+        String imageName = 'live_photo_${date.second}_${date.millisecond}.jpg';
 
         File tempFile = File('${tempDir.path}/$imageName');
         await tempFile.writeAsBytes(await images[i].readAsBytes());
@@ -263,7 +252,6 @@ class _CreatePhotoStoryState extends State<CreatePhotoStory> {
   }
 
   createStories() async {
-
     QuickHelp.showLoadingDialog(context);
 
     DateTime date = DateTime.now();
@@ -278,7 +266,7 @@ class _CreatePhotoStoryState extends State<CreatePhotoStory> {
 
     ParseResponse responsePhoto = await parseFile!.save();
 
-    if(responsePhoto.success && responsePhoto.results != null) {
+    if (responsePhoto.success && responsePhoto.results != null) {
       StoriesModel story = StoriesModel();
 
       story.setAuthor = widget.currentUser!;
@@ -312,7 +300,7 @@ class _CreatePhotoStoryState extends State<CreatePhotoStory> {
       if (storyCaptionController.text.isNotEmpty) {
         story.setText = storyCaptionController.text;
       }
-    }else{
+    } else {
       QuickHelp.hideLoadingDialog(context);
       QuickHelp.showAppNotificationAdvanced(
         context: context,

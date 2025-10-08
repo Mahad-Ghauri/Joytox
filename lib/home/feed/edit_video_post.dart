@@ -9,7 +9,8 @@ import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:trace/home/feed/video_player_screen.dart';
 import 'package:video_thumbnail/video_thumbnail.dart';
-import 'package:wechat_assets_picker/wechat_assets_picker.dart';
+// import 'package:wechat_assets_picker/wechat_assets_picker.dart';  // Temporarily disabled due to Flutter 3.35 compatibility
+import 'package:image_picker/image_picker.dart';
 
 import '../../app/setup.dart';
 import '../../helpers/quick_actions.dart';
@@ -26,15 +27,13 @@ class EditVideoPostScreen extends StatefulWidget {
   UserModel? currentUser;
   PostsModel? postsModel;
 
-  EditVideoPostScreen(
-      {this.postsModel, this.currentUser, super.key});
+  EditVideoPostScreen({this.postsModel, this.currentUser, super.key});
 
   @override
   State<EditVideoPostScreen> createState() => _EditVideoPostScreenState();
 }
 
 class _EditVideoPostScreenState extends State<EditVideoPostScreen> {
-
   TextEditingController captionTextEditing = TextEditingController();
   List<UserModel> selectedUser = [];
   var selectedUserIds = [];
@@ -126,7 +125,8 @@ class _EditVideoPostScreenState extends State<EditVideoPostScreen> {
                 Wrap(
                   children: [
                     Wrap(
-                      children: List.generate(videoFromDataBase.length, (index) {
+                      children:
+                          List.generate(videoFromDataBase.length, (index) {
                         return Stack(
                           alignment: AlignmentDirectional.center,
                           children: [
@@ -152,7 +152,8 @@ class _EditVideoPostScreenState extends State<EditVideoPostScreen> {
                                     child: ClipRRect(
                                       borderRadius: BorderRadius.circular(10),
                                       child: QuickActions.photosWidget(
-                                        widget.postsModel!.getVideoThumbnail!.url,
+                                        widget
+                                            .postsModel!.getVideoThumbnail!.url,
                                       ),
                                     ),
                                   ),
@@ -295,7 +296,8 @@ class _EditVideoPostScreenState extends State<EditVideoPostScreen> {
                       }),
                     ),
                     Visibility(
-                      visible: videoFromDataBase.length < 1 && selectedVideos.length < 1,
+                      visible: videoFromDataBase.length < 1 &&
+                          selectedVideos.length < 1,
                       child: ContainerCorner(
                         width: size.width / 3.5,
                         height: size.width / 3.5,
@@ -473,10 +475,10 @@ class _EditVideoPostScreenState extends State<EditVideoPostScreen> {
                               duration: Duration(milliseconds: 30),
                               childBuilder: (BuildContext context,
                                   ParseLiveListElementSnapshot<UserModel>
-                                  snapshot) {
+                                      snapshot) {
                                 if (snapshot.hasData) {
                                   UserModel user =
-                                  snapshot.loadedData as UserModel;
+                                      snapshot.loadedData as UserModel;
                                   bool isMale =
                                       user.getGender == UserModel.keyGenderMale;
 
@@ -489,8 +491,8 @@ class _EditVideoPostScreenState extends State<EditVideoPostScreen> {
                                           if (selectedUserIds
                                               .contains(user.objectId)) {
                                             for (int i = 0;
-                                            i < selectedUserIds.length;
-                                            i++) {
+                                                i < selectedUserIds.length;
+                                                i++) {
                                               if (user.objectId ==
                                                   selectedUserIds[i]) {
                                                 indexSelected = i;
@@ -524,12 +526,12 @@ class _EditVideoPostScreenState extends State<EditVideoPostScreen> {
                                                   ),
                                                   Padding(
                                                     padding:
-                                                    const EdgeInsets.only(
-                                                        left: 15),
+                                                        const EdgeInsets.only(
+                                                            left: 15),
                                                     child: Column(
                                                       crossAxisAlignment:
-                                                      CrossAxisAlignment
-                                                          .start,
+                                                          CrossAxisAlignment
+                                                              .start,
                                                       children: [
                                                         TextWithTap(
                                                           user.getFullName!,
@@ -546,19 +548,19 @@ class _EditVideoPostScreenState extends State<EditVideoPostScreen> {
                                             ),
                                           ),
                                           selectedUserIds
-                                              .contains(user.objectId)
+                                                  .contains(user.objectId)
                                               ? Icon(
-                                            Icons.check_circle,
-                                            color: isMale
-                                                ? Colors.lightBlue
-                                                : Colors.redAccent,
-                                          )
+                                                  Icons.check_circle,
+                                                  color: isMale
+                                                      ? Colors.lightBlue
+                                                      : Colors.redAccent,
+                                                )
                                               : Icon(
-                                            Icons.radio_button_unchecked,
-                                            color: isMale
-                                                ? Colors.lightBlue
-                                                : Colors.redAccent,
-                                          ),
+                                                  Icons.radio_button_unchecked,
+                                                  color: isMale
+                                                      ? Colors.lightBlue
+                                                      : Colors.redAccent,
+                                                ),
                                         ],
                                       ),
                                     ),
@@ -648,7 +650,7 @@ class _EditVideoPostScreenState extends State<EditVideoPostScreen> {
             ].request();
 
             if (statuses[Permission.camera]!.isGranted &&
-                statuses[Permission.photos]!.isGranted ||
+                    statuses[Permission.photos]!.isGranted ||
                 statuses[Permission.storage]!.isGranted) {
               _pickVideoFile();
             }
@@ -676,7 +678,7 @@ class _EditVideoPostScreenState extends State<EditVideoPostScreen> {
   updatePost() async {
     QuickHelp.showLoadingDialog(context);
 
-    if(selectedVideos.isNotEmpty) {
+    if (selectedVideos.isNotEmpty) {
       widget.postsModel!.setVideo = parseVideoFile!;
       widget.postsModel!.setVideoThumbnail = parseVideoThumbnailFile!;
     }
@@ -685,7 +687,7 @@ class _EditVideoPostScreenState extends State<EditVideoPostScreen> {
     widget.postsModel!.setText = captionTextEditing.text;
     widget.postsModel!.setAuthorId = widget.currentUser!.objectId!;
 
-    if(selectedUser.isNotEmpty && selectedUserIds.isNotEmpty) {
+    if (selectedUser.isNotEmpty && selectedUserIds.isNotEmpty) {
       widget.postsModel!.setTargetPeople = selectedUser;
       widget.postsModel!.setTargetPeopleID = selectedUserIds;
     }
@@ -693,7 +695,6 @@ class _EditVideoPostScreenState extends State<EditVideoPostScreen> {
     ParseResponse parseResponse = await widget.postsModel!.save();
 
     if (parseResponse.success && parseResponse.result != null) {
-
       QuickHelp.hideLoadingDialog(context);
 
       setState(() {
@@ -717,7 +718,6 @@ class _EditVideoPostScreenState extends State<EditVideoPostScreen> {
         message: "create_post_screen.post_created_success_explain".tr(),
         isError: false,
       );
-
     } else {
       QuickHelp.hideLoadingDialog(context);
 
@@ -730,21 +730,16 @@ class _EditVideoPostScreenState extends State<EditVideoPostScreen> {
   }
 
   _pickVideoFile() async {
+    // Temporarily replaced with ImagePicker due to wechat package compatibility issues
+    final ImagePicker picker = ImagePicker();
+    final XFile? video = await picker.pickVideo(source: ImageSource.gallery);
 
-    final List<AssetEntity>? result = await AssetPicker.pickAssets(
-      context,
-      pickerConfig: AssetPickerConfig(
-        maxAssets: 1,
-        requestType: RequestType.video,
-      ),
-    );
-
-    if (result != null && result.length > 0) {
-      final File? file = await result.first.file;
-
+    if (video != null) {
+      // Simulate single asset result for compatibility
+      final List<File> images = [File(video.path)];
+      final File? file = images.first;
 
       if (file!.lengthSync() <= Setup.maxVideoSize * 1024 * 1024) {
-
         String? mimeStr = lookupMimeType(file.path);
         var fileType = mimeStr!.split('/');
 
@@ -757,7 +752,6 @@ class _EditVideoPostScreenState extends State<EditVideoPostScreen> {
         );
 
         prepareVideo(file, thumbnail!);
-
       } else {
         QuickHelp.showAppNotificationAdvanced(
           title: "upload_video.size_exceeded_title".tr(),
@@ -784,13 +778,11 @@ class _EditVideoPostScreenState extends State<EditVideoPostScreen> {
     });
 
     if (selectedVideos[0].absolute.path.isNotEmpty) {
-      parseVideoFile =  await ParseFile(File(videoFile!.absolute.path),
+      parseVideoFile = await ParseFile(File(videoFile!.absolute.path),
           name: "video_${date.second}_${date.millisecond}.mp4");
     } else {
       parseVideoFile = await ParseWebFile(videoFile!.readAsBytesSync(),
           name: "video_${date.second}_${date.millisecond}.pm4");
     }
-
   }
-
 }

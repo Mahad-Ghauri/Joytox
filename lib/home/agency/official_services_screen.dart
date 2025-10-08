@@ -27,7 +27,8 @@ import 'package:trace/ui/container_with_corner.dart';
 import 'package:trace/ui/text_with_tap.dart';
 import 'package:trace/utils/colors.dart';
 import 'package:trace/utils/utilsConstants.dart';
-import 'package:wechat_assets_picker/wechat_assets_picker.dart';
+// import 'package:wechat_assets_picker/wechat_assets_picker.dart';  // Temporarily disabled due to Flutter 3.35 compatibility
+import 'package:image_picker/image_picker.dart';
 
 import 'package:flutter/foundation.dart' as foundation;
 
@@ -38,8 +39,7 @@ class OfficialServicesScreen extends StatefulWidget {
   UserModel? currentUser;
   MessageGroupModel? groupModel;
 
-  OfficialServicesScreen(
-      {Key? key, this.currentUser, this.groupModel})
+  OfficialServicesScreen({Key? key, this.currentUser, this.groupModel})
       : super(key: key);
 
   static String route = '/messages/groupMessage';
@@ -54,24 +54,27 @@ class _OfficialServicesScreenState extends State<OfficialServicesScreen> {
   String? sendButtonIcon = "assets/svg/ic_send_message.svg";
   Color sendButtonBackground = Colors.deepOrangeAccent;
 
-  loadAgencyGroup() async{
+  loadAgencyGroup() async {
     QueryBuilder<MessageGroupModel> queryBuilder =
-    QueryBuilder<MessageGroupModel>(MessageGroupModel());
+        QueryBuilder<MessageGroupModel>(MessageGroupModel());
 
-    queryBuilder.whereEqualTo(MessageGroupModel.keyCreatorID, widget.currentUser!.objectId);
-    queryBuilder.whereEqualTo(MessageGroupModel.keyGroupType, MessageGroupModel.keyAgencyGroupType);
-    queryBuilder.includeObject([MessageGroupModel.keyCreator,]);
+    queryBuilder.whereEqualTo(
+        MessageGroupModel.keyCreatorID, widget.currentUser!.objectId);
+    queryBuilder.whereEqualTo(
+        MessageGroupModel.keyGroupType, MessageGroupModel.keyAgencyGroupType);
+    queryBuilder.includeObject([
+      MessageGroupModel.keyCreator,
+    ]);
 
     ParseResponse response = await queryBuilder.query();
 
-    if(response.success && response.result != null) {
+    if (response.success && response.result != null) {
       setState(() {
         widget.groupModel = response.results!.first;
       });
-    }else{
+    } else {
       QuickHelp.goBackToPreviousPage(context);
     }
-
   }
 
   int currentView = 0;
@@ -84,7 +87,7 @@ class _OfficialServicesScreenState extends State<OfficialServicesScreen> {
   List<dynamic> results = <dynamic>[];
 
   GroupedItemScrollController listScrollController =
-  GroupedItemScrollController();
+      GroupedItemScrollController();
 
   var unreadMessages = [];
 
@@ -317,7 +320,7 @@ class _OfficialServicesScreenState extends State<OfficialServicesScreen> {
   void initState() {
     setupLiveQuery();
 
-    if(widget.groupModel == null) {
+    if (widget.groupModel == null) {
       loadAgencyGroup();
     }
 
@@ -341,9 +344,9 @@ class _OfficialServicesScreenState extends State<OfficialServicesScreen> {
 
   scrollToBottom(
       {required int position,
-        bool? animated = false,
-        int? duration = 3,
-        Curve? curve = Curves.easeOut}) {
+      bool? animated = false,
+      int? duration = 3,
+      Curve? curve = Curves.easeOut}) {
     if (listScrollController.isAttached) {
       if (animated = true) {
         listScrollController.scrollTo(
@@ -371,20 +374,15 @@ class _OfficialServicesScreenState extends State<OfficialServicesScreen> {
   }
 
   _choosePhoto() async {
-    final List<AssetEntity>? result = await AssetPicker.pickAssets(
-      context,
-      pickerConfig: AssetPickerConfig(
-        maxAssets: 1,
-        requestType: RequestType.image,
-        filterOptions: FilterOptionGroup(
-          containsLivePhotos: false,
-        ),
-      ),
-    );
+    // Temporarily replaced with ImagePicker due to wechat package compatibility issues
+    final ImagePicker picker = ImagePicker();
+    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
 
-    if (result != null && result.length > 0) {
-      final File? image = await result.first.file;
-      cropPhoto(image!.path);
+    if (image != null) {
+      // Simulate single asset result for compatibility
+      final List<File> images = [File(image.path)];
+      final File? file = images.first;
+      cropPhoto(file?.path ?? '');
     } else {
       print("Photos null");
     }
@@ -392,7 +390,7 @@ class _OfficialServicesScreenState extends State<OfficialServicesScreen> {
 
   void cropPhoto(String path) async {
     CroppedFile? croppedFile =
-    await ImageCropper().cropImage(sourcePath: path, uiSettings: [
+        await ImageCropper().cropImage(sourcePath: path, uiSettings: [
       AndroidUiSettings(
           toolbarTitle: "edit_photo".tr(),
           toolbarColor: kPrimaryColor,
@@ -679,7 +677,7 @@ class _OfficialServicesScreenState extends State<OfficialServicesScreen> {
 
   Widget unreadMessagesCount() {
     QueryBuilder<MessageModel> query =
-    QueryBuilder<MessageModel>(MessageModel());
+        QueryBuilder<MessageModel>(MessageModel());
 
     query.whereEqualTo(MessageModel.keyReceiver, widget.currentUser!);
     query.whereEqualTo(MessageModel.keyRead, false);
@@ -733,9 +731,9 @@ class _OfficialServicesScreenState extends State<OfficialServicesScreen> {
         }
       },
       listLoadingElement:
-      showViewersCount(amountText: "${unreadMessages.length}"),
+          showViewersCount(amountText: "${unreadMessages.length}"),
       queryEmptyElement:
-      showViewersCount(amountText: "${unreadMessages.length}"),
+          showViewersCount(amountText: "${unreadMessages.length}"),
     );
   }
 
@@ -776,7 +774,7 @@ class _OfficialServicesScreenState extends State<OfficialServicesScreen> {
 
   setupLiveQuery() async {
     QueryBuilder<MessageModel> liveQuery1 =
-    QueryBuilder<MessageModel>(MessageModel());
+        QueryBuilder<MessageModel>(MessageModel());
     liveQuery1.whereEqualTo(
         MessageModel.keyGroupReceiverId, widget.groupModel!.objectId);
 
@@ -887,7 +885,10 @@ class _OfficialServicesScreenState extends State<OfficialServicesScreen> {
                         );
                       },
                       itemBuilder: (context, dynamic chatMessage) {
-                        bool isMe = chatMessage.getAuthorId! == widget.currentUser!.objectId! ? true : false;
+                        bool isMe = chatMessage.getAuthorId! ==
+                                widget.currentUser!.objectId!
+                            ? true
+                            : false;
 
                         if (!isMe && !chatMessage.isRead!) {
                           _updateMessageStatus(chatMessage);
@@ -897,7 +898,7 @@ class _OfficialServicesScreenState extends State<OfficialServicesScreen> {
                             chatMessage.getMessageList!.getAuthorId !=
                                 widget.currentUser!.objectId) {
                           MessageListModel chatList =
-                          chatMessage.getMessageList as MessageListModel;
+                              chatMessage.getMessageList as MessageListModel;
 
                           if (!chatList.isRead! &&
                               chatList.objectId ==
@@ -905,9 +906,10 @@ class _OfficialServicesScreenState extends State<OfficialServicesScreen> {
                             _updateMessageList(chatMessage.getMessageList!);
                           }
                         }
-                        if(chatMessage.getAuthorId! == widget.currentUser!.objectId!) {
+                        if (chatMessage.getAuthorId! ==
+                            widget.currentUser!.objectId!) {
                           return messageSent(chatMessage);
-                        }else{
+                        } else {
                           return messageReceived(chatMessage);
                         }
                       },
@@ -936,9 +938,9 @@ class _OfficialServicesScreenState extends State<OfficialServicesScreen> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextWithTap(chatMessage.getAuthor!.getUsername!,
-              color: kPrimaryColor
-                  .withOpacity(0.9),
+            TextWithTap(
+              chatMessage.getAuthor!.getUsername!,
+              color: kPrimaryColor.withOpacity(0.9),
               fontWeight: FontWeight.bold,
             ),
             const SizedBox(
@@ -952,16 +954,13 @@ class _OfficialServicesScreenState extends State<OfficialServicesScreen> {
           ],
         ),
       );
-    }else{
+    } else {
       return Align(
         alignment: Alignment.centerLeft,
         child: Column(
-          crossAxisAlignment:
-          CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-
-            if (chatMessage.getMessageType ==
-                MessageModel.messageTypeCall)
+            if (chatMessage.getMessageType == MessageModel.messageTypeCall)
               ContainerCorner(
                 radiusTopLeft: 10,
                 radiusTopRight: 10,
@@ -969,88 +968,57 @@ class _OfficialServicesScreenState extends State<OfficialServicesScreen> {
                 marginTop: 10,
                 marginBottom: 10,
                 color: kPrimaryColor,
-                child: callMessage(
-                    chatMessage, false),
+                child: callMessage(chatMessage, false),
               ),
-            if (chatMessage.getMessageType ==
-                MessageModel.textMessageForGroup)
+            if (chatMessage.getMessageType == MessageModel.textMessageForGroup)
               ContainerCorner(
                 child: Row(
-                  crossAxisAlignment:
-                  CrossAxisAlignment.end,
-                  mainAxisSize:
-                  MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    QuickActions.avatarWidget(
-                        chatMessage.getAuthor!,
-                        width: 25,
-                        height: 25),
+                    QuickActions.avatarWidget(chatMessage.getAuthor!,
+                        width: 25, height: 25),
                     Flexible(
                       child: GestureDetector(
                         child: Column(
-                          crossAxisAlignment:
-                          CrossAxisAlignment
-                              .start,
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             ContainerCorner(
                               radiusTopLeft: 10,
-                              radiusTopRight:
-                              10,
-                              radiusBottomRight:
-                              10,
+                              radiusTopRight: 10,
+                              radiusBottomRight: 10,
                               marginRight: 10,
                               marginLeft: 5,
-                              color:
-                              kGreyColor0,
+                              color: kGreyColor0,
                               child: Column(
-                                crossAxisAlignment:
-                                CrossAxisAlignment
-                                    .start,
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   TextWithTap(
-                                    chatMessage
-                                        .getDuration!,
-                                    marginBottom:
-                                    10,
-                                    marginTop:
-                                    10,
-                                    color: Colors
-                                        .black,
-                                    marginLeft:
-                                    10,
-                                    marginRight:
-                                    10,
-                                    fontSize:
-                                    14,
-                                    selectableText:
-                                    true,
-                                    urlDetectable:
-                                    true,
+                                    chatMessage.getDuration!,
+                                    marginBottom: 10,
+                                    marginTop: 10,
+                                    color: Colors.black,
+                                    marginLeft: 10,
+                                    marginRight: 10,
+                                    fontSize: 14,
+                                    selectableText: true,
+                                    urlDetectable: true,
                                   ),
                                   Row(
-                                    mainAxisSize:
-                                    MainAxisSize
-                                        .min,
-                                    mainAxisAlignment:
-                                    MainAxisAlignment
-                                        .end,
+                                    mainAxisSize: MainAxisSize.min,
+                                    mainAxisAlignment: MainAxisAlignment.end,
                                     children: [
                                       TextWithTap(
-                                        chatMessage.createdAt !=
-                                            null
-                                            ? QuickHelp.getMessageTime(chatMessage.createdAt!,
-                                            time: true)
+                                        chatMessage.createdAt != null
+                                            ? QuickHelp.getMessageTime(
+                                                chatMessage.createdAt!,
+                                                time: true)
                                             : "sending_".tr(),
-                                        color:
-                                        kGrayColor,
-                                        fontSize:
-                                        12,
-                                        marginRight:
-                                        10,
-                                        marginLeft:
-                                        10,
-                                        marginBottom:
-                                        5,
+                                        color: kGrayColor,
+                                        fontSize: 12,
+                                        marginRight: 10,
+                                        marginLeft: 10,
+                                        marginBottom: 5,
                                       ),
                                     ],
                                   ),
@@ -1064,18 +1032,14 @@ class _OfficialServicesScreenState extends State<OfficialServicesScreen> {
                   ],
                 ),
               ),
-            if (chatMessage.getMessageType ==
-                MessageModel.messageTypeVoice)
+            if (chatMessage.getMessageType == MessageModel.messageTypeVoice)
               Row(
                 mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment:
-                CrossAxisAlignment.end,
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Padding(
-                    padding: const EdgeInsets.only(
-                        right: 5, bottom: 8),
-                    child:
-                    QuickActions.avatarWidget(
+                    padding: const EdgeInsets.only(right: 5, bottom: 8),
+                    child: QuickActions.avatarWidget(
                       chatMessage.getAuthor!,
                       width: 30,
                       height: 30,
@@ -1089,84 +1053,56 @@ class _OfficialServicesScreenState extends State<OfficialServicesScreen> {
                     marginBottom: 10,
                     color: kGreyColor0,
                     child: Padding(
-                      padding:
-                      const EdgeInsets.only(
+                      padding: const EdgeInsets.only(
                         top: 10.0,
                         left: 10,
                         right: 10,
                         bottom: 3,
                       ),
                       child: Column(
-                        crossAxisAlignment:
-                        CrossAxisAlignment.end,
+                        crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Row(
-                            mainAxisSize:
-                            MainAxisSize.min,
+                            mainAxisSize: MainAxisSize.min,
                             children: [
                               IconButton(
                                 onPressed: () {
                                   playAndPause(
-                                      chatMessage
-                                          .getVoiceMessage!
-                                          .url!);
+                                      chatMessage.getVoiceMessage!.url!);
                                 },
                                 icon: Icon(
                                   audioPlaying &&
-                                      currentVoiceMessageURL ==
-                                          chatMessage
-                                              .getVoiceMessage!
-                                              .url!
-                                      ? Icons
-                                      .pause_circle
-                                      : Icons
-                                      .play_circle_filled,
-                                  color:
-                                  Colors.white,
+                                          currentVoiceMessageURL ==
+                                              chatMessage.getVoiceMessage!.url!
+                                      ? Icons.pause_circle
+                                      : Icons.play_circle_filled,
+                                  color: Colors.white,
                                   size: 30,
                                 ),
                               ),
                               Column(
-                                mainAxisSize:
-                                MainAxisSize
-                                    .min,
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
                                   TextWithTap(
-                                    chatMessage
-                                        .getVoiceDuration!,
-                                    color: Colors
-                                        .white,
+                                    chatMessage.getVoiceDuration!,
+                                    color: Colors.white,
                                     marginRight: 15,
                                   ),
                                   Visibility(
                                     visible: audioPlaying &&
                                         currentVoiceMessageURL ==
-                                            chatMessage
-                                                .getVoiceMessage!
-                                                .url!,
-                                    child:
-                                    StreamBuilder<
-                                        int>(
-                                      stream: audioTimer
-                                          .secondTime,
-                                      initialData:
-                                      0,
-                                      builder:
-                                          (context,
-                                          snap) {
-                                        final value =
-                                            snap.data;
+                                            chatMessage.getVoiceMessage!.url!,
+                                    child: StreamBuilder<int>(
+                                      stream: audioTimer.secondTime,
+                                      initialData: 0,
+                                      builder: (context, snap) {
+                                        final value = snap.data;
                                         voiceDuration =
-                                            QuickHelp.formatTime(
-                                                value!);
+                                            QuickHelp.formatTime(value!);
                                         return TextWithTap(
-                                          QuickHelp
-                                              .formatTime(
-                                              value),
-                                          fontSize:
-                                          9,
-                                          color: Colors
-                                              .amberAccent,
+                                          QuickHelp.formatTime(value),
+                                          fontSize: 9,
+                                          color: Colors.amberAccent,
                                         );
                                       },
                                     ),
@@ -1179,9 +1115,7 @@ class _OfficialServicesScreenState extends State<OfficialServicesScreen> {
                                 width: 27,
                                 animate: animateAudioPlaying &&
                                     currentVoiceMessageURL ==
-                                        chatMessage
-                                            .getVoiceMessage!
-                                            .url!,
+                                        chatMessage.getVoiceMessage!.url!,
                               ),
                             ],
                           ),
@@ -1189,13 +1123,10 @@ class _OfficialServicesScreenState extends State<OfficialServicesScreen> {
                             height: 5,
                           ),
                           TextWithTap(
-                            chatMessage.createdAt !=
-                                null
-                                ? QuickHelp
-                                .getMessageTime(
-                                chatMessage
-                                    .createdAt!,
-                                time: true)
+                            chatMessage.createdAt != null
+                                ? QuickHelp.getMessageTime(
+                                    chatMessage.createdAt!,
+                                    time: true)
                                 : "sending_".tr(),
                             color: kGrayColor,
                             fontSize: 12,
@@ -1212,37 +1143,25 @@ class _OfficialServicesScreenState extends State<OfficialServicesScreen> {
             if (chatMessage.getMessageType ==
                 MessageModel.pictureMessageForGroup)
               Row(
-                crossAxisAlignment:
-                CrossAxisAlignment.end,
+                crossAxisAlignment: CrossAxisAlignment.end,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  QuickActions.avatarWidget(
-                      chatMessage.getAuthor!,
-                      width: 25,
-                      height: 25),
+                  QuickActions.avatarWidget(chatMessage.getAuthor!,
+                      width: 25, height: 25),
                   Column(
-                    crossAxisAlignment:
-                    CrossAxisAlignment
-                        .start,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      pictureMessage(chatMessage
-                          .getPictureMessage!),
+                      pictureMessage(chatMessage.getPictureMessage!),
                       Row(
-                        mainAxisSize:
-                        MainAxisSize.min,
-                        mainAxisAlignment:
-                        MainAxisAlignment
-                            .end,
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.end,
                         children: [
                           TextWithTap(
-                            chatMessage.createdAt !=
-                                null
+                            chatMessage.createdAt != null
                                 ? QuickHelp.getMessageTime(
-                                chatMessage
-                                    .createdAt!,
-                                time: true)
-                                : "sending_"
-                                .tr(),
+                                    chatMessage.createdAt!,
+                                    time: true)
+                                : "sending_".tr(),
                             color: kGrayColor,
                             fontSize: 12,
                             marginRight: 10,
@@ -1254,35 +1173,26 @@ class _OfficialServicesScreenState extends State<OfficialServicesScreen> {
                   ),
                 ],
               ),
-            if (chatMessage.getMessageType ==
-                MessageModel.messageTypePicture)
+            if (chatMessage.getMessageType == MessageModel.messageTypePicture)
               Row(
-                crossAxisAlignment:
-                CrossAxisAlignment.end,
+                crossAxisAlignment: CrossAxisAlignment.end,
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   QuickActions.avatarWidget(chatMessage.getAuthor!,
                       width: 25, height: 25),
                   Column(
-                    crossAxisAlignment:
-                    CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      pictureMessage(chatMessage
-                          .getPictureMessage!),
+                      pictureMessage(chatMessage.getPictureMessage!),
                       Row(
-                        mainAxisSize:
-                        MainAxisSize.min,
-                        mainAxisAlignment:
-                        MainAxisAlignment.end,
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.end,
                         children: [
                           TextWithTap(
-                            chatMessage.createdAt !=
-                                null
-                                ? QuickHelp
-                                .getMessageTime(
-                                chatMessage
-                                    .createdAt!,
-                                time: true)
+                            chatMessage.createdAt != null
+                                ? QuickHelp.getMessageTime(
+                                    chatMessage.createdAt!,
+                                    time: true)
                                 : "sending_".tr(),
                             color: kGrayColor,
                             fontSize: 12,
@@ -1325,12 +1235,10 @@ class _OfficialServicesScreenState extends State<OfficialServicesScreen> {
         alignment: Alignment.centerRight,
         child: Column(
           children: [
-            if (chatMessage.getMessageType ==
-                MessageModel.messageTypeVoice)
+            if (chatMessage.getMessageType == MessageModel.messageTypeVoice)
               Row(
                 mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment:
-                CrossAxisAlignment.end,
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   ContainerCorner(
                     radiusBottomLeft: 10,
@@ -1340,84 +1248,53 @@ class _OfficialServicesScreenState extends State<OfficialServicesScreen> {
                     marginBottom: 10,
                     color: kPrimaryColor,
                     child: Padding(
-                      padding:
-                      const EdgeInsets.only(
-                          top: 10.0,
-                          left: 10,
-                          right: 10,
-                          bottom: 3),
+                      padding: const EdgeInsets.only(
+                          top: 10.0, left: 10, right: 10, bottom: 3),
                       child: Column(
-                        crossAxisAlignment:
-                        CrossAxisAlignment.end,
+                        crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Row(
-                            mainAxisSize:
-                            MainAxisSize.min,
+                            mainAxisSize: MainAxisSize.min,
                             children: [
                               IconButton(
                                 onPressed: () {
                                   playAndPause(
-                                      chatMessage
-                                          .getVoiceMessage!
-                                          .url!);
+                                      chatMessage.getVoiceMessage!.url!);
                                 },
                                 icon: Icon(
                                   audioPlaying &&
-                                      currentVoiceMessageURL ==
-                                          chatMessage
-                                              .getVoiceMessage!
-                                              .url!
-                                      ? Icons
-                                      .pause_circle
-                                      : Icons
-                                      .play_circle_filled,
-                                  color:
-                                  Colors.white,
+                                          currentVoiceMessageURL ==
+                                              chatMessage.getVoiceMessage!.url!
+                                      ? Icons.pause_circle
+                                      : Icons.play_circle_filled,
+                                  color: Colors.white,
                                   size: 30,
                                 ),
                               ),
                               Column(
-                                mainAxisSize:
-                                MainAxisSize
-                                    .min,
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
                                   TextWithTap(
-                                    chatMessage
-                                        .getVoiceDuration!,
-                                    color: Colors
-                                        .white,
+                                    chatMessage.getVoiceDuration!,
+                                    color: Colors.white,
                                     marginRight: 15,
                                     marginBottom: 2,
                                   ),
                                   Visibility(
                                     visible: audioPlaying &&
                                         currentVoiceMessageURL ==
-                                            chatMessage
-                                                .getVoiceMessage!
-                                                .url!,
-                                    child:
-                                    StreamBuilder<
-                                        int>(
-                                      stream: audioTimer
-                                          .secondTime,
-                                      initialData:
-                                      0,
-                                      builder:
-                                          (context,
-                                          snap) {
-                                        final value =
-                                            snap.data;
+                                            chatMessage.getVoiceMessage!.url!,
+                                    child: StreamBuilder<int>(
+                                      stream: audioTimer.secondTime,
+                                      initialData: 0,
+                                      builder: (context, snap) {
+                                        final value = snap.data;
                                         voiceDuration =
-                                            QuickHelp.formatTime(
-                                                value!);
+                                            QuickHelp.formatTime(value!);
                                         return TextWithTap(
-                                          QuickHelp
-                                              .formatTime(
-                                              value),
-                                          fontSize:
-                                          9,
-                                          color: Colors
-                                              .amberAccent,
+                                          QuickHelp.formatTime(value),
+                                          fontSize: 9,
+                                          color: Colors.amberAccent,
                                         );
                                       },
                                     ),
@@ -1430,9 +1307,7 @@ class _OfficialServicesScreenState extends State<OfficialServicesScreen> {
                                 width: 27,
                                 animate: animateAudioPlaying &&
                                     currentVoiceMessageURL ==
-                                        chatMessage
-                                            .getVoiceMessage!
-                                            .url!,
+                                        chatMessage.getVoiceMessage!.url!,
                               ),
                             ],
                           ),
@@ -1440,44 +1315,29 @@ class _OfficialServicesScreenState extends State<OfficialServicesScreen> {
                             height: 5,
                           ),
                           Row(
-                            mainAxisSize:
-                            MainAxisSize.min,
-                            mainAxisAlignment:
-                            MainAxisAlignment
-                                .end,
+                            mainAxisSize: MainAxisSize.min,
+                            mainAxisAlignment: MainAxisAlignment.end,
                             children: [
                               TextWithTap(
-                                chatMessage.createdAt !=
-                                    null
+                                chatMessage.createdAt != null
                                     ? QuickHelp.getMessageTime(
-                                    chatMessage
-                                        .createdAt!,
-                                    time: true)
-                                    : "sending_"
-                                    .tr(),
-                                color: Colors.white
-                                    .withOpacity(
-                                    0.7),
+                                        chatMessage.createdAt!,
+                                        time: true)
+                                    : "sending_".tr(),
+                                color: Colors.white.withOpacity(0.7),
                                 fontSize: 10,
                                 marginRight: 10,
                                 marginLeft: 10,
                               ),
                               Padding(
-                                padding:
-                                EdgeInsets.only(
-                                    right: 3),
+                                padding: EdgeInsets.only(right: 3),
                                 child: Icon(
-                                  chatMessage.createdAt !=
-                                      null
-                                      ? Icons
-                                      .done_all
-                                      : Icons
-                                      .access_time_outlined,
-                                  color: chatMessage
-                                      .isRead!
+                                  chatMessage.createdAt != null
+                                      ? Icons.done_all
+                                      : Icons.access_time_outlined,
+                                  color: chatMessage.isRead!
                                       ? kBlueColor1
-                                      : Colors
-                                      .white,
+                                      : Colors.white,
                                   size: 11,
                                 ),
                               ),
@@ -1488,10 +1348,8 @@ class _OfficialServicesScreenState extends State<OfficialServicesScreen> {
                     ),
                   ),
                   Padding(
-                    padding: const EdgeInsets.only(
-                        left: 5, bottom: 8),
-                    child:
-                    QuickActions.avatarWidget(
+                    padding: const EdgeInsets.only(left: 5, bottom: 8),
+                    child: QuickActions.avatarWidget(
                       widget.currentUser!,
                       width: 30,
                       height: 30,
@@ -1499,27 +1357,19 @@ class _OfficialServicesScreenState extends State<OfficialServicesScreen> {
                   ),
                 ],
               ),
-            if (chatMessage.getMessageType ==
-                MessageModel.messageTypePicture)
+            if (chatMessage.getMessageType == MessageModel.messageTypePicture)
               Column(
-                crossAxisAlignment:
-                CrossAxisAlignment.end,
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  pictureMessage(chatMessage
-                      .getPictureMessage!),
+                  pictureMessage(chatMessage.getPictureMessage!),
                   Row(
                     mainAxisSize: MainAxisSize.min,
-                    mainAxisAlignment:
-                    MainAxisAlignment.end,
+                    mainAxisAlignment: MainAxisAlignment.end,
                     children: [
                       TextWithTap(
-                        chatMessage.createdAt !=
-                            null
-                            ? QuickHelp
-                            .getMessageTime(
-                            chatMessage
-                                .createdAt!,
-                            time: true)
+                        chatMessage.createdAt != null
+                            ? QuickHelp.getMessageTime(chatMessage.createdAt!,
+                                time: true)
                             : "sending_".tr(),
                         color: kGrayColor,
                         fontSize: 12,
@@ -1527,17 +1377,12 @@ class _OfficialServicesScreenState extends State<OfficialServicesScreen> {
                         marginLeft: 10,
                       ),
                       Padding(
-                        padding: EdgeInsets.only(
-                            right: 10),
+                        padding: EdgeInsets.only(right: 10),
                         child: Icon(
-                          chatMessage.createdAt !=
-                              null
+                          chatMessage.createdAt != null
                               ? Icons.done_all
-                              : Icons
-                              .access_time_outlined,
-                          color: chatMessage.isRead!
-                              ? kBlueColor1
-                              : kGrayColor,
+                              : Icons.access_time_outlined,
+                          color: chatMessage.isRead! ? kBlueColor1 : kGrayColor,
                           size: 15,
                         ),
                       ),
@@ -1585,7 +1430,7 @@ class _OfficialServicesScreenState extends State<OfficialServicesScreen> {
                         TextWithTap(
                           chatMessage.createdAt != null
                               ? QuickHelp.getMessageTime(chatMessage.createdAt!,
-                              time: true)
+                                  time: true)
                               : "sending_".tr(),
                           color: Colors.white.withOpacity(0.7),
                           fontSize: 12,
@@ -1622,7 +1467,7 @@ class _OfficialServicesScreenState extends State<OfficialServicesScreen> {
                       TextWithTap(
                         chatMessage.createdAt != null
                             ? QuickHelp.getMessageTime(chatMessage.createdAt!,
-                            time: true)
+                                time: true)
                             : "sending_".tr(),
                         color: kGrayColor,
                         fontSize: 12,
@@ -1667,20 +1512,20 @@ class _OfficialServicesScreenState extends State<OfficialServicesScreen> {
                 icon: SvgPicture.asset(
                   toggleVoiceKeyboardButton,
                   color:
-                  isDarkMode ? Colors.white : Colors.black.withOpacity(0.7),
+                      isDarkMode ? Colors.white : Colors.black.withOpacity(0.7),
                   height: 25,
                   width: 25,
                 ),
                 onPressed: () {
                   setState(
-                        () {
+                    () {
                       if (toggleVoiceKeyboardButton ==
                           "assets/svg/ic_voice_message.svg") {
                         toggleVoiceKeyboardButton =
-                        "assets/svg/ic_keyboard.svg";
+                            "assets/svg/ic_keyboard.svg";
                       } else {
                         toggleVoiceKeyboardButton =
-                        "assets/svg/ic_voice_message.svg";
+                            "assets/svg/ic_voice_message.svg";
                       }
                     },
                   );
@@ -1808,7 +1653,7 @@ class _OfficialServicesScreenState extends State<OfficialServicesScreen> {
                     emojiViewConfig: EmojiViewConfig(
                       emojiSizeMax: 28 *
                           (foundation.defaultTargetPlatform ==
-                              TargetPlatform.iOS
+                                  TargetPlatform.iOS
                               ? 1.20
                               : 1.0),
                     ),
@@ -1831,12 +1676,12 @@ class _OfficialServicesScreenState extends State<OfficialServicesScreen> {
 
   // Save the message
   _saveMessage(
-      String messageText, {
-        required String messageType,
-        ParseFileBase? pictureFile,
-        ParseFileBase? voiceMessage,
-        String? voiceDuration,
-      }) async {
+    String messageText, {
+    required String messageType,
+    ParseFileBase? pictureFile,
+    ParseFileBase? voiceMessage,
+    String? voiceDuration,
+  }) async {
     if (messageText.isNotEmpty) {
       MessageModel message = MessageModel();
 
@@ -1881,7 +1726,7 @@ class _OfficialServicesScreenState extends State<OfficialServicesScreen> {
   // Update or Create message list
   _saveList(MessageModel messageModel) async {
     QueryBuilder<MessageListModel> queryFrom =
-    QueryBuilder<MessageListModel>(MessageListModel());
+        QueryBuilder<MessageListModel>(MessageListModel());
 
     queryFrom.whereEqualTo(
         MessageListModel.keyGroupReceiverId, widget.groupModel!.objectId);
@@ -2071,15 +1916,15 @@ class _OfficialServicesScreenState extends State<OfficialServicesScreen> {
                 borderRadius: 70,
                 child: Center(
                     child: Padding(
-                      padding: const EdgeInsets.all(10.0),
-                      child: Icon(
-                        messageModel.getCall!.getIsVoiceCall!
-                            ? Icons.phone
-                            : Icons.videocam,
-                        color: Colors.white,
-                        size: 25,
-                      ),
-                    )),
+                  padding: const EdgeInsets.all(10.0),
+                  child: Icon(
+                    messageModel.getCall!.getIsVoiceCall!
+                        ? Icons.phone
+                        : Icons.videocam,
+                    color: Colors.white,
+                    size: 25,
+                  ),
+                )),
               ),
             ],
           ),

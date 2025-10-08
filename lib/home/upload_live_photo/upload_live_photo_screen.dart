@@ -10,7 +10,8 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:trace/helpers/quick_actions.dart';
 import 'package:trace/helpers/quick_help.dart';
 import 'package:trace/utils/colors.dart';
-import 'package:wechat_assets_picker/wechat_assets_picker.dart';
+// import 'package:wechat_assets_picker/wechat_assets_picker.dart';  // Temporarily disabled due to Flutter 3.35 compatibility
+import 'package:image_picker/image_picker.dart';
 
 import '../../app/setup.dart';
 import '../../models/UserModel.dart';
@@ -20,8 +21,7 @@ import '../../ui/text_with_tap.dart';
 class UploadLivePhoto extends StatefulWidget {
   UserModel? currentUser;
 
-  UploadLivePhoto({this.currentUser, Key? key})
-      : super(key: key);
+  UploadLivePhoto({this.currentUser, Key? key}) : super(key: key);
 
   @override
   State<UploadLivePhoto> createState() => _UploadLivePhotoState();
@@ -58,7 +58,8 @@ class _UploadLivePhotoState extends State<UploadLivePhoto> {
         ),
         leading: BackButton(
           color: isDark ? Colors.white : kContentColorLightTheme,
-          onPressed: ()=> QuickHelp.goBackToPreviousPage(context, result: widget.currentUser),
+          onPressed: () => QuickHelp.goBackToPreviousPage(context,
+              result: widget.currentUser),
         ),
       ),
       body: Padding(
@@ -134,10 +135,9 @@ class _UploadLivePhotoState extends State<UploadLivePhoto> {
             borderRadius: BorderRadius.circular(10),
             child: QuickActions.photosWidget(
                 widget.currentUser!.getLiveCover!.url,
-              height: size.width / 1.7,
-              width: size.width / 1.7,
-              borderRadius: 10
-            ),
+                height: size.width / 1.7,
+                width: size.width / 1.7,
+                borderRadius: 10),
           ),
           Positioned(
             top: 0,
@@ -285,31 +285,20 @@ class _UploadLivePhotoState extends State<UploadLivePhoto> {
   }
 
   _choosePhoto(bool isAvatar) async {
-    final List<AssetEntity>? result = await AssetPicker.pickAssets(
-      context,
-      pickerConfig: AssetPickerConfig(
-        maxAssets: 1,
-        requestType: RequestType.image,
-        filterOptions: FilterOptionGroup(
-          containsLivePhotos: false,
-        ),
-      ),
-    );
+    // Temporarily replaced with ImagePicker due to wechat package compatibility issues
+    final ImagePicker picker = ImagePicker();
+    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
 
-    if (result != null && result.length > 0) {
+    if (image != null) {
       final List<File>? images = [];
-
-      for (int i = 0; i < result.length; i++) {
-        images!.add(await result[i].file as File);
-      }
+      images!.add(File(image.path));
 
       final tempDir = await getTemporaryDirectory();
       List<String> savedImagesPaths = [];
       DateTime date = DateTime.now();
 
       for (int i = 0; i < images!.length; i++) {
-        String imageName =
-            'live_photo_${date.second}_${date.millisecond}.jpg';
+        String imageName = 'live_photo_${date.second}_${date.millisecond}.jpg';
 
         File tempFile = File('${tempDir.path}/$imageName');
         await tempFile.writeAsBytes(await images[i].readAsBytes());

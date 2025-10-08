@@ -18,7 +18,9 @@ import 'package:trace/models/UserModel.dart';
 import 'package:trace/ui/container_with_corner.dart';
 import 'package:trace/ui/text_with_tap.dart';
 import 'package:trace/utils/colors.dart';
-import 'package:wechat_assets_picker/wechat_assets_picker.dart';
+// // import 'package:wechat_assets_picker/wechat_assets_picker.dart';  // Temporarily disabled due to Flutter 3.35 compatibility
+import 'package:image_picker/image_picker.dart'; // Temporarily disabled due to Flutter 3.35 compatibility
+import 'package:image_picker/image_picker.dart';
 
 // ignore: must_be_immutable
 class ProfileEdit extends StatefulWidget {
@@ -124,7 +126,8 @@ class _ProfileEditState extends State<ProfileEdit> {
         ),
         leading: BackButton(
           color: isDark ? Colors.white : kContentColorLightTheme,
-          onPressed: () => QuickHelp.goBackToPreviousPage(context, result: widget.currentUser),
+          onPressed: () => QuickHelp.goBackToPreviousPage(context,
+              result: widget.currentUser),
         ),
       ),
       body: ListView(
@@ -719,30 +722,21 @@ class _ProfileEditState extends State<ProfileEdit> {
   }
 
   _choosePhoto(bool isAvatar) async {
-    final List<AssetEntity>? result = await AssetPicker.pickAssets(
-      context,
-      pickerConfig: AssetPickerConfig(
-        maxAssets: 1,
-        requestType: RequestType.image,
-        filterOptions: FilterOptionGroup(
-          containsLivePhotos: false,
-        ),
-      ),
-    );
+    // Temporarily replaced with ImagePicker due to wechat package compatibility issues
+    final ImagePicker picker = ImagePicker();
+    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
 
-    if (result != null && result.length > 0) {
+    if (image != null) {
       final List<File>? images = [];
-
-      for (int i = 0; i < result.length; i++) {
-        images!.add(await result[i].file as File);
-      }
+      images!.add(File(image.path));
 
       final tempDir = await getTemporaryDirectory();
       List<String> savedImagesPaths = [];
       DateTime date = DateTime.now();
 
       for (int i = 0; i < images!.length; i++) {
-        String imageName = 'user_pic_${i}_${date.second}_${date.millisecond}.jpg';
+        String imageName =
+            'user_pic_${i}_${date.second}_${date.millisecond}.jpg';
 
         File tempFile = File('${tempDir.path}/$imageName');
         await tempFile.writeAsBytes(await images[i].readAsBytes());

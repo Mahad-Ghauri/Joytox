@@ -12,7 +12,8 @@ import 'package:trace/models/UserModel.dart';
 import 'package:trace/ui/container_with_corner.dart';
 import 'package:trace/ui/text_with_tap.dart';
 import 'package:trace/utils/colors.dart';
-import 'package:wechat_camera_picker/wechat_camera_picker.dart';
+// import 'package:wechat_camera_picker/wechat_camera_picker.dart';  // Temporarily disabled due to Flutter 3.35 compatibility
+import 'package:camera/camera.dart';
 import 'package:zego_uikit_prebuilt_live_streaming/zego_uikit_prebuilt_live_streaming.dart';
 import '../../app/constants.dart';
 import '../../app/setup.dart';
@@ -68,7 +69,6 @@ class _LivePreviewScreenState extends State<LivePreviewScreen>
 
   late SharedPreferences preferences;
 
-
   bool privateLive = false;
   GiftsModel? privateLiveGiftPrice;
 
@@ -86,7 +86,7 @@ class _LivePreviewScreenState extends State<LivePreviewScreen>
   ];
 
   //var audioRoomSeatsNumber = [8,12,16,20,24];
-  var audioRoomSeatsNumber = [8,12,16];
+  var audioRoomSeatsNumber = [8, 12, 16];
 
   var unselectedPartyChair = [
     "assets/images/ic_party_person_4_unselect.png",
@@ -258,15 +258,18 @@ class _LivePreviewScreenState extends State<LivePreviewScreen>
                               marginTop: 2,
                               color: Colors.black.withOpacity(0.2),
                               child: Padding(
-                                padding: EdgeInsets.only(left: 10, right: 10, top: 5, bottom: 5),
+                                padding: EdgeInsets.only(
+                                    left: 10, right: 10, top: 5, bottom: 5),
                                 child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     ContainerCorner(
                                       width: size.width / 1.5,
                                       child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
                                           TextWithTap(
                                             "private_live_title".tr(),
@@ -293,32 +296,39 @@ class _LivePreviewScreenState extends State<LivePreviewScreen>
                                             setState(() {
                                               privateLive = value;
                                             });
-                                            if(privateLive) {
+                                            if (privateLive) {
                                               PrivateLivePriceWidget(
                                                   context: context,
-                                                  onCancel: () {disablePrivateLive();},
-                                                  onGiftSelected: (gift){
-                                                    selectPrivateRoomPrice(gift);
-                                                  }
-                                              );
+                                                  onCancel: () {
+                                                    disablePrivateLive();
+                                                  },
+                                                  onGiftSelected: (gift) {
+                                                    selectPrivateRoomPrice(
+                                                        gift);
+                                                  });
                                             }
                                           },
                                           activeColor: kPrimaryColor,
                                         ),
-                                        if(privateLive && privateLiveGiftPrice != null)
+                                        if (privateLive &&
+                                            privateLiveGiftPrice != null)
                                           Column(
                                             children: [
                                               Container(
                                                 width: 35,
                                                 height: 35,
                                                 child: ClipRRect(
-                                                  borderRadius: BorderRadius.circular(3),
-                                                  child: QuickActions.photosWidget(
-                                                      privateLiveGiftPrice!.getPreview!.url),
+                                                  borderRadius:
+                                                      BorderRadius.circular(3),
+                                                  child:
+                                                      QuickActions.photosWidget(
+                                                          privateLiveGiftPrice!
+                                                              .getPreview!.url),
                                                 ),
                                               ),
                                               Row(
-                                                mainAxisAlignment: MainAxisAlignment.center,
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment.center,
                                                 mainAxisSize: MainAxisSize.min,
                                                 children: [
                                                   SvgPicture.asset(
@@ -327,7 +337,9 @@ class _LivePreviewScreenState extends State<LivePreviewScreen>
                                                     height: 16,
                                                   ),
                                                   TextWithTap(
-                                                    privateLiveGiftPrice!.getCoins.toString(),
+                                                    privateLiveGiftPrice!
+                                                        .getCoins
+                                                        .toString(),
                                                     fontSize: 14,
                                                     marginLeft: 5,
                                                     color: Colors.white,
@@ -481,8 +493,8 @@ class _LivePreviewScreenState extends State<LivePreviewScreen>
                                 if (liveTagsSelected.contains(
                                     QuickHelp.getLiveTagsList()[index])) {
                                   liveTagsSelected.removeAt(
-                                      liveTagsSelected.indexOf(QuickHelp
-                                          .getLiveTagsList()[index]));
+                                      liveTagsSelected.indexOf(
+                                          QuickHelp.getLiveTagsList()[index]));
                                 } else {
                                   if (liveTagsSelected.length < 5) {
                                     liveTagsSelected.add(
@@ -707,14 +719,17 @@ class _LivePreviewScreenState extends State<LivePreviewScreen>
                 },
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [isSelected ? kRedColor1 : kTransparentColor, isSelected ? kGoogleColor: kTransparentColor],
+                colors: [
+                  isSelected ? kRedColor1 : kTransparentColor,
+                  isSelected ? kGoogleColor : kTransparentColor
+                ],
                 borderRadius: 4,
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     TextWithTap(
                       "${audioRoomSeatsNumber[index]}",
-                      color: isSelected ? Colors.white: Colors.white54,
+                      color: isSelected ? Colors.white : Colors.white54,
                       fontWeight: FontWeight.w900,
                       marginRight: 5,
                       marginLeft: 3,
@@ -723,11 +738,13 @@ class _LivePreviewScreenState extends State<LivePreviewScreen>
                       "assets/svg/audio_room_seats.svg",
                       width: 25,
                       colorFilter: ColorFilter.mode(
-                        isSelected ? Colors.white: Colors.white54,
+                        isSelected ? Colors.white : Colors.white54,
                         BlendMode.srcIn,
                       ),
                     ),
-                    SizedBox(width: 3,),
+                    SizedBox(
+                      width: 3,
+                    ),
                   ],
                 ),
               );
@@ -753,7 +770,8 @@ class _LivePreviewScreenState extends State<LivePreviewScreen>
                 } else {
                   QuickHelp.showAppNotificationAdvanced(
                     title: "live_starter_screen.select_live_cover_tittle".tr(),
-                    message: "live_starter_screen.select_live_cover_explain".tr(),
+                    message:
+                        "live_starter_screen.select_live_cover_explain".tr(),
                     context: context,
                   );
                 }
@@ -814,20 +832,20 @@ class _LivePreviewScreenState extends State<LivePreviewScreen>
     streamingModel.setAuthorUserName = widget.currentUser!.getUsername!;
     streamingModel.setHashtags = liveTagsSelected;
 
-    if(privateLive && privateLiveGiftPrice != null) {
+    if (privateLive && privateLiveGiftPrice != null) {
       streamingModel.setPrivate = true;
       streamingModel.setPrivateLivePrice = privateLiveGiftPrice!;
     }
 
-    if(selectedAudioRoomSeatNumber[0] == 0) {
+    if (selectedAudioRoomSeatNumber[0] == 0) {
       streamingModel.setNumberOfChairs = audioRoomSeatsNumber[0];
-    }else if(selectedAudioRoomSeatNumber[0] == 1){
+    } else if (selectedAudioRoomSeatNumber[0] == 1) {
       streamingModel.setNumberOfChairs = audioRoomSeatsNumber[1];
-    }else if(selectedAudioRoomSeatNumber[0] == 2){
+    } else if (selectedAudioRoomSeatNumber[0] == 2) {
       streamingModel.setNumberOfChairs = audioRoomSeatsNumber[2];
-    }else if(selectedAudioRoomSeatNumber[0] == 3){
+    } else if (selectedAudioRoomSeatNumber[0] == 3) {
       streamingModel.setNumberOfChairs = audioRoomSeatsNumber[3];
-    }else if(selectedAudioRoomSeatNumber[0] == 4){
+    } else if (selectedAudioRoomSeatNumber[0] == 4) {
       streamingModel.setNumberOfChairs = audioRoomSeatsNumber[4];
     }
 
@@ -1244,7 +1262,7 @@ class _LivePreviewScreenState extends State<LivePreviewScreen>
     streamingModel.setAuthorUserName = widget.currentUser!.getUsername!;
     streamingModel.setHashtags = liveTagsSelected;
 
-    if(privateLive && privateLiveGiftPrice != null) {
+    if (privateLive && privateLiveGiftPrice != null) {
       streamingModel.setPrivate = true;
       streamingModel.setPrivateLivePrice = privateLiveGiftPrice!;
     }
@@ -1364,7 +1382,7 @@ class _LivePreviewScreenState extends State<LivePreviewScreen>
     streamingModel.setImage = widget.currentUser!.getLiveCover!;
     streamingModel.setHashtags = liveTagsSelected;
 
-    if(privateLive && privateLiveGiftPrice != null) {
+    if (privateLive && privateLiveGiftPrice != null) {
       streamingModel.setPrivate = true;
       streamingModel.setPrivateLivePrice = privateLiveGiftPrice!;
     }

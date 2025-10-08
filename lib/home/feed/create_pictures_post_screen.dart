@@ -14,7 +14,8 @@ import 'package:trace/home/feed/visualize_multiple_pictures_screen.dart';
 import 'package:trace/models/UserModel.dart';
 import 'package:trace/ui/container_with_corner.dart';
 import 'package:trace/utils/colors.dart';
-import 'package:wechat_assets_picker/wechat_assets_picker.dart';
+// import 'package:wechat_assets_picker/wechat_assets_picker.dart';  // Temporarily disabled due to Flutter 3.35 compatibility
+import 'package:image_picker/image_picker.dart';
 
 import '../../app/setup.dart';
 import '../../helpers/quick_actions.dart';
@@ -484,12 +485,13 @@ class _CreatePicturesPostScreenState extends State<CreatePicturesPostScreen> {
 
   Future<void> checkPermission(bool isAvatar) async {
     if (QuickHelp.isAndroidPlatform()) {
-
       DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
       AndroidDeviceInfo androidInfo = await deviceInfo.androidInfo;
       bool api32 = androidInfo.version.sdkInt <= 32;
 
-      PermissionStatus status = api32 ? await Permission.storage.status : await Permission.photos.status;
+      PermissionStatus status = api32
+          ? await Permission.storage.status
+          : await Permission.photos.status;
       PermissionStatus status2 = await Permission.camera.status;
       print('Permission android');
 
@@ -556,23 +558,13 @@ class _CreatePicturesPostScreenState extends State<CreatePicturesPostScreen> {
   }
 
   _choosePhoto(bool isAvatar) async {
-    final List<AssetEntity>? result = await AssetPicker.pickAssets(
-      context,
-      pickerConfig: AssetPickerConfig(
-        maxAssets: 9 - selectedPictures.length,
-        requestType: RequestType.image,
-        filterOptions: FilterOptionGroup(
-          containsLivePhotos: false,
-        ),
-      ),
-    );
+    // Temporarily replaced with ImagePicker due to wechat package compatibility issues
+    final ImagePicker picker = ImagePicker();
+    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
 
-    if (result != null && result.length > 0) {
+    if (image != null) {
       final List<File>? images = [];
-
-      for (int i = 0; i < result.length; i++) {
-        images!.add(await result[i].file as File);
-      }
+      images!.add(File(image.path));
 
       final tempDir = await getTemporaryDirectory();
       List<String> savedImagesPaths = [];
@@ -643,7 +635,7 @@ class _CreatePicturesPostScreenState extends State<CreatePicturesPostScreen> {
       );
       _sendPushToFollowers(postsModel);
       QuickHelp.goToNavigatorScreen(
-          context,
+        context,
         CommentPostScreen(
           currentUser: widget.currentUser,
           post: postsModel,
@@ -663,7 +655,7 @@ class _CreatePicturesPostScreenState extends State<CreatePicturesPostScreen> {
   _sendPushToFollowers(PostsModel post) async {
     if (widget.currentUser!.getFollowers!.isNotEmpty) {
       QueryBuilder<UserModel> queryUsers =
-      QueryBuilder<UserModel>(UserModel.forQuery());
+          QueryBuilder<UserModel>(UserModel.forQuery());
 
       queryUsers.whereContainedIn(
           UserModel.keyObjectId, widget.currentUser!.getFollowers!);
@@ -677,7 +669,9 @@ class _CreatePicturesPostScreenState extends State<CreatePicturesPostScreen> {
               user,
               SendNotifications.typePost,
               objectId: post.objectId!,
-              pictureURL: post.getImagesList!.isNotEmpty ? post.getImagesList![0].url : "",
+              pictureURL: post.getImagesList!.isNotEmpty
+                  ? post.getImagesList![0].url
+                  : "",
             );
           }
         }

@@ -16,7 +16,9 @@ import 'package:trace/models/UserModel.dart';
 import 'package:trace/ui/container_with_corner.dart';
 import 'package:trace/ui/text_with_tap.dart';
 import 'package:trace/utils/colors.dart';
-import 'package:wechat_assets_picker/wechat_assets_picker.dart';
+// // import 'package:wechat_assets_picker/wechat_assets_picker.dart';  // Temporarily disabled due to Flutter 3.35 compatibility
+import 'package:image_picker/image_picker.dart'; // Temporarily disabled due to Flutter 3.35 compatibility
+import 'package:image_picker/image_picker.dart';
 import '../../models/FanClubModel.dart';
 import '../../ui/button_with_icon.dart';
 import 'package:calendar_date_picker2/calendar_date_picker2.dart';
@@ -659,23 +661,13 @@ class _ProfileCompleteEditState extends State<ProfileCompleteEdit> {
   }
 
   _choosePhoto(bool isAvatar) async {
-    final List<AssetEntity>? result = await AssetPicker.pickAssets(
-      context,
-      pickerConfig: AssetPickerConfig(
-        maxAssets: 1,
-        requestType: RequestType.image,
-        filterOptions: FilterOptionGroup(
-          containsLivePhotos: false,
-        ),
-      ),
-    );
+    // Temporarily replaced with ImagePicker due to wechat package compatibility issues
+    final ImagePicker picker = ImagePicker();
+    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
 
-    if (result != null && result.length > 0) {
-      final List<File>? images = [];
-
-      for (int i = 0; i < result.length; i++) {
-        images!.add(await result[i].file as File);
-      }
+    if (image != null) {
+      // Simulate single asset result for compatibility
+      final List<File> images = [File(image.path)];
 
       final tempDir = await getTemporaryDirectory();
       List<String> savedImagesPaths = [];

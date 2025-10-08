@@ -28,8 +28,9 @@ import 'package:trace/ui/text_with_tap.dart';
 import 'package:trace/utils/colors.dart';
 import 'package:trace/utils/utilsConstants.dart';
 import 'package:sticky_grouped_list/sticky_grouped_list.dart';
-import 'package:wechat_assets_picker/wechat_assets_picker.dart';
-import 'package:wechat_camera_picker/wechat_camera_picker.dart';
+// import 'package:wechat_assets_picker/wechat_assets_picker.dart';  // Temporarily disabled due to Flutter 3.35 compatibility
+// import 'package:wechat_camera_picker/wechat_camera_picker.dart';  // Temporarily disabled due to Flutter 3.35 compatibility
+import 'package:image_picker/image_picker.dart';
 import 'package:zego_uikit_prebuilt_call/zego_uikit_prebuilt_call.dart';
 
 import '../../app/setup.dart';
@@ -300,20 +301,12 @@ class _MessageScreenState extends State<MessageScreen> {
   }
 
   _choosePhoto() async {
-    final List<AssetEntity>? result = await AssetPicker.pickAssets(
-      context,
-      pickerConfig: AssetPickerConfig(
-        maxAssets: 1,
-        requestType: RequestType.image,
-        filterOptions: FilterOptionGroup(
-          containsLivePhotos: false,
-        ),
-      ),
-    );
+    // Temporarily replaced with ImagePicker due to wechat package compatibility issues
+    final ImagePicker picker = ImagePicker();
+    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
 
-    if (result != null && result.length > 0) {
-      final File? image = await result.first.file;
-      cropPhoto(image!.path);
+    if (image != null) {
+      cropPhoto(image.path);
     } else {
       print("Photos null");
     }
