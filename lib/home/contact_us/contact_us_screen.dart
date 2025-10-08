@@ -24,11 +24,14 @@ class ContactUsScreen extends StatefulWidget {
 
 class _ContactUsScreenState extends State<ContactUsScreen> {
   final Uri facebookURL = Uri.parse(Setup.facebookPage);
-  final Uri facebookProfileURL = Uri.parse(Setup.facebookProfile);
+  final Uri whatsappURL = Uri.parse(Setup.whatsapp);
+  final Uri ticktockURL = Uri.parse(Setup.ticktock);
   final Uri youtubeURL = Uri.parse(Setup.youtube);
   final Uri instagramURL = Uri.parse(Setup.instagram);
 
   var socialMediaLogos = [
+    "assets/svg/whatsapp.png",
+    "assets/svg/ticktock.jpg",
     "assets/svg/fa_facebook_logo.svg",
     "assets/svg/fa_instagram_logo.svg",
     "assets/svg/fa_youtube_logo.svg",
@@ -64,7 +67,9 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
     Size size = MediaQuery.of(context).size;
 
     socialMediaURL = [
-      facebookProfileURL,
+      whatsappURL,
+      ticktockURL,
+      facebookURL,
       instagramURL,
       youtubeURL,
     ];

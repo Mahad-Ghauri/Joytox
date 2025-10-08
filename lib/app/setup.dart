@@ -110,13 +110,17 @@ class Setup {
 
   //Social media links
   static const String facebookPage =
-      "https://www.facebook.com/profile.php?id=100063582998530";
-  static const String facebookProfile =
-      "https://www.facebook.com/chancilsom.jose/";
+      "https://www.facebook.com/share/1Bo5hwRxdX/?mibextid=wwXIfr";
+  static const String whatsapp = "https://whatsapp.com/channel/0029Vayes3pHFxP57A5Tr73w";
+  static const String ticktock =
+      "https://www.tiktok.com/@joytoxofficial?_t=ZS-90NnjG1mUkR&_r=1";
+  // static const String facebookProfile =
+  //     "https://www.facebook.com/chancilsom.jose/";
   static const String youtube =
-      "https://www.youtube.com/channel/UCtsFF65NSAGiq-5Ese1Jg_w";
-  static const String instagram = "https://www.instagram.com/chancilson/";
-  static const String gmail = "matulaalberto@gmail.com";
+      "https://youtube.com/@joytoxofficial?si=qjirFbDxjWO_CyIp";
+  static const String instagram =
+      "https://www.instagram.com/joytoxofficial?igsh=OGNxY3V1MDlpaGZ1&utm_source=qr";
+  static const String gmail = "joytoxofficial@gmail.com";
 
   //Admob
   static const String admobAndroidWalletReward =
