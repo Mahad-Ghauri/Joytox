@@ -182,6 +182,7 @@ class PreBuildLiveController extends GetxController {
       amountTransacted: gift.getCoins!,
     );
   }
+  
 
   @override
   void onClose() {

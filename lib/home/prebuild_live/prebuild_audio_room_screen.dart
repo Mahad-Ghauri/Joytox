@@ -2530,6 +2530,11 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
         sendMessage("sent_gift".tr(namedArgs: {"name": mUser.getFullName!}));
       }
 
+      // Refresh UI to show updated earnings
+      setState(() {
+        // This will trigger a rebuild and show the updated diamond count
+      });
+
       /*sendMessage(LiveMessagesModel.messageTypeGift, "", widget.currentUser,
           giftsSent: giftsSentModel);*/
     } else {

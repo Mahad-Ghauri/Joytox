@@ -55,18 +55,19 @@ class MultiUsersLiveScreen extends StatefulWidget {
 
   MultiUsersLiveScreen(
       {Key? key,
-        required this.liveID,
-        required this.localUserID,
-        this.isHost = false,
-        this.currentUser,
-        this.liveStreaming})
+      required this.liveID,
+      required this.localUserID,
+      this.isHost = false,
+      this.currentUser,
+      this.liveStreaming})
       : super(key: key);
 
   @override
   State<StatefulWidget> createState() => MultiUsersLiveScreenState();
 }
 
-class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen> with TickerProviderStateMixin {
+class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen>
+    with TickerProviderStateMixin {
   bool following = false;
 
   SharedPreferences? preference;
@@ -84,14 +85,12 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen> with TickerP
   final AvatarService _avatarService = AvatarService();
 
   Widget _getOrCreateAvatarWidget(String userId, Size size) {
-
     if (_avatarWidgetsCache.containsKey(userId)) {
       return _avatarWidgetsCache[userId]!;
     }
 
     _avatarService.fetchUserAvatar(userId).then((avatarUrl) {
       if (avatarUrl != null && mounted) {
-
         Widget avatarWidget = QuickActions.photosWidget(
           avatarUrl,
           width: size.width,
@@ -110,7 +109,7 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen> with TickerP
       height: size.width,
       radius: 200,
       fadeTheme:
-      QuickHelp.isDarkModeNoContext() ? FadeTheme.dark : FadeTheme.light,
+          QuickHelp.isDarkModeNoContext() ? FadeTheme.dark : FadeTheme.light,
     );
   }
 
@@ -119,29 +118,33 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen> with TickerP
     super.initState();
     WakelockPlus.enable();
     initSharedPref();
-    Future.delayed(Duration(minutes: 2)).then((value){
+    Future.delayed(Duration(minutes: 2)).then((value) {
       widget.currentUser!.addUserPoints = widget.isHost ? 350 : 200;
       widget.currentUser!.save();
     });
-    showGiftSendersController.isPrivateLive.value = widget.liveStreaming!.getPrivate!;
-    following = widget.currentUser!.getFollowing!.contains(widget.liveStreaming!.getAuthorId);
-    showGiftSendersController.diamondsCounter.value = widget.liveStreaming!.getDiamonds!.toString();
-    showGiftSendersController.shareMediaFiles.value = widget.liveStreaming!.getSharingMedia!;
+    showGiftSendersController.isPrivateLive.value =
+        widget.liveStreaming!.getPrivate!;
+    following = widget.currentUser!.getFollowing!
+        .contains(widget.liveStreaming!.getAuthorId);
+    showGiftSendersController.diamondsCounter.value =
+        widget.liveStreaming!.getDiamonds!.toString();
+    showGiftSendersController.shareMediaFiles.value =
+        widget.liveStreaming!.getSharingMedia!;
     ZegoGiftManager().cache.cacheAllFiles(giftItemList);
 
     ZegoGiftManager().service.recvNotifier.addListener(onGiftReceived);
 
     WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
       ZegoGiftManager().service.init(
-        appID: Setup.zegoLiveStreamAppID,
-        liveID: widget.liveID,
-        localUserID: widget.currentUser!.objectId!,
-        localUserName: widget.currentUser!.getUsername!,
-      );
+            appID: Setup.zegoLiveStreamAppID,
+            liveID: widget.liveID,
+            localUserID: widget.currentUser!.objectId!,
+            localUserName: widget.currentUser!.getUsername!,
+          );
     });
     setupLiveGifts();
     setupStreamingLiveQuery();
-    if(widget.isHost) {
+    if (widget.isHost) {
       addOrUpdateLiveViewers();
     }
     _animationController = AnimationController.unbounded(vsync: this);
@@ -158,7 +161,7 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen> with TickerP
   }
 
   final liveStateNotifier =
-  ValueNotifier<ZegoLiveStreamingState>(ZegoLiveStreamingState.idle);
+      ValueNotifier<ZegoLiveStreamingState>(ZegoLiveStreamingState.idle);
 
   Controller showGiftSendersController = Get.put(Controller());
   var coHostsList = [];
@@ -198,16 +201,16 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen> with TickerP
           Map extraInfo) {
         return user != null
             ? Container(
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            image: DecorationImage(
-              fit: BoxFit.contain,
-              image: NetworkImage(
-                widget.liveStreaming!.getAuthor!.getAvatar!.url!,
-              ),
-            ),
-          ),
-        )
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  image: DecorationImage(
+                    fit: BoxFit.contain,
+                    image: NetworkImage(
+                      widget.liveStreaming!.getAuthor!.getAvatar!.url!,
+                    ),
+                  ),
+                ),
+              )
             : const SizedBox();
       };
 
@@ -219,7 +222,7 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen> with TickerP
     final audienceEvents = ZegoUIKitPrebuiltLiveStreamingEvents(
         inRoomMessage: ZegoLiveStreamingInRoomMessageEvents(
           onClicked: (message) {
-            if(message.user.id != widget.currentUser!.objectId) {
+            if (message.user.id != widget.currentUser!.objectId) {
               showUserProfileBottomSheet(
                 currentUser: widget.currentUser!,
                 userId: message.user.id,
@@ -228,45 +231,40 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen> with TickerP
             }
           },
         ),
-        memberList: ZegoLiveStreamingMemberListEvents(
-            onClicked: (user) {
-              if(user.id != widget.currentUser!.objectId) {
-                QuickHelp.hideLoadingDialog(context);
-                showUserProfileBottomSheet(
-                  currentUser: widget.currentUser!,
-                  userId: user.id,
-                  context: context,
-                );
-              }
-            }
-        ),
+        memberList: ZegoLiveStreamingMemberListEvents(onClicked: (user) {
+          if (user.id != widget.currentUser!.objectId) {
+            QuickHelp.hideLoadingDialog(context);
+            showUserProfileBottomSheet(
+              currentUser: widget.currentUser!,
+              userId: user.id,
+              context: context,
+            );
+          }
+        }),
         onError: (ZegoUIKitError error) {
           debugPrint('onError:$error');
         },
-        user: ZegoLiveStreamingUserEvents(
-            onEnter: (zegoUser){
-              addOrUpdateLiveViewers();
-            },
-            onLeave: (zegoUser) {
-              onViewerLeave();
-            }
-        ),
+        user: ZegoLiveStreamingUserEvents(onEnter: (zegoUser) {
+          addOrUpdateLiveViewers();
+        }, onLeave: (zegoUser) {
+          onViewerLeave();
+        }),
         onEnded: (
-            ZegoLiveStreamingEndEvent event,
-            VoidCallback defaultAction,
-            ) {
+          ZegoLiveStreamingEndEvent event,
+          VoidCallback defaultAction,
+        ) {
           if (ZegoLiveStreamingEndReason.hostEnd == event.reason) {
             if (event.isFromMinimizing) {
               /// now is minimizing state, not need to navigate, just switch to idle
-              ZegoUIKitPrebuiltLiveStreamingController()
-                  .minimize
-                  .hide();
+              ZegoUIKitPrebuiltLiveStreamingController().minimize.hide();
               onViewerLeave();
             } else {
-              QuickHelp.goToNavigatorScreen(context, LiveEndScreen(
-                currentUser: widget.currentUser,
-                liveAuthor: widget.liveStreaming!.getAuthor,
-              ));
+              QuickHelp.goToNavigatorScreen(
+                  context,
+                  LiveEndScreen(
+                    currentUser: widget.currentUser,
+                    liveAuthor: widget.liveStreaming!.getAuthor,
+                  ));
               onViewerLeave();
             }
           } else {
@@ -276,12 +274,13 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen> with TickerP
         },
         coHost: ZegoLiveStreamingCoHostEvents(
           onUpdated: (co_hosts_ids) {
-            for(ZegoUIKitUser coHost in co_hosts_ids) {
-              if(!coHostsList.contains(coHost.id)) {
+            for (ZegoUIKitUser coHost in co_hosts_ids) {
+              if (!coHostsList.contains(coHost.id)) {
                 coHostsList.add(coHost.id);
               }
             }
-            coHostsList.removeWhere((id) => !co_hosts_ids.any((coHost) => coHost.id == id));
+            coHostsList.removeWhere(
+                (id) => !co_hosts_ids.any((coHost) => coHost.id == id));
             setState(() {});
           },
         ),
@@ -309,72 +308,76 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen> with TickerP
           liveID: widget.liveID,
           events: widget.isHost
               ? ZegoUIKitPrebuiltLiveStreamingEvents(
-            inRoomMessage: ZegoLiveStreamingInRoomMessageEvents(
-              onClicked: (message) {
-                if(message.user.id != widget.currentUser!.objectId) {
-                  showUserProfileBottomSheet(
-                    currentUser: widget.currentUser!,
-                    userId: message.user.id,
-                    context: context,
-                  );
-                }
-              },
-            ),
-            memberList: ZegoLiveStreamingMemberListEvents(
-                onClicked: (user) {
-                  if(user.id != widget.currentUser!.objectId) {
-                    QuickHelp.hideLoadingDialog(context);
-                    showUserProfileBottomSheet(
-                      currentUser: widget.currentUser!,
-                      userId: user.id,
-                      context: context,
-                    );
-                  }
-                }
-            ),
-            onError: (ZegoUIKitError error) {
-              debugPrint('onError:$error');
-            },
-            onEnded: (
-                ZegoLiveStreamingEndEvent event,
-                VoidCallback defaultAction,
-                ) {
-              if (ZegoLiveStreamingEndReason.hostEnd == event.reason) {
-                if (event.isFromMinimizing) {
-                  /// now is minimizing state, not need to navigate, just switch to idle
-                  ZegoUIKitPrebuiltLiveStreamingController()
-                      .minimize
-                      .hide();
-                  onViewerLeave();
-                } else {
-                  QuickHelp.goToNavigatorScreen(context, LiveEndScreen(
-                    currentUser: widget.currentUser,
-                    liveAuthor: widget.liveStreaming!.getAuthor,
-                  ));
-                  onViewerLeave();
-                }
-              } else {
-                defaultAction.call();
-                QuickHelp.goToNavigatorScreen(context, LiveEndScreen(
-                  currentUser: widget.currentUser,
-                  liveAuthor: widget.liveStreaming!.getAuthor,
-                ));
-                onViewerLeave();
-              }
-            },
-            onStateUpdated: (state) {
-              liveStateNotifier.value = state;
-              if (ZegoLiveStreamingState.idle == state) {
-                ZegoGiftManager().playList.clear();
-              }
-            },
-          )
+                  inRoomMessage: ZegoLiveStreamingInRoomMessageEvents(
+                    onClicked: (message) {
+                      if (message.user.id != widget.currentUser!.objectId) {
+                        showUserProfileBottomSheet(
+                          currentUser: widget.currentUser!,
+                          userId: message.user.id,
+                          context: context,
+                        );
+                      }
+                    },
+                  ),
+                  memberList:
+                      ZegoLiveStreamingMemberListEvents(onClicked: (user) {
+                    if (user.id != widget.currentUser!.objectId) {
+                      QuickHelp.hideLoadingDialog(context);
+                      showUserProfileBottomSheet(
+                        currentUser: widget.currentUser!,
+                        userId: user.id,
+                        context: context,
+                      );
+                    }
+                  }),
+                  onError: (ZegoUIKitError error) {
+                    debugPrint('onError:$error');
+                  },
+                  onEnded: (
+                    ZegoLiveStreamingEndEvent event,
+                    VoidCallback defaultAction,
+                  ) {
+                    if (ZegoLiveStreamingEndReason.hostEnd == event.reason) {
+                      if (event.isFromMinimizing) {
+                        /// now is minimizing state, not need to navigate, just switch to idle
+                        ZegoUIKitPrebuiltLiveStreamingController()
+                            .minimize
+                            .hide();
+                        onViewerLeave();
+                      } else {
+                        QuickHelp.goToNavigatorScreen(
+                            context,
+                            LiveEndScreen(
+                              currentUser: widget.currentUser,
+                              liveAuthor: widget.liveStreaming!.getAuthor,
+                            ));
+                        onViewerLeave();
+                      }
+                    } else {
+                      defaultAction.call();
+                      QuickHelp.goToNavigatorScreen(
+                          context,
+                          LiveEndScreen(
+                            currentUser: widget.currentUser,
+                            liveAuthor: widget.liveStreaming!.getAuthor,
+                          ));
+                      onViewerLeave();
+                    }
+                  },
+                  onStateUpdated: (state) {
+                    liveStateNotifier.value = state;
+                    if (ZegoLiveStreamingState.idle == state) {
+                      ZegoGiftManager().playList.clear();
+                    }
+                  },
+                )
               : audienceEvents,
           config: (widget.isHost ? hostConfig : audienceConfig)
             ..layout = ZegoLayout.gallery(
               margin: EdgeInsets.all(2.0),
               showNewScreenSharingViewInFullscreenMode: false,
-              showScreenSharingFullscreenModeToggleButtonRules: ZegoShowFullscreenModeToggleButtonRules.alwaysShow,
+              showScreenSharingFullscreenModeToggleButtonRules:
+                  ZegoShowFullscreenModeToggleButtonRules.alwaysShow,
             )
             ..audioVideoView.useVideoViewAspectFill = true
             ..audioVideoView.showUserNameOnView = true
@@ -382,11 +385,11 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen> with TickerP
               return Rect.fromLTWH(0, 0, size.width, size.height / 1.4);
             }
             ..audioVideoView.containerBuilder = (
-                context,
-                allUsers,
-                audioVideoUsers,
-                audioVideoViewCreator,
-                ) {
+              context,
+              allUsers,
+              audioVideoUsers,
+              audioVideoViewCreator,
+            ) {
               return SizedBox(
                 width: MediaQuery.of(context).size.width,
                 height: 550,
@@ -395,17 +398,21 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen> with TickerP
                   padding: EdgeInsets.only(left: 10, right: 10, top: 120),
                   mainAxisSpacing: 10,
                   crossAxisSpacing: 10,
-                  crossAxisCount: widget.liveStreaming!.getNumberOfChairs! == 4 ? 2 : 3,
-                  childAspectRatio: widget.liveStreaming!.getNumberOfChairs! == 6 ? 0.8 : 1.0,
+                  crossAxisCount:
+                      widget.liveStreaming!.getNumberOfChairs! == 4 ? 2 : 3,
+                  childAspectRatio:
+                      widget.liveStreaming!.getNumberOfChairs! == 6 ? 0.8 : 1.0,
                   children: [
-                    ...List.generate(widget.liveStreaming!.getNumberOfChairs!, (seatIndex) {
-                      if(audioVideoUsers.length - 1 >= seatIndex){
+                    ...List.generate(widget.liveStreaming!.getNumberOfChairs!,
+                        (seatIndex) {
+                      if (audioVideoUsers.length - 1 >= seatIndex) {
                         return SizedBox(
                           width: double.infinity,
                           height: double.infinity,
                           child: GestureDetector(
-                            onTap: (){
-                              if(audioVideoUsers[seatIndex].id != widget.currentUser!.objectId) {
+                            onTap: () {
+                              if (audioVideoUsers[seatIndex].id !=
+                                  widget.currentUser!.objectId) {
                                 showUserProfileBottomSheet(
                                   currentUser: widget.currentUser!,
                                   userId: audioVideoUsers[seatIndex].id,
@@ -416,9 +423,11 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen> with TickerP
                             child: Stack(
                               //alignment: Alignment.bottomLeft,
                               children: [
-                                audioVideoViewCreator(audioVideoUsers[seatIndex]),
+                                audioVideoViewCreator(
+                                    audioVideoUsers[seatIndex]),
                                 Visibility(
-                                  visible: audioVideoUsers[seatIndex].id == widget.liveStreaming!.getAuthorId,
+                                  visible: audioVideoUsers[seatIndex].id ==
+                                      widget.liveStreaming!.getAuthorId,
                                   child: ContainerCorner(
                                     marginTop: 1,
                                     marginLeft: 1,
@@ -433,7 +442,8 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen> with TickerP
                                   ),
                                 ),
                                 Visibility(
-                                  visible: audioVideoUsers[seatIndex].id != widget.liveStreaming!.getAuthorId,
+                                  visible: audioVideoUsers[seatIndex].id !=
+                                      widget.liveStreaming!.getAuthorId,
                                   child: ContainerCorner(
                                     marginTop: 1,
                                     marginLeft: 1,
@@ -441,7 +451,7 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen> with TickerP
                                     radiusBottomRight: 8,
                                     color: Colors.black38,
                                     child: TextWithTap(
-                                      "${seatIndex+1}",
+                                      "${seatIndex + 1}",
                                       color: Colors.white,
                                       fontWeight: FontWeight.w900,
                                       fontSize: 8,
@@ -455,14 +465,17 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen> with TickerP
                             ),
                           ),
                         );
-                      }else{
+                      } else {
                         return ContainerCorner(
                           width: double.infinity,
                           height: double.infinity,
                           color: Colors.black26,
                           borderRadius: 10,
                           child: Padding(
-                            padding: EdgeInsets.all( widget.liveStreaming!.getNumberOfChairs == 4 ? 70 : 40.0),
+                            padding: EdgeInsets.all(
+                                widget.liveStreaming!.getNumberOfChairs == 4
+                                    ? 70
+                                    : 40.0),
                             child: SvgPicture.asset(
                               'assets/svg/ic_add_sofa.svg',
                               colorFilter: ColorFilter.mode(
@@ -485,153 +498,156 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen> with TickerP
                 Size size, ZegoUIKitUser? user, Map extraInfo) {
               return user != null
                   ? Image.asset(
-                "assets/images/audio_bg_start.png",
-                height: size.height,
-                width: size.width,
-                fit: BoxFit.fill,
-              )
+                      "assets/images/audio_bg_start.png",
+                      height: size.height,
+                      width: size.width,
+                      fit: BoxFit.fill,
+                    )
                   : const SizedBox();
             }
             ..topMenuBar.hostAvatarBuilder = (ZegoUIKitUser? user) {
               return user != null
                   ? Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  ContainerCorner(
-                    height: 37,
-                    borderRadius: 50,
-                    colors: [kVioletColor, earnCashColor],
-                    onTap: (){
-                      if(user.id != widget.currentUser!.objectId) {
-                        showUserProfileBottomSheet(
-                          currentUser: widget.currentUser!,
-                          userId: user.id,
-                          context: context,
-                        );
-                      }
-                    },
-                    child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            ContainerCorner(
-                              marginRight: 5,
-                              color: Colors.black.withOpacity(0.5),
-                              child: QuickActions.avatarWidget(
-                                widget.liveStreaming!.getAuthor!,
-                                width: double.infinity,
-                                height: double.infinity,
-                              ),
-                              borderRadius: 50,
-                              height: 30,
-                              width: 30,
-                              borderWidth: 0,
-                            ),
-                            Column(
-                              crossAxisAlignment:
-                              CrossAxisAlignment.start,
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                ContainerCorner(
-                                  width: 65,
-                                  child: TextScroll(
-                                    widget.liveStreaming!.getAuthor!
-                                        .getFullName!,
-                                    mode: TextScrollMode.endless,
-                                    velocity: Velocity(
-                                        pixelsPerSecond: Offset(30, 0)),
-                                    delayBefore: Duration(seconds: 1),
-                                    pauseBetween:
-                                    Duration(milliseconds: 150),
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 10,
+                        ContainerCorner(
+                          height: 37,
+                          borderRadius: 50,
+                          colors: [kVioletColor, earnCashColor],
+                          onTap: () {
+                            if (user.id != widget.currentUser!.objectId) {
+                              showUserProfileBottomSheet(
+                                currentUser: widget.currentUser!,
+                                userId: user.id,
+                                context: context,
+                              );
+                            }
+                          },
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  ContainerCorner(
+                                    marginRight: 5,
+                                    color: Colors.black.withOpacity(0.5),
+                                    child: QuickActions.avatarWidget(
+                                      widget.liveStreaming!.getAuthor!,
+                                      width: double.infinity,
+                                      height: double.infinity,
                                     ),
-                                    textAlign: TextAlign.left,
-                                    selectable: true,
-                                    intervalSpaces: 5,
-                                    numberOfReps: 9999,
+                                    borderRadius: 50,
+                                    height: 30,
+                                    width: 30,
+                                    borderWidth: 0,
                                   ),
-                                ),
-                                ContainerCorner(
-                                  width: 65,
-                                  child: Row(
+                                  Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    mainAxisAlignment: MainAxisAlignment.center,
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      Padding(
-                                        padding: const EdgeInsets.only(left: 5),
-                                        child: Image.asset(
-                                          "assets/images/grade_welfare.png",
-                                          height: 12,
-                                          width: 12,
+                                      ContainerCorner(
+                                        width: 65,
+                                        child: TextScroll(
+                                          widget.liveStreaming!.getAuthor!
+                                              .getFullName!,
+                                          mode: TextScrollMode.endless,
+                                          velocity: Velocity(
+                                              pixelsPerSecond: Offset(30, 0)),
+                                          delayBefore: Duration(seconds: 1),
+                                          pauseBetween:
+                                              Duration(milliseconds: 150),
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 10,
+                                          ),
+                                          textAlign: TextAlign.left,
+                                          selectable: true,
+                                          intervalSpaces: 5,
+                                          numberOfReps: 9999,
                                         ),
                                       ),
-                                      Obx((){
-                                        return TextWithTap(
-                                          QuickHelp.checkFundsWithString(
-                                            amount: showGiftSendersController.diamondsCounter.value,
-                                          ),
-                                          marginLeft: 5,
-                                          marginRight: 5,
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 12,
-                                          color: Colors.white,
-                                        );
-                                      }),
-
+                                      ContainerCorner(
+                                        width: 65,
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Padding(
+                                              padding: const EdgeInsets.only(
+                                                  left: 5),
+                                              child: Image.asset(
+                                                "assets/images/grade_welfare.png",
+                                                height: 12,
+                                                width: 12,
+                                              ),
+                                            ),
+                                            Obx(() {
+                                              return TextWithTap(
+                                                QuickHelp.checkFundsWithString(
+                                                  amount:
+                                                      showGiftSendersController
+                                                          .diamondsCounter
+                                                          .value,
+                                                ),
+                                                marginLeft: 5,
+                                                marginRight: 5,
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 12,
+                                                color: Colors.white,
+                                              );
+                                            }),
+                                          ],
+                                        ),
+                                      ),
                                     ],
-                                  ),
+                                  )
+                                ],
+                              ),
+                              ContainerCorner(
+                                marginLeft: 10,
+                                marginRight: 6,
+                                color: Colors.white.withOpacity(0.2),
+                                borderRadius: 50,
+                                height: 23,
+                                width: 23,
+                                child: Padding(
+                                  padding: const EdgeInsets.all(3.0),
+                                  child: Lottie.asset(
+                                      "assets/lotties/ic_live_animation.json"),
                                 ),
-                              ],
-                            )
-                          ],
-                        ),
-                        ContainerCorner(
-                          marginLeft: 10,
-                          marginRight: 6,
-                          color: Colors.white.withOpacity(0.2),
-                          borderRadius: 50,
-                          height: 23,
-                          width: 23,
-                          child: Padding(
-                            padding: const EdgeInsets.all(3.0),
-                            child: Lottie.asset(
-                                "assets/lotties/ic_live_animation.json"),
+                              ),
+                            ],
                           ),
                         ),
+                        if (!widget.isHost)
+                          ContainerCorner(
+                            marginLeft: 5,
+                            height: 30,
+                            width: 30,
+                            color: following ? Colors.blueAccent : kVioletColor,
+                            child: ContainerCorner(
+                              color: kTransparentColor,
+                              height: 30,
+                              width: 30,
+                              child: Center(
+                                child: Icon(
+                                  following ? Icons.done : Icons.add,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                            borderRadius: 50,
+                            onTap: () {
+                              if (!following) {
+                                followOrUnfollow();
+                                //ZegoInRoomMessage.fromBroadcastMessage("")
+                              }
+                            },
+                          ),
                       ],
-                    ),
-                  ),
-                  if (!widget.isHost)
-                    ContainerCorner(
-                      marginLeft: 5,
-                      height: 30,
-                      width: 30,
-                      color: following ? Colors.blueAccent : kVioletColor,
-                      child: ContainerCorner(
-                        color: kTransparentColor,
-                        height: 30,
-                        width: 30,
-                        child: Center(
-                          child: Icon(
-                            following ? Icons.done : Icons.add,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                      borderRadius: 50,
-                      onTap: () {
-                        if (!following) {
-                          followOrUnfollow();
-                          //ZegoInRoomMessage.fromBroadcastMessage("")
-                        }
-                      },
-                    ),
-                ],
-              )
+                    )
                   : const SizedBox();
             }
             ..memberButton.builder = (number) {
@@ -665,18 +681,19 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen> with TickerP
             }
             ..topMenuBar.showCloseButton = !widget.isHost
             ..topMenuBar.margin = EdgeInsets.only(right: widget.isHost ? 30 : 0)
-          /// support minimizing
+
+            /// support minimizing
             ..topMenuBar.buttons = [
               ZegoLiveStreamingMenuBarButtonName.minimizingButton,
             ]
-
             ..background = Image.asset(
               "assets/images/audio_room_background.png",
               fit: BoxFit.fill,
             )
 
-          /// custom avatar
-            ..avatarBuilder = (BuildContext context, Size size, ZegoUIKitUser? user, Map extraInfo) {
+            /// custom avatar
+            ..avatarBuilder = (BuildContext context, Size size,
+                ZegoUIKitUser? user, Map extraInfo) {
               if (user == null) return const SizedBox();
 
               return FutureBuilder<String?>(
@@ -689,18 +706,17 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen> with TickerP
               );
             }
             ..audioVideoView.showUserNameOnView = true
-
             ..inRoomMessage.notifyUserJoin = true
             ..inRoomMessage.notifyUserLeave = true
             ..inRoomMessage.showAvatar = true
 
-          //Add your UI component here
+            //Add your UI component here
             ..foreground = customUiComponent()
 
-        /// message attributes example
-        //..inRoomMessage.attributes = userLevelsAttributes
-        //..inRoomMessage.avatarLeadingBuilder = userLevelBuilder,
-      ),
+          /// message attributes example
+          //..inRoomMessage.attributes = userLevelsAttributes
+          //..inRoomMessage.avatarLeadingBuilder = userLevelBuilder,
+          ),
     );
   }
 
@@ -712,34 +728,34 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen> with TickerP
             backgroundColor: Colors.black26,
           ),
           onPressed: () {
-            if(showGiftSendersController.isPrivateLive.value) {
+            if (showGiftSendersController.isPrivateLive.value) {
               unPrivatiseLive();
-            }else{
+            } else {
               PrivateLivePriceWidget(
                   context: context,
                   onCancel: () => QuickHelp.hideLoadingDialog(context),
-                  onGiftSelected: (gift){
+                  onGiftSelected: (gift) {
                     QuickHelp.hideLoadingDialog(context);
                     privatiseLive(gift);
-                  }
-              );
+                  });
             }
           },
-          icon: Obx(()=> SvgPicture.asset(
-            showGiftSendersController.isPrivateLive.value ?
-            "assets/svg/ic_unlocked_live.svg":
-            "assets/svg/ic_locked_live.svg",
-          ),
+          icon: Obx(
+            () => SvgPicture.asset(
+              showGiftSendersController.isPrivateLive.value
+                  ? "assets/svg/ic_unlocked_live.svg"
+                  : "assets/svg/ic_locked_live.svg",
+            ),
           ),
         ),
       );
 
-  privatiseLive(GiftsModel gift) async{
+  privatiseLive(GiftsModel gift) async {
     QuickHelp.showLoadingDialog(context);
     widget.liveStreaming!.setPrivate = true;
     widget.liveStreaming!.setPrivateLivePrice = gift;
     ParseResponse response = await widget.liveStreaming!.save();
-    if(response.success && response.results != null) {
+    if (response.success && response.results != null) {
       QuickHelp.hideLoadingDialog(context);
       QuickHelp.showAppNotificationAdvanced(
         title: "privatise_live_title".tr(),
@@ -748,7 +764,7 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen> with TickerP
         isError: false,
       );
       showGiftSendersController.isPrivateLive.value = true;
-    }else {
+    } else {
       QuickHelp.hideLoadingDialog(context);
       QuickHelp.showAppNotificationAdvanced(
         title: "connection_failed".tr(),
@@ -757,11 +773,12 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen> with TickerP
       );
     }
   }
-  unPrivatiseLive() async{
+
+  unPrivatiseLive() async {
     QuickHelp.showLoadingDialog(context);
     widget.liveStreaming!.setPrivate = false;
     ParseResponse response = await widget.liveStreaming!.save();
-    if(response.success && response.results != null) {
+    if (response.success && response.results != null) {
       QuickHelp.hideLoadingDialog(context);
       QuickHelp.showAppNotificationAdvanced(
         title: "public_live_title".tr(),
@@ -770,7 +787,7 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen> with TickerP
         context: context,
       );
       showGiftSendersController.isPrivateLive.value = false;
-    }else {
+    } else {
       QuickHelp.hideLoadingDialog(context);
       QuickHelp.showAppNotificationAdvanced(
         title: "connection_failed".tr(),
@@ -782,10 +799,11 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen> with TickerP
 
   Widget getTopGifters() {
     QueryBuilder<LiveViewersModel> query =
-    QueryBuilder<LiveViewersModel>(LiveViewersModel());
+        QueryBuilder<LiveViewersModel>(LiveViewersModel());
 
     //query.whereNotEqualTo(LiveViewersModel.keyAuthorId, widget.liveStreaming!.getAuthorId);
-    query.whereEqualTo(LiveViewersModel.keyLiveId, widget.liveStreaming!.objectId);
+    query.whereEqualTo(
+        LiveViewersModel.keyLiveId, widget.liveStreaming!.objectId);
     query.whereEqualTo(LiveViewersModel.keyWatching, true);
     query.orderByDescending(LiveViewersModel.keyUpdatedAt);
     query.includeObject([
@@ -842,7 +860,7 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen> with TickerP
 
   onViewerLeave() async {
     QueryBuilder<LiveViewersModel> queryLiveViewers =
-    QueryBuilder<LiveViewersModel>(LiveViewersModel());
+        QueryBuilder<LiveViewersModel>(LiveViewersModel());
 
     queryLiveViewers.whereEqualTo(
         LiveViewersModel.keyAuthorId, widget.currentUser!.objectId);
@@ -855,7 +873,7 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen> with TickerP
     if (parseResponse.success) {
       if (parseResponse.result != null) {
         LiveViewersModel liveViewers =
-        parseResponse.results!.first! as LiveViewersModel;
+            parseResponse.results!.first! as LiveViewersModel;
 
         liveViewers.setWatching = false;
         await liveViewers.save();
@@ -865,7 +883,7 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen> with TickerP
 
   addOrUpdateLiveViewers() async {
     QueryBuilder<LiveViewersModel> queryLiveViewers =
-    QueryBuilder<LiveViewersModel>(LiveViewersModel());
+        QueryBuilder<LiveViewersModel>(LiveViewersModel());
 
     queryLiveViewers.whereEqualTo(
         LiveViewersModel.keyAuthorId, widget.currentUser!.objectId);
@@ -878,7 +896,7 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen> with TickerP
     if (parseResponse.success) {
       if (parseResponse.results != null) {
         LiveViewersModel liveViewers =
-        parseResponse.results!.first! as LiveViewersModel;
+            parseResponse.results!.first! as LiveViewersModel;
 
         liveViewers.setWatching = true;
 
@@ -953,7 +971,6 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen> with TickerP
   }
 
   Widget svgaWidget(GiftsModel giftItem) {
-
     /// you can define the area and size for displaying your own
     /// animations here
     int level = 1;
@@ -976,7 +993,8 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen> with TickerP
             giftItem: giftItem,
             onPlayEnd: () {
               ZegoGiftManager().playList.next();
-            }, count: 1,
+            },
+            count: 1,
           ),
         );
       case 3:
@@ -985,7 +1003,8 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen> with TickerP
           giftItem: giftItem,
           onPlayEnd: () {
             ZegoGiftManager().playList.next();
-          }, count: 1,
+          },
+          count: 1,
         );
     }
     // level 1
@@ -998,13 +1017,13 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen> with TickerP
         onPlayEnd: () {
           /// if there is another gift animation, then play
           ZegoGiftManager().playList.next();
-        }, count: 1,
+        },
+        count: 1,
       ),
     );
   }
 
   Widget mp4Widget(PlayData playData) {
-
     /// you can define the area and size for displaying your own
     /// animations here
     int level = 1;
@@ -1064,9 +1083,9 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen> with TickerP
             backgroundColor: Colors.black26,
           ),
           onPressed: () {
-            if(coHostsList.isNotEmpty) {
+            if (coHostsList.isNotEmpty) {
               openUserToReceiveCoins();
-              return ;
+              return;
             }
             CoinsFlowPayment(
               context: context,
@@ -1084,8 +1103,7 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen> with TickerP
                   context: context,
                   user: widget.currentUser,
                   title: "live_streaming.gift_sent_title".tr(),
-                  message:
-                  "live_streaming.gift_sent_explain".tr(
+                  message: "live_streaming.gift_sent_explain".tr(
                     namedArgs: {
                       "name": widget.liveStreaming!.getAuthor!.getFirstName!
                     },
@@ -1108,7 +1126,7 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen> with TickerP
   ZegoLiveStreamingMenuBarExtendButton get shareMediaButton =>
       ZegoLiveStreamingMenuBarExtendButton(
         index: 0,
-        child: Obx((){
+        child: Obx(() {
           return ContainerCorner(
             color: Colors.white,
             borderRadius: 50,
@@ -1120,25 +1138,26 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen> with TickerP
             child: Padding(
               padding: const EdgeInsets.all(5.0),
               child: SvgPicture.asset(
-                showGiftSendersController.shareMediaFiles.value ? "assets/svg/stop_sharing_media.svg":
-                "assets/svg/start_sharing_media.svg",
+                showGiftSendersController.shareMediaFiles.value
+                    ? "assets/svg/stop_sharing_media.svg"
+                    : "assets/svg/start_sharing_media.svg",
               ),
             ),
           );
         }),
       );
 
-  toggleSharingMedia() async{
+  toggleSharingMedia() async {
     QuickHelp.showLoadingDialog(context);
-    if(showGiftSendersController.shareMediaFiles.value) {
+    if (showGiftSendersController.shareMediaFiles.value) {
       widget.liveStreaming!.setSharingMedia = false;
-    }else{
+    } else {
       widget.liveStreaming!.setSharingMedia = true;
     }
     ParseResponse response = await widget.liveStreaming!.save();
-    if(response.success && response.results != null) {
+    if (response.success && response.results != null) {
       QuickHelp.hideLoadingDialog(context);
-    }else{
+    } else {
       QuickHelp.hideLoadingDialog(context);
       QuickHelp.showAppNotificationAdvanced(
         title: "error".tr(),
@@ -1172,7 +1191,7 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen> with TickerP
     );
 
     QueryBuilder<LeadersModel> queryBuilder =
-    QueryBuilder<LeadersModel>(LeadersModel());
+        QueryBuilder<LeadersModel>(LeadersModel());
     queryBuilder.whereEqualTo(
         LeadersModel.keyAuthorId, widget.currentUser!.objectId!);
     ParseResponse parseResponse = await queryBuilder.query();
@@ -1182,9 +1201,9 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen> with TickerP
 
       if (parseResponse.results != null) {
         LeadersModel leadersModel =
-        parseResponse.results!.first as LeadersModel;
+            parseResponse.results!.first as LeadersModel;
         leadersModel.incrementDiamondsQuantity =
-        giftsSentModel.getDiamondsQuantity!;
+            giftsSentModel.getDiamondsQuantity!;
         leadersModel.setGiftsSent = giftsSentModel;
         await leadersModel.save();
       } else {
@@ -1192,7 +1211,7 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen> with TickerP
         leadersModel.setAuthor = widget.currentUser!;
         leadersModel.setAuthorId = widget.currentUser!.objectId!;
         leadersModel.incrementDiamondsQuantity =
-        giftsSentModel.getDiamondsQuantity!;
+            giftsSentModel.getDiamondsQuantity!;
         leadersModel.setGiftsSent = giftsSentModel;
         await leadersModel.save();
       }
@@ -1202,16 +1221,20 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen> with TickerP
         credits: giftsModel.getCoins!,
       );
 
-      if(mUser.objectId == widget.liveStreaming!.getAuthorId) {
-        widget.liveStreaming!.addDiamonds =
-            QuickHelp.getDiamondsForReceiver(
-              giftsModel.getCoins!,
-            );
+      if (mUser.objectId == widget.liveStreaming!.getAuthorId) {
+        widget.liveStreaming!.addDiamonds = QuickHelp.getDiamondsForReceiver(
+          giftsModel.getCoins!,
+        );
         await widget.liveStreaming!.save();
         sendMessage("sent_gift".tr(namedArgs: {"name": "host_".tr()}));
-      }else{
+      } else {
         sendMessage("sent_gift".tr(namedArgs: {"name": mUser.getFullName!}));
       }
+
+      // Refresh UI to show updated earnings
+      setState(() {
+        // This will trigger a rebuild and show the updated diamond count
+      });
 
       /*sendMessage(LiveMessagesModel.messageTypeGift, "", widget.currentUser,
           giftsSent: giftsSentModel);*/
@@ -1223,7 +1246,7 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen> with TickerP
 
   setupStreamingLiveQuery() async {
     QueryBuilder<LiveStreamingModel> query =
-    QueryBuilder<LiveStreamingModel>(LiveStreamingModel());
+        QueryBuilder<LiveStreamingModel>(LiveStreamingModel());
 
     query.whereEqualTo(
         LiveStreamingModel.keyObjectId, widget.liveStreaming!.objectId);
@@ -1238,7 +1261,8 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen> with TickerP
 
     subscription = await liveQuery.client.subscribe(query);
 
-    subscription!.on(LiveQueryEvent.update, (LiveStreamingModel newUpdatedLive) async {
+    subscription!.on(LiveQueryEvent.update,
+        (LiveStreamingModel newUpdatedLive) async {
       print('*** UPDATE ***');
       await newUpdatedLive.getAuthor!.fetch();
       widget.liveStreaming = newUpdatedLive;
@@ -1246,13 +1270,16 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen> with TickerP
 
       if (!mounted) return;
 
-      showGiftSendersController.diamondsCounter.value = newUpdatedLive.getDiamonds.toString();
+      showGiftSendersController.diamondsCounter.value =
+          newUpdatedLive.getDiamonds.toString();
 
-      if(newUpdatedLive.getSharingMedia != showGiftSendersController.shareMediaFiles.value) {
-        showGiftSendersController.shareMediaFiles.value = newUpdatedLive.getSharingMedia!;
+      if (newUpdatedLive.getSharingMedia !=
+          showGiftSendersController.shareMediaFiles.value) {
+        showGiftSendersController.shareMediaFiles.value =
+            newUpdatedLive.getSharingMedia!;
       }
 
-      if(!newUpdatedLive.getStreaming! && !widget.isHost) {
+      if (!newUpdatedLive.getStreaming! && !widget.isHost) {
         QuickHelp.goToNavigatorScreen(
             context,
             LiveEndScreen(
@@ -1263,7 +1290,7 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen> with TickerP
       }
 
       QueryBuilder<LiveStreamingModel> query2 =
-      QueryBuilder<LiveStreamingModel>(LiveStreamingModel());
+          QueryBuilder<LiveStreamingModel>(LiveStreamingModel());
       query2.whereEqualTo(
           LiveStreamingModel.keyObjectId, widget.liveStreaming!.objectId);
       query2.includeObject([
@@ -1278,7 +1305,7 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen> with TickerP
 
       if (response.success) {
         LiveStreamingModel updatedLive =
-        response.results!.first as LiveStreamingModel;
+            response.results!.first as LiveStreamingModel;
 
         if (updatedLive.getPrivate == true && !widget.isHost) {
           print('*** UPDATE *** is Private: ${updatedLive.getPrivate}');
@@ -1288,14 +1315,16 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen> with TickerP
       }
     });
 
-    subscription!.on(LiveQueryEvent.enter, (LiveStreamingModel updatedLive) async{
+    subscription!.on(LiveQueryEvent.enter,
+        (LiveStreamingModel updatedLive) async {
       print('*** ENTER ***');
       await updatedLive.getAuthor!.fetch();
       widget.liveStreaming = updatedLive;
       widget.liveStreaming = updatedLive;
 
       if (!mounted) return;
-      showGiftSendersController.diamondsCounter.value = widget.liveStreaming!.getDiamonds.toString();
+      showGiftSendersController.diamondsCounter.value =
+          widget.liveStreaming!.getDiamonds.toString();
     });
   }
 
@@ -1309,15 +1338,15 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen> with TickerP
 
   setupLiveGifts() async {
     QueryBuilder<GiftsSentModel> queryBuilder =
-    QueryBuilder<GiftsSentModel>(GiftsSentModel());
+        QueryBuilder<GiftsSentModel>(GiftsSentModel());
     queryBuilder.whereEqualTo(
         GiftsSentModel.keyLiveId, widget.liveStreaming!.objectId);
-    queryBuilder.includeObject(
-        [GiftsSentModel.keyGift]);
+    queryBuilder.includeObject([GiftsSentModel.keyGift]);
     subscription = await liveQuery.client.subscribe(queryBuilder);
 
-    subscription!.on(LiveQueryEvent.create,
-          (GiftsSentModel giftSent) async {
+    subscription!.on(
+      LiveQueryEvent.create,
+      (GiftsSentModel giftSent) async {
         await giftSent.getGift!.fetch();
         await giftSent.getReceiver!.fetch();
         await giftSent.getAuthor!.fetch();
@@ -1351,6 +1380,7 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen> with TickerP
       },
     );
   }
+
   void openUserToReceiveCoins() async {
     showModalBottomSheet(
       context: (context),
@@ -1366,8 +1396,10 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen> with TickerP
   Widget _showUserToReceiveCoins() {
     coHostsList.add(widget.liveStreaming!.getAuthorId);
     Size size = MediaQuery.sizeOf(context);
-    QueryBuilder<UserModel> coHostQuery = QueryBuilder<UserModel>(UserModel.forQuery());
-    coHostQuery.whereNotEqualTo(UserModel.keyObjectId, widget.currentUser!.objectId);
+    QueryBuilder<UserModel> coHostQuery =
+        QueryBuilder<UserModel>(UserModel.forQuery());
+    coHostQuery.whereNotEqualTo(
+        UserModel.keyObjectId, widget.currentUser!.objectId);
     coHostQuery.whereContainedIn(UserModel.keyObjectId, coHostsList);
 
     return ContainerCorner(
@@ -1388,76 +1420,76 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen> with TickerP
             marginTop: 15,
             marginBottom: 30,
           ),
-          Flexible(child: ParseLiveGridWidget<UserModel>(
-            query: coHostQuery,
-            crossAxisCount: 4,
-            reverse: false,
-            crossAxisSpacing: 5,
-            mainAxisSpacing: 10,
-            lazyLoading: false,
-            padding: EdgeInsets.only(left: 15, right: 15),
-            childAspectRatio: 0.7,
-            shrinkWrap: true,
-            listenOnAllSubItems: true,
-            duration: Duration(seconds: 0),
-            animationController: _animationController,
-            childBuilder: (BuildContext context,
-                ParseLiveListElementSnapshot<UserModel> snapshot) {
-              UserModel user = snapshot.loadedData!;
-              return GestureDetector(
-                onTap: () {
-                  CoinsFlowPayment(
-                    context: context,
-                    currentUser: widget.currentUser!,
-                    onCoinsPurchased: (coins) {
-                      print(
-                          "onCoinsPurchased: $coins new: ${widget.currentUser!.getCredits}");
-                    },
-                    onGiftSelected: (gift) {
-                      print("onGiftSelected called ${gift.getCoins}");
-                      sendGift(gift, user);
+          Flexible(
+            child: ParseLiveGridWidget<UserModel>(
+              query: coHostQuery,
+              crossAxisCount: 4,
+              reverse: false,
+              crossAxisSpacing: 5,
+              mainAxisSpacing: 10,
+              lazyLoading: false,
+              padding: EdgeInsets.only(left: 15, right: 15),
+              childAspectRatio: 0.7,
+              shrinkWrap: true,
+              listenOnAllSubItems: true,
+              duration: Duration(seconds: 0),
+              animationController: _animationController,
+              childBuilder: (BuildContext context,
+                  ParseLiveListElementSnapshot<UserModel> snapshot) {
+                UserModel user = snapshot.loadedData!;
+                return GestureDetector(
+                  onTap: () {
+                    CoinsFlowPayment(
+                      context: context,
+                      currentUser: widget.currentUser!,
+                      onCoinsPurchased: (coins) {
+                        print(
+                            "onCoinsPurchased: $coins new: ${widget.currentUser!.getCredits}");
+                      },
+                      onGiftSelected: (gift) {
+                        print("onGiftSelected called ${gift.getCoins}");
+                        sendGift(gift, user);
 
-                      //QuickHelp.goBackToPreviousPage(context);
-                      QuickHelp.showAppNotificationAdvanced(
-                        context: context,
-                        user: widget.currentUser,
-                        title: "live_streaming.gift_sent_title".tr(),
-                        message:
-                        "live_streaming.gift_sent_explain".tr(
-                          namedArgs: {
-                            "name": user.getFirstName!
-                          },
-                        ),
-                        isError: false,
-                      );
-                    },
-                  );
-                },
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    QuickActions.avatarWidget(
-                      user,
-                      width: size.width / 5.5,
-                      height: size.width / 5.5,
-                    ),
-                    TextWithTap(
-                      user.getFullName!,
-                      color: Colors.white,
-                      marginTop: 5,
-                      overflow: TextOverflow.ellipsis,
-                      fontSize: 10,
-                    ),
-                  ],),
-              );
-            },
-            queryEmptyElement: QuickActions.noContentFound(context),
-            gridLoadingElement: Container(
-              margin: EdgeInsets.only(top: 50),
-              alignment: Alignment.topCenter,
-              child: CircularProgressIndicator(),
+                        //QuickHelp.goBackToPreviousPage(context);
+                        QuickHelp.showAppNotificationAdvanced(
+                          context: context,
+                          user: widget.currentUser,
+                          title: "live_streaming.gift_sent_title".tr(),
+                          message: "live_streaming.gift_sent_explain".tr(
+                            namedArgs: {"name": user.getFirstName!},
+                          ),
+                          isError: false,
+                        );
+                      },
+                    );
+                  },
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      QuickActions.avatarWidget(
+                        user,
+                        width: size.width / 5.5,
+                        height: size.width / 5.5,
+                      ),
+                      TextWithTap(
+                        user.getFullName!,
+                        color: Colors.white,
+                        marginTop: 5,
+                        overflow: TextOverflow.ellipsis,
+                        fontSize: 10,
+                      ),
+                    ],
+                  ),
+                );
+              },
+              queryEmptyElement: QuickActions.noContentFound(context),
+              gridLoadingElement: Container(
+                margin: EdgeInsets.only(top: 50),
+                alignment: Alignment.topCenter,
+                child: CircularProgressIndicator(),
+              ),
             ),
-          ),)
+          )
         ],
       ),
     );
@@ -1522,8 +1554,8 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen> with TickerP
                                   "account_settings.logout_user_sure".tr(),
                                   fontWeight: FontWeight.bold,
                                 ),
-                                content: Text(
-                                    'live_streaming.finish_live_ask'.tr()),
+                                content:
+                                    Text('live_streaming.finish_live_ask'.tr()),
                                 actions: [
                                   TextWithTap(
                                     "cancel".tr(),
@@ -1545,14 +1577,12 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen> with TickerP
                                         QuickHelp.showLoadingDialog(context);
                                         onViewerLeave();
                                         widget.liveStreaming!.setStreaming =
-                                        false;
-                                        ParseResponse response = await widget
-                                            .liveStreaming!
-                                            .save();
+                                            false;
+                                        ParseResponse response =
+                                            await widget.liveStreaming!.save();
                                         if (response.success &&
                                             response.result != null) {
-                                          QuickHelp.hideLoadingDialog(
-                                              context);
+                                          QuickHelp.hideLoadingDialog(context);
                                           QuickHelp.goToNavigatorScreen(
                                             context,
                                             LiveEndReportScreen(
@@ -1561,20 +1591,16 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen> with TickerP
                                             ),
                                           );
                                         } else {
-                                          QuickHelp.hideLoadingDialog(
-                                              context);
-                                          QuickHelp
-                                              .showAppNotificationAdvanced(
+                                          QuickHelp.hideLoadingDialog(context);
+                                          QuickHelp.showAppNotificationAdvanced(
                                             title: "try_again_later".tr(),
                                             message: "not_connected".tr(),
                                             context: context,
                                           );
                                         }
                                       } else {
-                                        QuickHelp.goBackToPreviousPage(
-                                            context);
-                                        QuickHelp.goBackToPreviousPage(
-                                            context);
+                                        QuickHelp.goBackToPreviousPage(context);
+                                        QuickHelp.goBackToPreviousPage(context);
                                       }
                                     },
                                   ),
@@ -1597,136 +1623,147 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen> with TickerP
             );
           },
         ),
-        Obx((){
+        Obx(() {
           return Positioned(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: List.generate(
-                showGiftSendersController.receivedGiftList.length, (index) {
-                return Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    ContainerCorner(
-                      colors: [Colors.black26, Colors.transparent],
-                      borderRadius: 50,
-                      marginLeft: 5,
-                      marginRight: 10,
-                      marginBottom: 15,
-                      child: Padding(
-                        padding: const EdgeInsets.all(8.0),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                QuickActions.avatarWidget(
-                                  showGiftSendersController.giftSenderList[index],
-                                  width: 35,
-                                  height: 35,
-                                ),
-                                SizedBox(
-                                  width: 45,
-                                  child: TextWithTap(
-                                    showGiftSendersController.giftSenderList[index].getFullName!,
-                                    fontSize: 8,
-                                    color: Colors.white,
-                                    marginTop: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    alignment: Alignment.center,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            TextWithTap(
-                              "sent_gift_to".tr(),
-                              color: Colors.white,
-                              fontWeight: FontWeight.w900,
-                              marginRight: 5,
-                              marginLeft: 5,
-                              textItalic: true,
-                            ),
-                            Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                QuickActions.avatarWidget(
-                                  showGiftSendersController.giftReceiverList[index],
-                                  width: 35,
-                                  height: 35,
-                                ),
-                                SizedBox(
-                                  width: 45,
-                                  child: TextWithTap(
-                                    showGiftSendersController.giftReceiverList[index].getFullName!,
-                                    fontSize: 8,
-                                    color: Colors.white,
-                                    marginTop: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    alignment: Alignment.center,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    Row(
-                      children: [
-                        Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(
-                              width: 35,
-                              height: 35,
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(3),
-                                child: QuickActions.photosWidget(
-                                    showGiftSendersController.receivedGiftList[index].getPreview!.url),
-                              ),
-                            ),
-                            ContainerCorner(
-                              color: kTransparentColor,
-                              marginTop: 1,
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
+                showGiftSendersController.receivedGiftList.length,
+                (index) {
+                  return Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      ContainerCorner(
+                        colors: [Colors.black26, Colors.transparent],
+                        borderRadius: 50,
+                        marginLeft: 5,
+                        marginRight: 10,
+                        marginBottom: 15,
+                        child: Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Column(
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  SvgPicture.asset(
-                                    "assets/svg/ic_coin_with_star.svg",
-                                    width: 10,
-                                    height: 10,
+                                  QuickActions.avatarWidget(
+                                    showGiftSendersController
+                                        .giftSenderList[index],
+                                    width: 35,
+                                    height: 35,
                                   ),
-                                  TextWithTap(
-                                    showGiftSendersController.receivedGiftList[index].getCoins.toString(),
-                                    color: Colors.white,
-                                    fontSize: 10,
-                                    marginLeft: 5,
-                                    fontWeight: FontWeight.w900,
-                                  )
+                                  SizedBox(
+                                    width: 45,
+                                    child: TextWithTap(
+                                      showGiftSendersController
+                                          .giftSenderList[index].getFullName!,
+                                      fontSize: 8,
+                                      color: Colors.white,
+                                      marginTop: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      alignment: Alignment.center,
+                                    ),
+                                  ),
                                 ],
                               ),
-                            ),
-                          ],
+                              TextWithTap(
+                                "sent_gift_to".tr(),
+                                color: Colors.white,
+                                fontWeight: FontWeight.w900,
+                                marginRight: 5,
+                                marginLeft: 5,
+                                textItalic: true,
+                              ),
+                              Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  QuickActions.avatarWidget(
+                                    showGiftSendersController
+                                        .giftReceiverList[index],
+                                    width: 35,
+                                    height: 35,
+                                  ),
+                                  SizedBox(
+                                    width: 45,
+                                    child: TextWithTap(
+                                      showGiftSendersController
+                                          .giftReceiverList[index].getFullName!,
+                                      fontSize: 8,
+                                      color: Colors.white,
+                                      marginTop: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      alignment: Alignment.center,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
                         ),
-                        TextWithTap(
-                          "x1",
-                          color: Colors.white,
-                          fontWeight: FontWeight.w900,
-                          fontSize: 25,
-                          marginLeft: 10,
-                          textItalic: true,
-                        ),
-                      ],
-                    )
-                  ],
-                ).animate().slideX(
-                  duration: Duration(seconds: 2),
-                  delay: Duration(seconds: 0),
-                  begin: -5,
-                  end: 0,
-                );
-              },
-              ),),
+                      ),
+                      Row(
+                        children: [
+                          Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 35,
+                                height: 35,
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(3),
+                                  child: QuickActions.photosWidget(
+                                      showGiftSendersController
+                                          .receivedGiftList[index]
+                                          .getPreview!
+                                          .url),
+                                ),
+                              ),
+                              ContainerCorner(
+                                color: kTransparentColor,
+                                marginTop: 1,
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    SvgPicture.asset(
+                                      "assets/svg/ic_coin_with_star.svg",
+                                      width: 10,
+                                      height: 10,
+                                    ),
+                                    TextWithTap(
+                                      showGiftSendersController
+                                          .receivedGiftList[index].getCoins
+                                          .toString(),
+                                      color: Colors.white,
+                                      fontSize: 10,
+                                      marginLeft: 5,
+                                      fontWeight: FontWeight.w900,
+                                    )
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          TextWithTap(
+                            "x1",
+                            color: Colors.white,
+                            fontWeight: FontWeight.w900,
+                            fontSize: 25,
+                            marginLeft: 10,
+                            textItalic: true,
+                          ),
+                        ],
+                      )
+                    ],
+                  ).animate().slideX(
+                        duration: Duration(seconds: 2),
+                        delay: Duration(seconds: 0),
+                        begin: -5,
+                        end: 0,
+                      );
+                },
+              ),
+            ),
           );
         }),
         ValueListenableBuilder<GiftsModel?>(
@@ -1739,12 +1776,13 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen> with TickerP
             return svgaWidget(playData);
           },
         ),
-        Obx((){
+        Obx(() {
           return Visibility(
             visible: showGiftSendersController.shareMediaFiles.value,
             child: advanceMediaPlayer(
               canControl: widget.isHost,
-            ),);
+            ),
+          );
         }),
       ],
     );
@@ -1755,26 +1793,26 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen> with TickerP
   }) {
     Size size = MediaQuery.sizeOf(context);
     const padding = 20;
-    final playerSize =
-    Size(size.width - padding * 2, size.width * 9 / 16);
+    final playerSize = Size(size.width - padding * 2, size.width * 9 / 16);
     return ZegoUIKitMediaPlayer(
       size: playerSize,
       initPosition: Offset(
         size.width - playerSize.width - padding,
         size.height - playerSize.height - padding - 40,
-      ), config: ZegoUIKitMediaPlayerConfig(
-      enableRepeat: true,
-      canControl: canControl,
-      showSurface: true,
-    ),
+      ),
+      config: ZegoUIKitMediaPlayerConfig(
+        enableRepeat: true,
+        canControl: canControl,
+        showSurface: true,
+      ),
     );
   }
 
   Widget userLevelBuilder(
-      BuildContext context,
-      ZegoInRoomMessage message,
-      Map<String, dynamic> extraInfo,
-      ) {
+    BuildContext context,
+    ZegoInRoomMessage message,
+    Map<String, dynamic> extraInfo,
+  ) {
     return Container(
       alignment: Alignment.center,
       height: 15,
@@ -1803,11 +1841,11 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen> with TickerP
   }
 
   Widget hostAudioVideoViewForegroundBuilder(
-      BuildContext context,
-      Size size,
-      ZegoUIKitUser? user,
-      Map<String, dynamic> extraInfo,
-      ) {
+    BuildContext context,
+    Size size,
+    ZegoUIKitUser? user,
+    Map<String, dynamic> extraInfo,
+  ) {
     if (user == null || widget.currentUser!.objectId == widget.localUserID) {
       return Container();
     }
@@ -1875,9 +1913,9 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen> with TickerP
   }
 
   Future<bool> onTurnOnAudienceDeviceConfirmation(
-      BuildContext context, {
-        required bool isCameraOrMicrophone,
-      }) async {
+    BuildContext context, {
+    required bool isCameraOrMicrophone,
+  }) async {
     const textStyle = TextStyle(
       fontSize: 10,
       color: Colors.white70,

@@ -64,11 +64,23 @@ class QuickCloudCode {
     print("🎁 [GIFT DEBUG] Credits: $credits, Diamonds to add: $diamondsToAdd");
     print("🎁 [GIFT DEBUG] Receiver current diamonds: ${author.getDiamonds}");
 
+    // Get current user
+    ParseUser? currentUser = await ParseUser.currentUser();
+    if (currentUser == null) {
+      throw Exception("User not logged in");
+    }
+
     ParseCloudFunction function = ParseCloudFunction(CloudParams.sendGiftParam);
     Map<String, dynamic> params = <String, dynamic>{
-      CloudParams.objectId: author.objectId,
-      CloudParams.credits: diamondsToAdd,
+      'senderId': currentUser.objectId,
+      'receiverId': author.objectId,
+      'giftId':
+          'gift_${DateTime.now().millisecondsSinceEpoch}', // Generate unique gift ID
+      'credits': credits,
+      'diamonds': diamondsToAdd,
     };
+
+    print("🎁 [GIFT DEBUG] Sending parameters: $params");
 
     if (author.getInvitedByUser != null &&
         author.getInvitedByUser!.isNotEmpty) {
@@ -82,8 +94,20 @@ class QuickCloudCode {
     print(
         "🎁 [GIFT DEBUG] Cloud function response: success=${response.success}, error=${response.error}");
 
-    // Fallback: If cloud function fails, add diamonds directly to receiver
-    if (!response.success) {
+    // If cloud function succeeds, refresh the receiver's data to update UI
+    if (response.success) {
+      print(
+          "🎁 [GIFT DEBUG] Cloud function succeeded, refreshing receiver data");
+      try {
+        // Fetch the updated user data from the server
+        await author.fetch();
+        print("🎁 [GIFT DEBUG] Receiver data refreshed successfully");
+        print("🎁 [GIFT DEBUG] Receiver new diamonds: ${author.getDiamonds}");
+      } catch (e) {
+        print("🎁 [GIFT DEBUG] Error refreshing receiver data: $e");
+      }
+    } else {
+      // Fallback: If cloud function fails, add diamonds directly to receiver
       print(
           "🎁 [GIFT DEBUG] Cloud function failed, adding diamonds directly to receiver");
       author.setDiamonds = diamondsToAdd;
