@@ -80,11 +80,27 @@ class _ZegoLiveBottomBarState extends State<ZegoLiveBottomBar> {
           onPressed: () async {
             /// local play
             const giftName = 'music_box';
-            final giftPath = await getPathFromAssetOrCache('assets/gift/$giftName.mp4');
-            ZegoGiftController().addToPlayingList(ZegoGiftData(giftPath: giftPath));
+            final giftPath =
+                await getPathFromAssetOrCache('assets/gift/$giftName.mp4');
+            ZegoGiftController()
+                .addToPlayingList(ZegoGiftData(giftPath: giftPath));
+
+            /// Create gift model for music_box
+            final gift = GiftsModel()
+              ..setName = giftName
+              ..setCoins = 100; // Set appropriate coin value for music_box gift
+
+            /// Get host user ID as receiver
+            final hostId =
+                widget.liveStreamingManager.hostNotifier.value?.userID ?? '';
 
             /// notify remote host
-            ZegoGiftController().service.sendGift(giftName: giftName);
+            if (hostId.isNotEmpty) {
+              ZegoGiftController().service.sendGift(
+                    receiverId: hostId,
+                    gift: gift,
+                  );
+            }
           },
           icon: const Icon(Icons.wallet_giftcard)),
     );
@@ -122,16 +138,26 @@ class _ZegoLiveBottomBarState extends State<ZegoLiveBottomBar> {
 
   Widget applyCoHostButton() {
     return OutlinedButton(
-        style: OutlinedButton.styleFrom(side: const BorderSide(width: 1, color: Colors.white)),
+        style: OutlinedButton.styleFrom(
+            side: const BorderSide(width: 1, color: Colors.white)),
         onPressed: () {
           final signaling = jsonEncode({
             'room_request_type': RoomRequestType.audienceApplyToBecomeCoHost,
           });
-          ZEGOSDKManager().zimService.sendRoomRequest(widget.liveStreamingManager.hostNotifier.value?.userID ?? '', signaling).then((value) {
+          ZEGOSDKManager()
+              .zimService
+              .sendRoomRequest(
+                  widget.liveStreamingManager.hostNotifier.value?.userID ?? '',
+                  signaling)
+              .then((value) {
             widget.applying?.value = true;
-            myRoomRequest = ZEGOSDKManager().zimService.roomRequestMapNoti.value[value.requestID];
+            myRoomRequest = ZEGOSDKManager()
+                .zimService
+                .roomRequestMapNoti
+                .value[value.requestID];
           }).catchError((error) {
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('apply to co-host failed: $error')));
+            ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('apply to co-host failed: $error')));
           });
         },
         child: const Text(
@@ -144,20 +170,27 @@ class _ZegoLiveBottomBarState extends State<ZegoLiveBottomBar> {
 
   Widget cancelApplyCohostButton() {
     return OutlinedButton(
-        style: OutlinedButton.styleFrom(side: const BorderSide(width: 1, color: Colors.white)),
+        style: OutlinedButton.styleFrom(
+            side: const BorderSide(width: 1, color: Colors.white)),
         onPressed: () {
-          ZEGOSDKManager().zimService.cancelRoomRequest(myRoomRequest?.requestID ?? '').then((value) {
+          ZEGOSDKManager()
+              .zimService
+              .cancelRoomRequest(myRoomRequest?.requestID ?? '')
+              .then((value) {
             widget.applying?.value = false;
           }).catchError((error) {
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Cancel the application failed: $error')));
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                content: Text('Cancel the application failed: $error')));
           });
         },
-        child: const Text('Cancel the application', style: TextStyle(color: Colors.white)));
+        child: const Text('Cancel the application',
+            style: TextStyle(color: Colors.white)));
   }
 
   Widget endCohostButton() {
     return OutlinedButton(
-      style: OutlinedButton.styleFrom(side: const BorderSide(width: 1, color: Colors.white)),
+      style: OutlinedButton.styleFrom(
+          side: const BorderSide(width: 1, color: Colors.white)),
       onPressed: () {
         widget.liveStreamingManager.endCoHost();
       },

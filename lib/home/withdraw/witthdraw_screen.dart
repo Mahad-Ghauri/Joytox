@@ -20,8 +20,7 @@ import '../payment_methods/payment_method_screen.dart';
 class WithDrawScreen extends StatefulWidget {
   UserModel? currentUser;
 
-  WithDrawScreen({this.currentUser, Key? key})
-      : super(key: key);
+  WithDrawScreen({this.currentUser, Key? key}) : super(key: key);
 
   @override
   State<WithDrawScreen> createState() => _WithDrawScreenState();
@@ -34,7 +33,7 @@ class _WithDrawScreenState extends State<WithDrawScreen> {
   int pointPercent = 70;
 
   int minimumAmountWithdrawal = 100000;
-  int exchangeRatio = 10000;
+  int exchangeRatio = 300;
 
   double pCoinAvailable = 0.0;
   double pointAvailable = 0.0;
@@ -555,7 +554,8 @@ class _WithDrawScreenState extends State<WithDrawScreen> {
                               message:
                                   "withdrawal_method_screen.minimum_withdrawal_withdrawal"
                                       .tr(namedArgs: {
-                                "amount": "\$${(minimumAmountWithdrawal/exchangeRatio)}"
+                                "amount":
+                                    "\$${(minimumAmountWithdrawal / exchangeRatio)}"
                               }),
                             );
                           } else {

@@ -114,11 +114,11 @@ class QuickHelp {
   }
 
   static getImageToShare(PostsModel post) {
-    if(post.getImagesList!.isNotEmpty) {
+    if (post.getImagesList!.isNotEmpty) {
       return post.getImagesList![0].url;
-    }else if(post.getVideoThumbnail != null) {
+    } else if (post.getVideoThumbnail != null) {
       return post.getVideoThumbnail!.url!;
-    }else{
+    } else {
       return null;
     }
   }
@@ -147,9 +147,9 @@ class QuickHelp {
   }
 
   static String getTitleToShare(PostsModel post) {
-    if(post.getText!.isNotEmpty) {
+    if (post.getText!.isNotEmpty) {
       return post.getText!;
-    }else{
+    } else {
       return "feed.post_posted_title".tr();
     }
   }
@@ -170,18 +170,18 @@ class QuickHelp {
     }
   }
 
-  static bool isMvpUser(UserModel? user){
-    if(user != null) {
+  static bool isMvpUser(UserModel? user) {
+    if (user != null) {
       DateTime now = DateTime.now();
       DateTime? to;
 
-      if(user.getMVPMember != null){
-        if(user.getMVPMember != null) {
+      if (user.getMVPMember != null) {
+        if (user.getMVPMember != null) {
           to = user.getMVPMember!;
-        }else{
+        } else {
           to = now;
         }
-        if(to.isAfter(now)){
+        if (to.isAfter(now)) {
           return true;
         }
       }
@@ -190,18 +190,19 @@ class QuickHelp {
     return false;
   }
 
-  static Widget usersMoreInfo(
-      BuildContext context, UserModel user, {MainAxisAlignment? mainAxisAlignment}){
+  static Widget usersMoreInfo(BuildContext context, UserModel user,
+      {MainAxisAlignment? mainAxisAlignment}) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisAlignment: mainAxisAlignment ?? MainAxisAlignment.start,
       children: [
-        const SizedBox(width: 6,),
+        const SizedBox(
+          width: 6,
+        ),
         Container(
           height: 21,
           child: QuickActions.getGender(
-            currentUser:
-            user,
+            currentUser: user,
             context: context,
           ),
         ),
@@ -209,9 +210,12 @@ class QuickHelp {
           visible: user.getCredits! > 0,
           child: Row(
             children: [
-              const SizedBox(width: 5,),
+              const SizedBox(
+                width: 5,
+              ),
               Image.asset(
-                QuickHelp.levelVipBanner(currentCredit: user.getCredits!.toDouble()),
+                QuickHelp.levelVipBanner(
+                    currentCredit: user.getCredits!.toDouble()),
                 scale: 2.2,
               ),
             ],
@@ -245,152 +249,183 @@ class QuickHelp {
     );
   }
 
-  static String levelVipFrame({required double currentCredit}){
-    if(currentCredit > 0 && currentCredit <= 9999){
+  static String levelVipFrame({required double currentCredit}) {
+    if (currentCredit > 0 && currentCredit <= 9999) {
       return "assets/images/ic_vip_frame_1.png";
-    } else if(currentCredit >= 10000 && currentCredit <= 49999){
+    } else if (currentCredit >= 10000 && currentCredit <= 49999) {
       return "assets/images/ic_vip_frame_2.png";
-    } else if(currentCredit >= 50000 && currentCredit <= 99999){
+    } else if (currentCredit >= 50000 && currentCredit <= 99999) {
       return "assets/images/ic_vip_frame_3.png";
-    } else if(currentCredit >= 100000 && currentCredit <= 199999){
+    } else if (currentCredit >= 100000 && currentCredit <= 199999) {
       return "assets/images/ic_vip_frame_4.png";
-    } else if(currentCredit >= 200000 && currentCredit <= 499999){
+    } else if (currentCredit >= 200000 && currentCredit <= 499999) {
       return "assets/images/ic_vip_frame_5.png";
-    } else if(currentCredit >= 500000 && currentCredit <= 999999){
+    } else if (currentCredit >= 500000 && currentCredit <= 999999) {
       return "assets/images/ic_vip_frame_6.png";
-    } else if(currentCredit >= 1000000 && currentCredit <= 1999999){
+    } else if (currentCredit >= 1000000 && currentCredit <= 1999999) {
       return "assets/images/ic_vip_frame_7.png";
-    } else if(currentCredit >= 2000000 && currentCredit <= 4999999){
+    } else if (currentCredit >= 2000000 && currentCredit <= 4999999) {
       return "assets/images/ic_vip_frame_8.png";
-    } else if(currentCredit >= 5000000 && currentCredit <= 9999999){
+    } else if (currentCredit >= 5000000 && currentCredit <= 9999999) {
       return "assets/images/ic_vip_frame_9.png";
-    } else if(currentCredit >= 10000000){
+    } else if (currentCredit >= 10000000) {
       return "assets/images/ic_vip_frame_10.png";
     } else {
       return "";
     }
   }
 
-  static String levelVipBanner({required double currentCredit}){
-    if(currentCredit > 0 && currentCredit <= 9999){
+  static String levelVipBanner({required double currentCredit}) {
+    if (currentCredit > 0 && currentCredit <= 9999) {
       return "assets/images/ic_vip_1.png";
-    } else if(currentCredit >= 10000 && currentCredit <= 49999){
+    } else if (currentCredit >= 10000 && currentCredit <= 49999) {
       return "assets/images/ic_vip_2.png";
-    } else if(currentCredit >= 50000 && currentCredit <= 99999){
+    } else if (currentCredit >= 50000 && currentCredit <= 99999) {
       return "assets/images/ic_vip_3.png";
-    } else if(currentCredit >= 100000 && currentCredit <= 199999){
+    } else if (currentCredit >= 100000 && currentCredit <= 199999) {
       return "assets/images/ic_vip_4.png";
-    } else if(currentCredit >= 200000 && currentCredit <= 499999){
+    } else if (currentCredit >= 200000 && currentCredit <= 499999) {
       return "assets/images/ic_vip_5.png";
-    } else if(currentCredit >= 500000 && currentCredit <= 999999){
+    } else if (currentCredit >= 500000 && currentCredit <= 999999) {
       return "assets/images/ic_vip_6.png";
-    } else if(currentCredit >= 1000000 && currentCredit <= 1999999){
+    } else if (currentCredit >= 1000000 && currentCredit <= 1999999) {
       return "assets/images/ic_vip_7.png";
-    } else if(currentCredit >= 2000000 && currentCredit <= 4999999){
+    } else if (currentCredit >= 2000000 && currentCredit <= 4999999) {
       return "assets/images/ic_vip_8.png";
-    } else if(currentCredit >= 5000000 && currentCredit <= 9999999){
+    } else if (currentCredit >= 5000000 && currentCredit <= 9999999) {
       return "assets/images/ic_vip_9.png";
-    } else if(currentCredit >= 10000000){
+    } else if (currentCredit >= 10000000) {
       return "assets/images/ic_vip_10.png";
     } else {
       return "";
     }
   }
 
-  static String? levelVipCover({required double currentCredit, required UserModel user}){
-    if(currentCredit > 0 && currentCredit <= 9999 && !user.getProfileCoverFrame!){
+  static String? levelVipCover(
+      {required double currentCredit, required UserModel user}) {
+    if (currentCredit > 0 &&
+        currentCredit <= 9999 &&
+        !user.getProfileCoverFrame!) {
       return "assets/images/bg_vip_cover_1.png";
-    } else if(currentCredit >= 10000 && currentCredit <= 49999 && !user.getProfileCoverFrame!){
+    } else if (currentCredit >= 10000 &&
+        currentCredit <= 49999 &&
+        !user.getProfileCoverFrame!) {
       return "assets/images/bg_vip_cover_2.png";
-    } else if(currentCredit >= 50000 && currentCredit <= 99999 && !user.getProfileCoverFrame!){
+    } else if (currentCredit >= 50000 &&
+        currentCredit <= 99999 &&
+        !user.getProfileCoverFrame!) {
       return "assets/images/bg_vip_cover_3.png";
-    } else if(currentCredit >= 100000 && currentCredit <= 199999 && !user.getProfileCoverFrame!){
+    } else if (currentCredit >= 100000 &&
+        currentCredit <= 199999 &&
+        !user.getProfileCoverFrame!) {
       return "assets/images/bg_vip_cover_4.png";
-    } else if(currentCredit >= 200000 && currentCredit <= 499999 && !user.getProfileCoverFrame!){
+    } else if (currentCredit >= 200000 &&
+        currentCredit <= 499999 &&
+        !user.getProfileCoverFrame!) {
       return "assets/images/bg_vip_cover_5.png";
-    } else if(currentCredit >= 500000 && currentCredit <= 999999 && !user.getProfileCoverFrame!){
+    } else if (currentCredit >= 500000 &&
+        currentCredit <= 999999 &&
+        !user.getProfileCoverFrame!) {
       return "assets/images/bg_vip_cover_6.png";
-    } else if(currentCredit >= 1000000 && currentCredit <= 1999999 && !user.getProfileCoverFrame!){
+    } else if (currentCredit >= 1000000 &&
+        currentCredit <= 1999999 &&
+        !user.getProfileCoverFrame!) {
       return "assets/images/bg_vip_cover_7.png";
-    } else if(currentCredit >= 2000000 && currentCredit <= 4999999 && !user.getProfileCoverFrame!){
+    } else if (currentCredit >= 2000000 &&
+        currentCredit <= 4999999 &&
+        !user.getProfileCoverFrame!) {
       return "assets/images/bg_vip_cover_8.png";
-    } else if(currentCredit >= 5000000 && currentCredit <= 9999999 && !user.getProfileCoverFrame!){
+    } else if (currentCredit >= 5000000 &&
+        currentCredit <= 9999999 &&
+        !user.getProfileCoverFrame!) {
       return "assets/images/bg_vip_cover_9.png";
-    } else if(currentCredit >= 10000000 && !user.getProfileCoverFrame!){
+    } else if (currentCredit >= 10000000 && !user.getProfileCoverFrame!) {
       return "assets/images/bg_vip_cover_10.png";
     } else {
       return null;
     }
   }
 
-  static String levelUser(int index, {required double currentCredit}){
-    if(currentCredit == 0 && index == 0){
+  static String levelUser(int index, {required double currentCredit}) {
+    if (currentCredit == 0 && index == 0) {
       return "guardian_and_vip_screen.current_level".tr();
-    }else if(currentCredit > 0 && index == 0){
+    } else if (currentCredit > 0 && index == 0) {
       return "guardian_and_vip_screen.past_level".tr();
-    } else if(currentCredit > 0 && currentCredit <= 9999 && index == 1){
+    } else if (currentCredit > 0 && currentCredit <= 9999 && index == 1) {
       return "guardian_and_vip_screen.current_level".tr();
-    }else if(currentCredit > 9999 && index == 1){
+    } else if (currentCredit > 9999 && index == 1) {
       return "guardian_and_vip_screen.past_level".tr();
-    } else if(currentCredit >= 10000 && currentCredit <= 49999 && index == 2){
+    } else if (currentCredit >= 10000 && currentCredit <= 49999 && index == 2) {
       return "guardian_and_vip_screen.current_level".tr();
-    }else if(currentCredit > 49999 && index == 2){
+    } else if (currentCredit > 49999 && index == 2) {
       return "guardian_and_vip_screen.past_level".tr();
-    } else if(currentCredit >= 50000 && currentCredit <= 99999 && index == 3){
+    } else if (currentCredit >= 50000 && currentCredit <= 99999 && index == 3) {
       return "guardian_and_vip_screen.current_level".tr();
-    }else if(currentCredit > 99999 && index == 3){
+    } else if (currentCredit > 99999 && index == 3) {
       return "guardian_and_vip_screen.past_level".tr();
-    } else if(currentCredit >= 100000 && currentCredit <= 199999 && index == 4){
+    } else if (currentCredit >= 100000 &&
+        currentCredit <= 199999 &&
+        index == 4) {
       return "guardian_and_vip_screen.current_level".tr();
-    }else if(currentCredit > 199999 && index == 4){
+    } else if (currentCredit > 199999 && index == 4) {
       return "guardian_and_vip_screen.past_level".tr();
-    } else if(currentCredit >= 200000 && currentCredit <= 499999 && index == 5){
+    } else if (currentCredit >= 200000 &&
+        currentCredit <= 499999 &&
+        index == 5) {
       return "guardian_and_vip_screen.current_level".tr();
-    }else if(currentCredit > 499999 && index == 5){
+    } else if (currentCredit > 499999 && index == 5) {
       return "guardian_and_vip_screen.past_level".tr();
-    } else if(currentCredit >= 500000 && currentCredit <= 999999 && index == 6){
+    } else if (currentCredit >= 500000 &&
+        currentCredit <= 999999 &&
+        index == 6) {
       return "guardian_and_vip_screen.current_level".tr();
-    }else if(currentCredit > 999999 && index == 6){
+    } else if (currentCredit > 999999 && index == 6) {
       return "guardian_and_vip_screen.past_level".tr();
-    } else if(currentCredit >= 1000000 && currentCredit <= 1999999 && index == 7){
+    } else if (currentCredit >= 1000000 &&
+        currentCredit <= 1999999 &&
+        index == 7) {
       return "guardian_and_vip_screen.current_level".tr();
-    }else if(currentCredit > 1999999 && index == 7){
+    } else if (currentCredit > 1999999 && index == 7) {
       return "guardian_and_vip_screen.past_level".tr();
-    } else if(currentCredit >= 2000000 && currentCredit <= 4999999 && index == 8){
+    } else if (currentCredit >= 2000000 &&
+        currentCredit <= 4999999 &&
+        index == 8) {
       return "guardian_and_vip_screen.current_level".tr();
-    }else if(currentCredit > 4999999 && index == 8){
+    } else if (currentCredit > 4999999 && index == 8) {
       return "guardian_and_vip_screen.past_level".tr();
-    } else if(currentCredit >= 5000000 && currentCredit <= 9999999 && index == 9){
+    } else if (currentCredit >= 5000000 &&
+        currentCredit <= 9999999 &&
+        index == 9) {
       return "guardian_and_vip_screen.current_level".tr();
-    }else if(currentCredit > 9999999 && index == 9){
+    } else if (currentCredit > 9999999 && index == 9) {
       return "guardian_and_vip_screen.past_level".tr();
-    } else if(currentCredit >= 10000000 && index == 10){
+    } else if (currentCredit >= 10000000 && index == 10) {
       return "guardian_and_vip_screen.current_level".tr();
     } else {
       return "guardian_and_vip_screen.not_gained".tr();
     }
   }
 
-  static int levelUserPage(double currentCredit){
-    if(currentCredit > 0 && currentCredit <= 9999){
+  static int levelUserPage(double currentCredit) {
+    if (currentCredit > 0 && currentCredit <= 9999) {
       return 1;
-    } else if(currentCredit >= 10000 && currentCredit <= 49999){
+    } else if (currentCredit >= 10000 && currentCredit <= 49999) {
       return 2;
-    } else if(currentCredit >= 50000 && currentCredit <= 99999){
+    } else if (currentCredit >= 50000 && currentCredit <= 99999) {
       return 3;
-    } else if(currentCredit >= 100000 && currentCredit <= 199999){
+    } else if (currentCredit >= 100000 && currentCredit <= 199999) {
       return 4;
-    } else if(currentCredit >= 200000 && currentCredit <= 499999){
+    } else if (currentCredit >= 200000 && currentCredit <= 499999) {
       return 5;
-    } else if(currentCredit >= 500000 && currentCredit <= 999999){
+    } else if (currentCredit >= 500000 && currentCredit <= 999999) {
       return 6;
-    } else if(currentCredit >= 1000000 && currentCredit <= 1999999){
+    } else if (currentCredit >= 1000000 && currentCredit <= 1999999) {
       return 7;
-    } else if(currentCredit >= 2000000 && currentCredit <= 4999999){
+    } else if (currentCredit >= 2000000 && currentCredit <= 4999999) {
       return 8;
-    } else if(currentCredit >= 5000000 && currentCredit <= 9999999){
+    } else if (currentCredit >= 5000000 && currentCredit <= 9999999) {
       return 9;
-    } else if(currentCredit >= 10000000){
+    } else if (currentCredit >= 10000000) {
       return 10;
     } else {
       return 0;
@@ -398,219 +433,221 @@ class QuickHelp {
   }
 
   static String fanClubIcon({required int day}) {
-    if(day == 0) {
+    if (day == 0) {
       return "assets/images/tab_fst_0.png";
-    }else if(day == 1) {
+    } else if (day == 1) {
       return "assets/images/tab_fst_1.png";
-    }else if(day == 2) {
+    } else if (day == 2) {
       return "assets/images/tab_fst_2.png";
-    }else if(day == 3) {
+    } else if (day == 3) {
       return "assets/images/tab_fst_3.png";
-    }else if(day == 4) {
+    } else if (day == 4) {
       return "assets/images/tab_fst_4.png";
-    }else if(day == 5) {
+    } else if (day == 5) {
       return "assets/images/tab_fst_5.png";
-    }else if(day == 6) {
+    } else if (day == 6) {
       return "assets/images/tab_fst_6.png";
-    }else if(day == 7) {
+    } else if (day == 7) {
       return "assets/images/tab_fst_7.png";
-    }else if(day == 8) {
+    } else if (day == 8) {
       return "assets/images/tab_fst_8.png";
-    }else if(day == 9) {
+    } else if (day == 9) {
       return "assets/images/tab_fst_9.png";
-    }else if(day == 10) {
+    } else if (day == 10) {
       return "assets/images/tab_fst_10.png";
-    }else if(day == 11) {
+    } else if (day == 11) {
       return "assets/images/tab_fst_11.png";
-    }else if(day == 12) {
+    } else if (day == 12) {
       return "assets/images/tab_fst_12.png";
-    }else if(day == 13) {
+    } else if (day == 13) {
       return "assets/images/tab_fst_13.png";
-    }else if(day == 14) {
+    } else if (day == 14) {
       return "assets/images/tab_fst_14.png";
-    }else if(day == 15) {
+    } else if (day == 15) {
       return "assets/images/tab_fst_15.png";
-    }else if(day == 16) {
+    } else if (day == 16) {
       return "assets/images/tab_fst_16.png";
-    }else if(day == 17) {
+    } else if (day == 17) {
       return "assets/images/tab_fst_17.png";
-    }else if(day == 18) {
+    } else if (day == 18) {
       return "assets/images/tab_fst_18.png";
-    }else if(day == 19) {
+    } else if (day == 19) {
       return "assets/images/tab_fst_19.png";
-    }else if(day == 20) {
+    } else if (day == 20) {
       return "assets/images/tab_fst_20.png";
-    }else if(day == 21) {
+    } else if (day == 21) {
       return "assets/images/tab_fst_21.png";
-    }else if(day == 22) {
+    } else if (day == 22) {
       return "assets/images/tab_fst_22.png";
-    }else if(day == 23) {
+    } else if (day == 23) {
       return "assets/images/tab_fst_23.png";
-    }else if(day == 24) {
+    } else if (day == 24) {
       return "assets/images/tab_fst_24.png";
-    }else if(day == 25) {
+    } else if (day == 25) {
       return "assets/images/tab_fst_25.png";
-    }else if(day == 26) {
+    } else if (day == 26) {
       return "assets/images/tab_fst_26.png";
-    }else if(day == 27) {
+    } else if (day == 27) {
       return "assets/images/tab_fst_27.png";
-    }else if(day == 28) {
+    } else if (day == 28) {
       return "assets/images/tab_fst_28.png";
-    }else if(day == 29) {
+    } else if (day == 29) {
       return "assets/images/tab_fst_29.png";
-    }else if(day == 30) {
+    } else if (day == 30) {
       return "assets/images/tab_fst_30.png";
-    }else if(day == 31) {
+    } else if (day == 31) {
       return "assets/images/tab_fst_31.png";
-    }else if(day == 32) {
+    } else if (day == 32) {
       return "assets/images/tab_fst_32.png";
-    }else if(day == 33) {
+    } else if (day == 33) {
       return "assets/images/tab_fst_33.png";
-    }else if(day == 34) {
+    } else if (day == 34) {
       return "assets/images/tab_fst_34.png";
-    }else if(day == 35) {
+    } else if (day == 35) {
       return "assets/images/tab_fst_35.png";
-    }else if(day == 36) {
+    } else if (day == 36) {
       return "assets/images/tab_fst_36.png";
-    }else if(day == 37) {
+    } else if (day == 37) {
       return "assets/images/tab_fst_37.png";
-    }else if(day == 38) {
+    } else if (day == 38) {
       return "assets/images/tab_fst_38.png";
-    }else if(day == 39) {
+    } else if (day == 39) {
       return "assets/images/tab_fst_39.png";
-    }else if(day == 40) {
+    } else if (day == 40) {
       return "assets/images/tab_fst_40.png";
-    }else if(day == 41) {
+    } else if (day == 41) {
       return "assets/images/tab_fst_41.png";
-    }else if(day == 42) {
+    } else if (day == 42) {
       return "assets/images/tab_fst_42.png";
-    }else if(day == 43) {
+    } else if (day == 43) {
       return "assets/images/tab_fst_43.png";
-    }else if(day == 44) {
+    } else if (day == 44) {
       return "assets/images/tab_fst_44.png";
-    }else if(day == 45) {
+    } else if (day == 45) {
       return "assets/images/tab_fst_45.png";
-    }else if(day == 46) {
+    } else if (day == 46) {
       return "assets/images/tab_fst_46.png";
-    }else if(day == 47) {
+    } else if (day == 47) {
       return "assets/images/tab_fst_47.png";
-    }else if(day == 48) {
+    } else if (day == 48) {
       return "assets/images/tab_fst_48.png";
-    }else if(day == 49) {
+    } else if (day == 49) {
       return "assets/images/tab_fst_49.png";
-    }else if(day == 50) {
+    } else if (day == 50) {
       return "assets/images/tab_fst_50.png";
-    }else if(day == 51) {
+    } else if (day == 51) {
       return "assets/images/tab_fst_51.png";
-    }else if(day == 52) {
+    } else if (day == 52) {
       return "assets/images/tab_fst_52.png";
-    }else if(day == 53) {
+    } else if (day == 53) {
       return "assets/images/tab_fst_53.png";
-    }else if(day == 54) {
+    } else if (day == 54) {
       return "assets/images/tab_fst_54.png";
-    }else if(day == 55) {
+    } else if (day == 55) {
       return "assets/images/tab_fst_55.png";
-    }else if(day == 56) {
+    } else if (day == 56) {
       return "assets/images/tab_fst_56.png";
-    }else if(day == 57) {
+    } else if (day == 57) {
       return "assets/images/tab_fst_57.png";
-    }else if(day == 58) {
+    } else if (day == 58) {
       return "assets/images/tab_fst_58.png";
-    }else if(day == 59) {
+    } else if (day == 59) {
       return "assets/images/tab_fst_59.png";
-    }else if(day == 60) {
+    } else if (day == 60) {
       return "assets/images/tab_fst_60.png";
-    }else if(day == 61) {
+    } else if (day == 61) {
       return "assets/images/tab_fst_61.png";
-    }else if(day == 62) {
+    } else if (day == 62) {
       return "assets/images/tab_fst_62.png";
-    }else if(day == 63) {
+    } else if (day == 63) {
       return "assets/images/tab_fst_63.png";
-    }else if(day == 64) {
+    } else if (day == 64) {
       return "assets/images/tab_fst_64.png";
-    }else if(day == 65) {
+    } else if (day == 65) {
       return "assets/images/tab_fst_65.png";
-    }else if(day == 66) {
+    } else if (day == 66) {
       return "assets/images/tab_fst_66.png";
-    }else if(day == 67) {
+    } else if (day == 67) {
       return "assets/images/tab_fst_67.png";
-    }else if(day == 68) {
+    } else if (day == 68) {
       return "assets/images/tab_fst_68.png";
-    }else if(day == 69) {
+    } else if (day == 69) {
       return "assets/images/tab_fst_69.png";
-    }else if(day == 70) {
+    } else if (day == 70) {
       return "assets/images/tab_fst_70.png";
-    }else if(day == 71) {
+    } else if (day == 71) {
       return "assets/images/tab_fst_71.png";
-    }else if(day == 72) {
+    } else if (day == 72) {
       return "assets/images/tab_fst_72.png";
-    }else if(day == 73) {
+    } else if (day == 73) {
       return "assets/images/tab_fst_73.png";
-    }else if(day == 74) {
+    } else if (day == 74) {
       return "assets/images/tab_fst_74.png";
-    }else if(day == 75) {
+    } else if (day == 75) {
       return "assets/images/tab_fst_75.png";
-    }else if(day == 76) {
+    } else if (day == 76) {
       return "assets/images/tab_fst_76.png";
-    }else if(day == 77) {
+    } else if (day == 77) {
       return "assets/images/tab_fst_77.png";
-    }else if(day == 78) {
+    } else if (day == 78) {
       return "assets/images/tab_fst_78.png";
-    }else if(day == 79) {
+    } else if (day == 79) {
       return "assets/images/tab_fst_79.png";
-    }else if(day == 80) {
+    } else if (day == 80) {
       return "assets/images/tab_fst_80.png";
-    }else if(day == 81) {
+    } else if (day == 81) {
       return "assets/images/tab_fst_81.png";
-    }else if(day == 82) {
+    } else if (day == 82) {
       return "assets/images/tab_fst_82.png";
-    }else if(day == 83) {
+    } else if (day == 83) {
       return "assets/images/tab_fst_83.png";
-    }else if(day == 84) {
+    } else if (day == 84) {
       return "assets/images/tab_fst_84.png";
-    }else if(day == 85) {
+    } else if (day == 85) {
       return "assets/images/tab_fst_85.png";
-    }else if(day == 86) {
+    } else if (day == 86) {
       return "assets/images/tab_fst_86.png";
-    }else if(day == 87) {
+    } else if (day == 87) {
       return "assets/images/tab_fst_87.png";
-    }else if(day == 88) {
+    } else if (day == 88) {
       return "assets/images/tab_fst_88.png";
-    }else if(day == 89) {
+    } else if (day == 89) {
       return "assets/images/tab_fst_89.png";
-    }else if(day == 90) {
+    } else if (day == 90) {
       return "assets/images/tab_fst_90.png";
-    }else if(day == 91) {
+    } else if (day == 91) {
       return "assets/images/tab_fst_91.png";
-    }else if(day == 92) {
+    } else if (day == 92) {
       return "assets/images/tab_fst_92.png";
-    }else if(day == 93) {
+    } else if (day == 93) {
       return "assets/images/tab_fst_93.png";
-    }else if(day == 94) {
+    } else if (day == 94) {
       return "assets/images/tab_fst_94.png";
-    }else if(day == 95) {
+    } else if (day == 95) {
       return "assets/images/tab_fst_95.png";
-    }else if(day == 96) {
+    } else if (day == 96) {
       return "assets/images/tab_fst_96.png";
-    }else if(day == 97) {
+    } else if (day == 97) {
       return "assets/images/tab_fst_97.png";
-    }else if(day == 98) {
+    } else if (day == 98) {
       return "assets/images/tab_fst_98.png";
-    }else if(day == 99) {
+    } else if (day == 99) {
       return "assets/images/tab_fst_99.png";
-    }else if(day == 100) {
+    } else if (day == 100) {
       return "assets/images/tab_fst_100.png";
-    }else{
+    } else {
       return "assets/images/tab_fst_0.png";
     }
   }
 
-  static String checkFundsWithString({required String amount,}) {
-
+  static String checkFundsWithString({
+    required String amount,
+  }) {
     //final formatter = intl.NumberFormat.decimalPattern();
 
     NumberFormat format = NumberFormat.decimalPatternDigits(
-        locale: Intl.defaultLocale,);
+      locale: Intl.defaultLocale,
+    );
     if (amount.isNotEmpty) {
       return "${format.format(double.parse(amount))}";
     } else {
@@ -618,10 +655,14 @@ class QuickHelp {
     }
   }
 
-  static String checkFundsWithCurrency(BuildContext context, {required String amount, required String currency,}) {
-
+  static String checkFundsWithCurrency(
+    BuildContext context, {
+    required String amount,
+    required String currency,
+  }) {
     NumberFormat format = NumberFormat.decimalPatternDigits(
-        locale: Intl.defaultLocale,);
+      locale: Intl.defaultLocale,
+    );
     if (amount.isNotEmpty) {
       return "${getCurrency(context, currency)} ${format.format(double.parse(amount))}";
     } else {
@@ -636,9 +677,9 @@ class QuickHelp {
   }
 
   static String levelImage({required int pointsInApp}) {
-    if(pointsInApp <= Setup.level1MaxPoint){
+    if (pointsInApp <= Setup.level1MaxPoint) {
       return "assets/images/lv_1.png";
-    }else if (pointsInApp <= Setup.level2MaxPoint) {
+    } else if (pointsInApp <= Setup.level2MaxPoint) {
       return "assets/images/lv_2.png";
     } else if (pointsInApp <= Setup.level3MaxPoint) {
       return "assets/images/lv_3.png";
@@ -708,15 +749,15 @@ class QuickHelp {
       return "assets/images/lv_35.png";
     } else if (pointsInApp <= Setup.level36MaxPoint) {
       return "assets/images/lv_36.png";
-    } else{
+    } else {
       return "assets/images/lv_1.png";
     }
   }
 
   static String levelImageWithBanner({required int pointsInApp}) {
-    if(pointsInApp <= Setup.level1MaxPoint){
+    if (pointsInApp <= Setup.level1MaxPoint) {
       return "assets/images/grade_big_1.png";
-    }else if (pointsInApp <= Setup.level2MaxPoint) {
+    } else if (pointsInApp <= Setup.level2MaxPoint) {
       return "assets/images/grade_big_2.png";
     } else if (pointsInApp <= Setup.level3MaxPoint) {
       return "assets/images/grade_big_3.png";
@@ -766,15 +807,15 @@ class QuickHelp {
       return "assets/images/grade_big_24.png";
     } else if (pointsInApp <= Setup.level26MaxPoint) {
       return "assets/images/grade_big_25.png";
-    } else{
+    } else {
       return "assets/images/grade_big_1.png";
     }
   }
 
   static String levelCaption({required int pointsInApp}) {
-    if(pointsInApp <= Setup.level1MaxPoint){
+    if (pointsInApp <= Setup.level1MaxPoint) {
       return "LV 1";
-    }else if (pointsInApp <= Setup.level2MaxPoint) {
+    } else if (pointsInApp <= Setup.level2MaxPoint) {
       return "LV 2";
     } else if (pointsInApp <= Setup.level3MaxPoint) {
       return "LV 3";
@@ -822,15 +863,15 @@ class QuickHelp {
       return "LV 24";
     } else if (pointsInApp <= Setup.level26MaxPoint) {
       return "LV 26";
-    } else{
+    } else {
       return "LV 0";
     }
   }
 
   static int levelPositionIndex({required int pointsInApp}) {
-    if(pointsInApp <= Setup.level1MaxPoint){
+    if (pointsInApp <= Setup.level1MaxPoint) {
       return 1;
-    }else if (pointsInApp <= Setup.level2MaxPoint) {
+    } else if (pointsInApp <= Setup.level2MaxPoint) {
       return 2;
     } else if (pointsInApp <= Setup.level3MaxPoint) {
       return 3;
@@ -878,15 +919,15 @@ class QuickHelp {
       return 24;
     } else if (pointsInApp <= Setup.level26MaxPoint) {
       return 25;
-    } else{
+    } else {
       return 0;
     }
   }
 
   static int levelPositionValues({required int pointsInApp}) {
-    if(pointsInApp <= Setup.level1MaxPoint){
+    if (pointsInApp <= Setup.level1MaxPoint) {
       return Setup.level1MaxPoint;
-    }else if (pointsInApp <= Setup.level2MaxPoint) {
+    } else if (pointsInApp <= Setup.level2MaxPoint) {
       return Setup.level2MaxPoint;
     } else if (pointsInApp <= Setup.level3MaxPoint) {
       return Setup.level3MaxPoint;
@@ -934,15 +975,15 @@ class QuickHelp {
       return Setup.level25MaxPoint;
     } else if (pointsInApp <= Setup.level26MaxPoint) {
       return Setup.level26MaxPoint;
-    } else{
+    } else {
       return 0;
     }
   }
 
   static int wealthLevelValue({required int creditSent}) {
-    if(creditSent == 0) {
+    if (creditSent == 0) {
       return 0;
-    }else if (creditSent <= 3000) {
+    } else if (creditSent <= 3000) {
       return 3000;
     } else if (creditSent <= 6000) {
       return 6000;
@@ -1334,25 +1375,25 @@ class QuickHelp {
       return 152817920000;
     } else if (creditSent <= 155306240000) {
       return 155306240000;
-  } else if (creditSent <= 158292224000) {
-    return 158292224000;
+    } else if (creditSent <= 158292224000) {
+      return 158292224000;
     } else if (creditSent <= 162024704000) {
-    return 162024704000;
+      return 162024704000;
     } else if (creditSent <= 166254848000) {
-    return 166254848000;
+      return 166254848000;
     } else if (creditSent <= 170086860800) {
-    return 170086860800;
+      return 170086860800;
     } else if (creditSent <= 185286860800) {
-    return 185286860800;
+      return 185286860800;
     } else {
-    return 3000;
+      return 3000;
     }
   }
 
   static String wealthLevel({required int creditSent}) {
-    if(creditSent == 0){
+    if (creditSent == 0) {
       return "assets/images/caifu_level_1.png";
-    }else if (creditSent <= 3000) {
+    } else if (creditSent <= 3000) {
       return "assets/images/caifu_level_2.png";
     } else if (creditSent <= 6000) {
       return "assets/images/caifu_level_3.png";
@@ -1740,18 +1781,18 @@ class QuickHelp {
       return "assets/images/caifu_level_194.png";
     } else if (creditSent <= 155306240000) {
       return "assets/images/caifu_level_195.png";
-  } else if (creditSent <= 158292224000) {
-    return "assets/images/caifu_level_196.png";
+    } else if (creditSent <= 158292224000) {
+      return "assets/images/caifu_level_196.png";
     } else if (creditSent <= 162024704000) {
-    return "assets/images/caifu_level_197.png";
+      return "assets/images/caifu_level_197.png";
     } else if (creditSent <= 166254848000) {
-    return "assets/images/caifu_level_198.png";
+      return "assets/images/caifu_level_198.png";
     } else if (creditSent <= 170086860800) {
-    return "assets/images/caifu_level_199.png";
+      return "assets/images/caifu_level_199.png";
     } else if (creditSent <= 189986860800) {
-    return "assets/images/caifu_level_200.png";
+      return "assets/images/caifu_level_200.png";
     } else {
-    return "assets/images/caifu_level_1.png";
+      return "assets/images/caifu_level_1.png";
     }
   }
 
@@ -1984,9 +2025,9 @@ class QuickHelp {
   }
 
   static int wealthLevelNumber({required int creditSent}) {
-    if(creditSent == 0){
+    if (creditSent == 0) {
       return 0;
-    }else if (creditSent < 3000) {
+    } else if (creditSent < 3000) {
       return 1;
     } else if (creditSent <= 6000) {
       return 2;
@@ -2378,18 +2419,18 @@ class QuickHelp {
       return 197;
     } else if (creditSent <= 155306240000) {
       return 198;
-  } else if (creditSent <= 158292224000) {
-    return 199;
+    } else if (creditSent <= 158292224000) {
+      return 199;
     } else if (creditSent <= 162024704000) {
-    return 200;
+      return 200;
     } else if (creditSent <= 166254848000) {
-    return 201;
+      return 201;
     } else if (creditSent <= 170086860800) {
-    return 202;
+      return 202;
     } else if (creditSent <= 185286860800) {
-    return 203;
+      return 203;
     } else {
-    return 0;
+      return 0;
     }
   }
 
@@ -3164,19 +3205,19 @@ class QuickHelp {
         resumeState.pushNamed(context, route, arguments: arguments);
       } else {
         Navigator.of(context).pushNamed(route, arguments: arguments);
-       /* NavigationService.navigatorKey.currentState
+        /* NavigationService.navigatorKey.currentState
             ?.pushNamed(route, arguments: arguments);*/
       }
     });
   }
 
-  static gotoChat(BuildContext context,
-      {UserModel? currentUser,
-      UserModel? mUser,}) {
+  static gotoChat(
+    BuildContext context, {
+    UserModel? currentUser,
+    UserModel? mUser,
+  }) {
     QuickHelp.goToNavigatorScreen(
-        context,
-        MessageScreen(
-            currentUser: currentUser, mUser: mUser));
+        context, MessageScreen(currentUser: currentUser, mUser: mUser));
   }
 
   static goToNavigatorScreen(BuildContext context, Widget widget,
@@ -4019,22 +4060,23 @@ class QuickHelp {
     return DateFormat(dateFormatDmy).format(date.add(Duration(days: 1)));
   }
 
-  static saveCoinTransaction({
-    required UserModel author,
-    UserModel? receiver,
-    required int amountTransacted
-  }) {
+  static saveCoinTransaction(
+      {required UserModel author,
+      UserModel? receiver,
+      required int amountTransacted}) {
     CoinsTransactionsModel coinsTransactionsModel = CoinsTransactionsModel();
 
     coinsTransactionsModel.setAuthor = author;
     coinsTransactionsModel.setAuthorId = author.objectId!;
 
-    if(receiver != null) {
+    if (receiver != null) {
       coinsTransactionsModel.setReceiver = receiver;
       coinsTransactionsModel.setReceiverId = receiver.objectId!;
-      coinsTransactionsModel.setTransactionType = CoinsTransactionsModel.transactionTypeSent;
-    }else{
-      coinsTransactionsModel.setTransactionType = CoinsTransactionsModel.transactionTypeTopUP;
+      coinsTransactionsModel.setTransactionType =
+          CoinsTransactionsModel.transactionTypeSent;
+    } else {
+      coinsTransactionsModel.setTransactionType =
+          CoinsTransactionsModel.transactionTypeTopUP;
     }
 
     coinsTransactionsModel.setTransactedAmount = amountTransacted;
@@ -4082,56 +4124,256 @@ class QuickHelp {
   }
 
   static Map<String, String> countryDialCodes = {
-    'AF': '+93', 'AL': '+355', 'DZ': '+213', 'AS': '+1-684', 'AD': '+376',
-    'AO': '+244', 'AI': '+1-264', 'AQ': '+672', 'AG': '+1-268', 'AR': '+54',
-    'AM': '+374', 'AW': '+297', 'AU': '+61', 'AT': '+43', 'AZ': '+994',
-    'BS': '+1-242', 'BH': '+973', 'BD': '+880', 'BB': '+1-246', 'BY': '+375',
-    'BE': '+32', 'BZ': '+501', 'BJ': '+229', 'BM': '+1-441', 'BT': '+975',
-    'BO': '+591', 'BA': '+387', 'BW': '+267', 'BR': '+55', 'IO': '+246',
-    'VG': '+1-284', 'BN': '+673', 'BG': '+359', 'BF': '+226', 'BI': '+257',
-    'KH': '+855', 'CM': '+237', 'CA': '+1', 'CV': '+238', 'KY': '+1-345',
-    'CF': '+236', 'TD': '+235', 'CL': '+56', 'CN': '+86', 'CO': '+57',
-    'KM': '+269', 'CG': '+242', 'CD': '+243', 'CK': '+682', 'CR': '+506',
-    'CI': '+225', 'HR': '+385', 'CU': '+53', 'CW': '+599', 'CY': '+357',
-    'CZ': '+420', 'DK': '+45', 'DJ': '+253', 'DM': '+1-767', 'DO': '+1-809',
-    'EC': '+593', 'EG': '+20', 'SV': '+503', 'GQ': '+240', 'ER': '+291',
-    'EE': '+372', 'ET': '+251', 'FJ': '+679', 'FI': '+358', 'FR': '+33',
-    'GF': '+594', 'PF': '+689', 'GA': '+241', 'GM': '+220', 'GE': '+995',
-    'DE': '+49', 'GH': '+233', 'GI': '+350', 'GR': '+30', 'GL': '+299',
-    'GD': '+1-473', 'GP': '+590', 'GU': '+1-671', 'GT': '+502', 'GN': '+224',
-    'GW': '+245', 'GY': '+592', 'HT': '+509', 'HN': '+504', 'HK': '+852',
-    'HU': '+36', 'IS': '+354', 'IN': '+91', 'ID': '+62', 'IR': '+98',
-    'IQ': '+964', 'IE': '+353', 'IL': '+972', 'IT': '+39', 'JM': '+1-876',
-    'JP': '+81', 'JO': '+962', 'KZ': '+7', 'KE': '+254', 'KI': '+686',
-    'KP': '+850', 'KR': '+82', 'KW': '+965', 'KG': '+996', 'LA': '+856',
-    'LV': '+371', 'LB': '+961', 'LS': '+266', 'LR': '+231', 'LY': '+218',
-    'LI': '+423', 'LT': '+370', 'LU': '+352', 'MO': '+853', 'MK': '+389',
-    'MG': '+261', 'MW': '+265', 'MY': '+60', 'MV': '+960', 'ML': '+223',
-    'MT': '+356', 'MH': '+692', 'MQ': '+596', 'MR': '+222', 'MU': '+230',
-    'YT': '+262', 'MX': '+52', 'FM': '+691', 'MD': '+373', 'MC': '+377',
-    'MN': '+976', 'ME': '+382', 'MS': '+1-664', 'MA': '+212', 'MZ': '+258',
-    'MM': '+95', 'NA': '+264', 'NR': '+674', 'NP': '+977', 'NL': '+31',
-    'NC': '+687', 'NZ': '+64', 'NI': '+505', 'NE': '+227', 'NG': '+234',
-    'NU': '+683', 'NF': '+672', 'MP': '+1-670', 'NO': '+47', 'OM': '+968',
-    'PK': '+92', 'PW': '+680', 'PS': '+970', 'PA': '+507', 'PG': '+675',
-    'PY': '+595', 'PE': '+51', 'PH': '+63', 'PL': '+48', 'PT': '+351',
-    'PR': '+1-787', 'QA': '+974', 'RE': '+262', 'RO': '+40', 'RU': '+7',
-    'RW': '+250', 'BL': '+590', 'SH': '+290', 'KN': '+1-869', 'LC': '+1-758',
-    'MF': '+590', 'PM': '+508', 'VC': '+1-784', 'WS': '+685', 'SM': '+378',
-    'ST': '+239', 'SA': '+966', 'SN': '+221', 'RS': '+381', 'SC': '+248',
-    'SL': '+232', 'SG': '+65', 'SX': '+1-721', 'SK': '+421', 'SI': '+386',
-    'SB': '+677', 'SO': '+252', 'ZA': '+27', 'SS': '+211', 'ES': '+34',
-    'LK': '+94', 'SD': '+249', 'SR': '+597', 'SZ': '+268', 'SE': '+46',
-    'CH': '+41', 'SY': '+963', 'TW': '+886', 'TJ': '+992', 'TZ': '+255',
-    'TH': '+66', 'TL': '+670', 'TG': '+228', 'TK': '+690', 'TO': '+676',
-    'TT': '+1-868', 'TN': '+216', 'TR': '+90', 'TM': '+993', 'TC': '+1-649',
-    'TV': '+688', 'UG': '+256', 'UA': '+380', 'AE': '+971', 'GB': '+44',
-    'US': '+1', 'UY': '+598', 'UZ': '+998', 'VU': '+678', 'VA': '+379',
-    'VE': '+58', 'VN': '+84', 'WF': '+681', 'EH': '+212', 'YE': '+967',
-    'ZM': '+260', 'ZW': '+263', "AX": "+358", "BQ": "+599", "CC":"+61", 'CX':'+61',
-    'FK':'+500', 'FO':'+298', 'GB-ENG':'+44', 'GB-NIR':"+44", "GB-SCT":"+44", 'GB-WLS':"+44",
-    "GG":"+44 1481", "GS":"+500", "IM":"+44 1624", "JE":"+44 1534", "PN":"+64","TF":"+262",
-    "VI":"+1-340", "XK":"+383"
+    'AF': '+93',
+    'AL': '+355',
+    'DZ': '+213',
+    'AS': '+1-684',
+    'AD': '+376',
+    'AO': '+244',
+    'AI': '+1-264',
+    'AQ': '+672',
+    'AG': '+1-268',
+    'AR': '+54',
+    'AM': '+374',
+    'AW': '+297',
+    'AU': '+61',
+    'AT': '+43',
+    'AZ': '+994',
+    'BS': '+1-242',
+    'BH': '+973',
+    'BD': '+880',
+    'BB': '+1-246',
+    'BY': '+375',
+    'BE': '+32',
+    'BZ': '+501',
+    'BJ': '+229',
+    'BM': '+1-441',
+    'BT': '+975',
+    'BO': '+591',
+    'BA': '+387',
+    'BW': '+267',
+    'BR': '+55',
+    'IO': '+246',
+    'VG': '+1-284',
+    'BN': '+673',
+    'BG': '+359',
+    'BF': '+226',
+    'BI': '+257',
+    'KH': '+855',
+    'CM': '+237',
+    'CA': '+1',
+    'CV': '+238',
+    'KY': '+1-345',
+    'CF': '+236',
+    'TD': '+235',
+    'CL': '+56',
+    'CN': '+86',
+    'CO': '+57',
+    'KM': '+269',
+    'CG': '+242',
+    'CD': '+243',
+    'CK': '+682',
+    'CR': '+506',
+    'CI': '+225',
+    'HR': '+385',
+    'CU': '+53',
+    'CW': '+599',
+    'CY': '+357',
+    'CZ': '+420',
+    'DK': '+45',
+    'DJ': '+253',
+    'DM': '+1-767',
+    'DO': '+1-809',
+    'EC': '+593',
+    'EG': '+20',
+    'SV': '+503',
+    'GQ': '+240',
+    'ER': '+291',
+    'EE': '+372',
+    'ET': '+251',
+    'FJ': '+679',
+    'FI': '+358',
+    'FR': '+33',
+    'GF': '+594',
+    'PF': '+689',
+    'GA': '+241',
+    'GM': '+220',
+    'GE': '+995',
+    'DE': '+49',
+    'GH': '+233',
+    'GI': '+350',
+    'GR': '+30',
+    'GL': '+299',
+    'GD': '+1-473',
+    'GP': '+590',
+    'GU': '+1-671',
+    'GT': '+502',
+    'GN': '+224',
+    'GW': '+245',
+    'GY': '+592',
+    'HT': '+509',
+    'HN': '+504',
+    'HK': '+852',
+    'HU': '+36',
+    'IS': '+354',
+    'IN': '+91',
+    'ID': '+62',
+    'IR': '+98',
+    'IQ': '+964',
+    'IE': '+353',
+    'IL': '+972',
+    'IT': '+39',
+    'JM': '+1-876',
+    'JP': '+81',
+    'JO': '+962',
+    'KZ': '+7',
+    'KE': '+254',
+    'KI': '+686',
+    'KP': '+850',
+    'KR': '+82',
+    'KW': '+965',
+    'KG': '+996',
+    'LA': '+856',
+    'LV': '+371',
+    'LB': '+961',
+    'LS': '+266',
+    'LR': '+231',
+    'LY': '+218',
+    'LI': '+423',
+    'LT': '+370',
+    'LU': '+352',
+    'MO': '+853',
+    'MK': '+389',
+    'MG': '+261',
+    'MW': '+265',
+    'MY': '+60',
+    'MV': '+960',
+    'ML': '+223',
+    'MT': '+356',
+    'MH': '+692',
+    'MQ': '+596',
+    'MR': '+222',
+    'MU': '+230',
+    'YT': '+262',
+    'MX': '+52',
+    'FM': '+691',
+    'MD': '+373',
+    'MC': '+377',
+    'MN': '+976',
+    'ME': '+382',
+    'MS': '+1-664',
+    'MA': '+212',
+    'MZ': '+258',
+    'MM': '+95',
+    'NA': '+264',
+    'NR': '+674',
+    'NP': '+977',
+    'NL': '+31',
+    'NC': '+687',
+    'NZ': '+64',
+    'NI': '+505',
+    'NE': '+227',
+    'NG': '+234',
+    'NU': '+683',
+    'NF': '+672',
+    'MP': '+1-670',
+    'NO': '+47',
+    'OM': '+968',
+    'PK': '+92',
+    'PW': '+680',
+    'PS': '+970',
+    'PA': '+507',
+    'PG': '+675',
+    'PY': '+595',
+    'PE': '+51',
+    'PH': '+63',
+    'PL': '+48',
+    'PT': '+351',
+    'PR': '+1-787',
+    'QA': '+974',
+    'RE': '+262',
+    'RO': '+40',
+    'RU': '+7',
+    'RW': '+250',
+    'BL': '+590',
+    'SH': '+290',
+    'KN': '+1-869',
+    'LC': '+1-758',
+    'MF': '+590',
+    'PM': '+508',
+    'VC': '+1-784',
+    'WS': '+685',
+    'SM': '+378',
+    'ST': '+239',
+    'SA': '+966',
+    'SN': '+221',
+    'RS': '+381',
+    'SC': '+248',
+    'SL': '+232',
+    'SG': '+65',
+    'SX': '+1-721',
+    'SK': '+421',
+    'SI': '+386',
+    'SB': '+677',
+    'SO': '+252',
+    'ZA': '+27',
+    'SS': '+211',
+    'ES': '+34',
+    'LK': '+94',
+    'SD': '+249',
+    'SR': '+597',
+    'SZ': '+268',
+    'SE': '+46',
+    'CH': '+41',
+    'SY': '+963',
+    'TW': '+886',
+    'TJ': '+992',
+    'TZ': '+255',
+    'TH': '+66',
+    'TL': '+670',
+    'TG': '+228',
+    'TK': '+690',
+    'TO': '+676',
+    'TT': '+1-868',
+    'TN': '+216',
+    'TR': '+90',
+    'TM': '+993',
+    'TC': '+1-649',
+    'TV': '+688',
+    'UG': '+256',
+    'UA': '+380',
+    'AE': '+971',
+    'GB': '+44',
+    'US': '+1',
+    'UY': '+598',
+    'UZ': '+998',
+    'VU': '+678',
+    'VA': '+379',
+    'VE': '+58',
+    'VN': '+84',
+    'WF': '+681',
+    'EH': '+212',
+    'YE': '+967',
+    'ZM': '+260',
+    'ZW': '+263',
+    "AX": "+358",
+    "BQ": "+599",
+    "CC": "+61",
+    'CX': '+61',
+    'FK': '+500',
+    'FO': '+298',
+    'GB-ENG': '+44',
+    'GB-NIR': "+44",
+    "GB-SCT": "+44",
+    'GB-WLS': "+44",
+    "GG": "+44 1481",
+    "GS": "+500",
+    "IM": "+44 1624",
+    "JE": "+44 1534",
+    "PN": "+64",
+    "TF": "+262",
+    "VI": "+1-340",
+    "XK": "+383"
   };
 
   static String getCountryDialCode(String isoCode) {
@@ -4139,257 +4381,257 @@ class QuickHelp {
   }
 
   static List countriesIsoList = [
-  keyAndoraIso,
-  keyUnitedArabEmirates,
-  keyAfghanistan,
-  keyAntiguaAndBarbuda,
-  keyAnguilla,
-  keyAlbania,
-  keyArmenia,
-  keyAngola,
-  keyAntarctica,
-  keyArgentina,
-  keyAmericanSamoa,
-  keyAustria,
-  keyAustralia,
-  keyAruba,
-  keyAlandIslands,
-  keyAzerbaijan,
-  keyBosniaAndHerzegovina,
-  keyBarbados,
-  keyBangladesh,
-  keyBelgium,
-  keyBurkinaFaso,
-  keyBulgaria,
-  keyBahrain,
-  keyBurundi,
-  keyBenin,
-  keySaintBarthelemy,
-  keyBermuda,
-  keyBruneiDarussalam,
-  keyBolivia,
-  keyBonaireSintEustatiusAndSaba,
-  keyBrazil,
-  keyBahamas,
-  keyBhutan,
-  keyBotswana,
-  keyBelarus,
-  keyBelize,
-  keyCanada,
-  keyCocosIslands,
-  keyCongoDemocraticRepublic,
-  keyCentralAfricanRepublic,
-  keyCongo,
-  keySwitzerland,
-  keyCoteDIvoire,
-  keyCookIslands,
-  keyChile,
-  keyCameroon,
-  keyChina,
-  keyColombia,
-  keyCostaRica,
-  keyCuba,
-  keyCaboVerde,
-  keyCuracao,
-  keyChristmasIsland,
-  keyCyprus,
-  keyCzechia,
-  keyGermany,
-  keyDjibouti,
-  keyDenmark,
-  keyDominica,
-  keyDominicanRepublic,
-  keyAlgeria,
-  keyEcuador,
-  keyEstonia,
-  keyEgypt,
-  keyWesternSahara,
-  keyEritrea,
-  keySpain,
-  keyEthiopia,
-  keyFinland,
-  keyFiji,
-  keyFrance,
-  keyFalklandIslands,
-  keyMicronesia,
-  keyFaroeIslands,
-  keyGabon,
-  keyUnitedKingdom,
-  keyEngland,
-  keyNorthernIreland,
-  keyScotLand,
-  keyWales,
-  keyGrenada,
-  keyGeorgia,
-  keyFrenchGuiana,
-  keyGuernsey,
-  keyGhana,
-  keyGibraltar,
-  keyGreenland,
-  keyGambia,
-  keyGuinea,
-  keyGuadeloupe,
-  keyEquatorialGuinea,
-  keyGreece,
-  keySouthGeorgia,
-  keyGuatemala,
-  keyGuam,
-  keyGuineaBissau,
-  keyGuyana,
-  keyHongKong,
-  keyHeardIslandMcDonaldIslands,
-  keyHonduras,
-  keyCroatia,
-  keyHaiti,
-  keyHungary,
-  keyIndonesia,
-  keyIreland,
-  keyIsrael,
-  keyIsleOfMan,
-  keyIndia,
-  keyBritishIndianOceanTerritory ,
-  keyIraq,
-  keyIran,
-  keyIceland,
-  keyItaly,
-  keyJersey,
-  keyJamaica,
-  keyJordan,
-  keyJapan,
-  keyKenya,
-  keyKyrgyzstan,
-  keyCambodia,
-  keyKiribati,
-  keyComoros,
-  keySaintKittsNevis,
-  keyNorthKorea,
-  keySouthKorea,
-  keyKuwait,
-  keyCaymanIslands,
-  keyKazakhstan,
-  keyLaos,
-  keyLebanon,
-  keySaintLucia,
-  keyLiechtenstein,
-  keySriLanka,
-  keyLiberia,
-  keyLesotho,
-  keyLithuania,
-  keyLuxembourg,
-  keyLatvia,
-  keyLibya,
-  keyMorocco,
-  keyMonaco,
-  keyMoldova,
-  keyMontenegro,
-  keySaintMartinFrench,
-  keyMadagascar,
-  keyMarshallIslands,
-  keyNorthMacedonia,
-  keyMali,
-  keyMyanmar,
-  keyMongolia,
-  keyMacao,
-  keyNorthernMarianaIslands,
-  keyMartinique,
-  keyMauritania,
-  keyMontserrat,
-  keyMalta,
-  keyMauritius,
-  keyMaldives,
-  keyMalawi,
-  keyMexico,
-  keyMalaysia,
-  keyMozambique,
-  keyNamibia,
-  keyNewCaledonia,
-  keyNiger,
-  keyNorfolkIsland,
-  keyNigeria,
-  keyNicaragua,
-  keyNetherlands,
-  keyNorway,
-  keyNepal,
-  keyNauru,
-  keyNiue,
-  keyNewZealand,
-  keyOman,
-  keyPanama,
-  keyPeru,
-  keyFrenchPolynesia,
-  keyPapuaNewGuinea,
-  keyPhilippines,
-  keyPakistan,
-  keyPoland,
-  keySaintPierreMiquelon,
-  keyPitcairn,
-  keyPuertoRico,
-  keyPalestineState,
-  keyPortugal,
-  keyPalau,
-  keyParaguay,
-  keyQatar,
-  keyReunion,
-  keyRomania,
-  keySerbia,
-  keyRussianFederation,
-  keyRwanda,
-  keySaudiArabia,
-  keySolomonIslands,
-  keySeychelles,
-  keySudan,
-  keySweden,
-  keySingapore,
-  keySaintHelena,
-  keySlovenia,
-  keySlovakia,
-  keySierraLeone,
-  keySanMarino,
-  keySenegal,
-  keySomalia,
-  keySuriname,
-  keySouthSudan,
-  keySaoTomePrincipe,
-  keyElSalvador,
-  keySintMaarten,
-  keySyrianArabRepublic,
-  keyEswatini,
-  keyTurksCaicosIslands,
-  keyChad,
-  keyFrenchSouthernTerritories,
-  keyTogo,
-  keyThailand,
-  keyTajikistan,
-  keyTokelau,
-  keyTimorLeste,
-  keyTurkmenistan,
-  keyTunisia,
-  keyTonga,
-  keyTurkey,
-  keyTrinidadTobago,
-  keyTuvalu,
-  keyTaiwan,
-  keyTanzania,
-  keyUkraine,
-  keyUganda,
-  keyUnitedStatesAmerica,
-  keyUruguay,
-  keyUzbekistan,
-  keyHolySee,
-  keySaintVincentGrenadines,
-  keyVenezuela,
-  keyVirginIslandsBritish,
-  keyVirginIslandsUs,
-  keyVietNam,
-  keyVanuatu,
-  keyWallisFutuna,
-  keySamoa,
-  keyKosovo,
-  keyYemen,
-  keyMayotte,
-  keySouthAfrica,
-  keyZambia,
-  keyZimbabwe,
+    keyAndoraIso,
+    keyUnitedArabEmirates,
+    keyAfghanistan,
+    keyAntiguaAndBarbuda,
+    keyAnguilla,
+    keyAlbania,
+    keyArmenia,
+    keyAngola,
+    keyAntarctica,
+    keyArgentina,
+    keyAmericanSamoa,
+    keyAustria,
+    keyAustralia,
+    keyAruba,
+    keyAlandIslands,
+    keyAzerbaijan,
+    keyBosniaAndHerzegovina,
+    keyBarbados,
+    keyBangladesh,
+    keyBelgium,
+    keyBurkinaFaso,
+    keyBulgaria,
+    keyBahrain,
+    keyBurundi,
+    keyBenin,
+    keySaintBarthelemy,
+    keyBermuda,
+    keyBruneiDarussalam,
+    keyBolivia,
+    keyBonaireSintEustatiusAndSaba,
+    keyBrazil,
+    keyBahamas,
+    keyBhutan,
+    keyBotswana,
+    keyBelarus,
+    keyBelize,
+    keyCanada,
+    keyCocosIslands,
+    keyCongoDemocraticRepublic,
+    keyCentralAfricanRepublic,
+    keyCongo,
+    keySwitzerland,
+    keyCoteDIvoire,
+    keyCookIslands,
+    keyChile,
+    keyCameroon,
+    keyChina,
+    keyColombia,
+    keyCostaRica,
+    keyCuba,
+    keyCaboVerde,
+    keyCuracao,
+    keyChristmasIsland,
+    keyCyprus,
+    keyCzechia,
+    keyGermany,
+    keyDjibouti,
+    keyDenmark,
+    keyDominica,
+    keyDominicanRepublic,
+    keyAlgeria,
+    keyEcuador,
+    keyEstonia,
+    keyEgypt,
+    keyWesternSahara,
+    keyEritrea,
+    keySpain,
+    keyEthiopia,
+    keyFinland,
+    keyFiji,
+    keyFrance,
+    keyFalklandIslands,
+    keyMicronesia,
+    keyFaroeIslands,
+    keyGabon,
+    keyUnitedKingdom,
+    keyEngland,
+    keyNorthernIreland,
+    keyScotLand,
+    keyWales,
+    keyGrenada,
+    keyGeorgia,
+    keyFrenchGuiana,
+    keyGuernsey,
+    keyGhana,
+    keyGibraltar,
+    keyGreenland,
+    keyGambia,
+    keyGuinea,
+    keyGuadeloupe,
+    keyEquatorialGuinea,
+    keyGreece,
+    keySouthGeorgia,
+    keyGuatemala,
+    keyGuam,
+    keyGuineaBissau,
+    keyGuyana,
+    keyHongKong,
+    keyHeardIslandMcDonaldIslands,
+    keyHonduras,
+    keyCroatia,
+    keyHaiti,
+    keyHungary,
+    keyIndonesia,
+    keyIreland,
+    keyIsrael,
+    keyIsleOfMan,
+    keyIndia,
+    keyBritishIndianOceanTerritory,
+    keyIraq,
+    keyIran,
+    keyIceland,
+    keyItaly,
+    keyJersey,
+    keyJamaica,
+    keyJordan,
+    keyJapan,
+    keyKenya,
+    keyKyrgyzstan,
+    keyCambodia,
+    keyKiribati,
+    keyComoros,
+    keySaintKittsNevis,
+    keyNorthKorea,
+    keySouthKorea,
+    keyKuwait,
+    keyCaymanIslands,
+    keyKazakhstan,
+    keyLaos,
+    keyLebanon,
+    keySaintLucia,
+    keyLiechtenstein,
+    keySriLanka,
+    keyLiberia,
+    keyLesotho,
+    keyLithuania,
+    keyLuxembourg,
+    keyLatvia,
+    keyLibya,
+    keyMorocco,
+    keyMonaco,
+    keyMoldova,
+    keyMontenegro,
+    keySaintMartinFrench,
+    keyMadagascar,
+    keyMarshallIslands,
+    keyNorthMacedonia,
+    keyMali,
+    keyMyanmar,
+    keyMongolia,
+    keyMacao,
+    keyNorthernMarianaIslands,
+    keyMartinique,
+    keyMauritania,
+    keyMontserrat,
+    keyMalta,
+    keyMauritius,
+    keyMaldives,
+    keyMalawi,
+    keyMexico,
+    keyMalaysia,
+    keyMozambique,
+    keyNamibia,
+    keyNewCaledonia,
+    keyNiger,
+    keyNorfolkIsland,
+    keyNigeria,
+    keyNicaragua,
+    keyNetherlands,
+    keyNorway,
+    keyNepal,
+    keyNauru,
+    keyNiue,
+    keyNewZealand,
+    keyOman,
+    keyPanama,
+    keyPeru,
+    keyFrenchPolynesia,
+    keyPapuaNewGuinea,
+    keyPhilippines,
+    keyPakistan,
+    keyPoland,
+    keySaintPierreMiquelon,
+    keyPitcairn,
+    keyPuertoRico,
+    keyPalestineState,
+    keyPortugal,
+    keyPalau,
+    keyParaguay,
+    keyQatar,
+    keyReunion,
+    keyRomania,
+    keySerbia,
+    keyRussianFederation,
+    keyRwanda,
+    keySaudiArabia,
+    keySolomonIslands,
+    keySeychelles,
+    keySudan,
+    keySweden,
+    keySingapore,
+    keySaintHelena,
+    keySlovenia,
+    keySlovakia,
+    keySierraLeone,
+    keySanMarino,
+    keySenegal,
+    keySomalia,
+    keySuriname,
+    keySouthSudan,
+    keySaoTomePrincipe,
+    keyElSalvador,
+    keySintMaarten,
+    keySyrianArabRepublic,
+    keyEswatini,
+    keyTurksCaicosIslands,
+    keyChad,
+    keyFrenchSouthernTerritories,
+    keyTogo,
+    keyThailand,
+    keyTajikistan,
+    keyTokelau,
+    keyTimorLeste,
+    keyTurkmenistan,
+    keyTunisia,
+    keyTonga,
+    keyTurkey,
+    keyTrinidadTobago,
+    keyTuvalu,
+    keyTaiwan,
+    keyTanzania,
+    keyUkraine,
+    keyUganda,
+    keyUnitedStatesAmerica,
+    keyUruguay,
+    keyUzbekistan,
+    keyHolySee,
+    keySaintVincentGrenadines,
+    keyVenezuela,
+    keyVirginIslandsBritish,
+    keyVirginIslandsUs,
+    keyVietNam,
+    keyVanuatu,
+    keyWallisFutuna,
+    keySamoa,
+    keyKosovo,
+    keyYemen,
+    keyMayotte,
+    keySouthAfrica,
+    keyZambia,
+    keyZimbabwe,
   ];
 
   static List<String> getLanguageByCountryIso({required String code}) {
@@ -4780,123 +5022,135 @@ class QuickHelp {
     } else if (receivedCode == keySerbia) {
       return [keySerbian];
     } else if (receivedCode == keyRussianFederation) {
-    return [keyRussian];
+      return [keyRussian];
     } else if (receivedCode == keyRwanda) {
-    return [keyKinyarwanda, keyFrench, keyEnglish];
+      return [keyKinyarwanda, keyFrench, keyEnglish];
     } else if (receivedCode == keySaudiArabia) {
-    return [keyArabic];
-    }else if(receivedCode == keySolomonIslands) {
-    return [keyEnglish];
-    }else if(receivedCode == keySeychelles) {
-    return ["crs", keyFrench, keyEnglish];
-    }else if(receivedCode == keySudan) {
-    return [keyArabic, keyEnglish];
-    }else if(receivedCode == keySweden) {
-    return [keySwedish];
-    }else if(receivedCode == keySingapore) {
-    return [keyEnglish, keyMalay, keyChinese];
-    }else if(receivedCode == keySaintHelena) {
-    return [keyTamil];
-    }else if(receivedCode == keySlovenia) {
-    return [keySlovenian];
-    }else if(receivedCode == keySlovakia) {
-    return [keySlovak];
-    }else if(receivedCode == keySierraLeone) {
-    return [keyEnglish];
-    }else if(receivedCode == keySanMarino) {
-    return [keyItalian];
-    }else if(receivedCode == keySenegal) {
-    return [keyFrench];
-    }else if(receivedCode == keySomalia) {
-    return [keySomali, keyArabic];
-    }else if(receivedCode == keySuriname) {
-    return [keyDutch];
-    }else if(receivedCode == keySouthSudan) {
-    return [keyEnglish];
-    }else if(receivedCode == keySaoTomePrincipe) {
-    return [keyPortuguese];
-    }else if(receivedCode == keyElSalvador) {
-    return [keySpanish];
-    }else if(receivedCode == keySintMaarten) {
-    return [keyDutch, keyEnglish];
-    }else if(receivedCode == keySyrianArabRepublic) {
-    return [keyArabic];
-    }else if(receivedCode == keyEswatini) {
-    return [keyEnglish, keySwati];
-    }else if(receivedCode == keyTurksCaicosIslands) {
-    return [keyEnglish];
-    }else if(receivedCode == keyChad) {
-    return [keyFrench, keyArabic];
-    }else if(receivedCode == keyFrenchSouthernTerritories) {
-    return [keyFrench];
-    }else if(receivedCode == keyTogo) {
-    return [keyFrench];
-    }else if(receivedCode == keyThailand) {
-    return [keyThai];
-    }else if(receivedCode == keyTajikistan) {
-    return [keyTajik];
-    }else if(receivedCode == keyTokelau) {
-    return ["tkl", keyEnglish];
-    }else if(receivedCode == keyTimorLeste) {
-    return [keyPortuguese, "tet"];
-    }else if(receivedCode == keyTurkmenistan) {
-    return [keyTurkmen];
-    }else if(receivedCode == keyTunisia) {
-    return [keyArabic];
-    }else if(receivedCode == keyTonga) {
-    return [keyTongaIso, keyEnglish];
-    }else if(receivedCode == keyTurkey) {
-    return [keyTurkish];
-    }else if(receivedCode == keyTrinidadTobago) {
-    return [keyEnglish];
-    }else if(receivedCode == keyTuvalu) {
-    return ["tvl", keyEnglish];
-    }else if(receivedCode == keyTaiwan) {
-    return [keyChinese];
-    }else if(receivedCode == keyTanzania) {
-    return [keySwahili, keyEnglish];
-    }else if(receivedCode == keyUkraine) {
-    return [keyUkrainian];
-    }else if(receivedCode == keyUganda) {
-    return [keyEnglish, keySwahili];
-    }else if(receivedCode == keyUnitedStatesAmerica) {
-    return [keyEnglish];
-    }else if(receivedCode == keyUruguay) {
-    return [keySpanish];
-    }else if(receivedCode == keyUzbekistan) {
-    return [keyUzbek];
-    }else if(receivedCode == keyHolySee) {
-    return [keyItalian, keyLatin];
-    }else if(receivedCode == keySaintVincentGrenadines) {
-    return [keyEnglish];
-    }else if(receivedCode == keyVenezuela) {
-    return [keySpanish];
-    }else if(receivedCode == keyVirginIslandsBritish) {
-    return [keyEnglish];
-    }else if(receivedCode == keyVirginIslandsUs) {
-    return [keyEnglish];
-    }else if(receivedCode == keyVietNam) {
-    return [keyVietnamese];
-    }else if(receivedCode == keyVanuatu) {
-    return [keyBislama, keyFrench, keyEnglish];
-    }else if(receivedCode == keyWallisFutuna) {
-    return [keyFrench];
-    }else if(receivedCode == keySamoa) {
-    return [keySamoan, keyEnglish];
-    }else if(receivedCode == keyKosovo) {
-    return [keyAlbanian, keySerbian];
-    }else if(receivedCode == keyYemen) {
-    return [keyArabic];
-    }else if(receivedCode == keyMayotte) {
-    return [keyFrench];
-    }else if(receivedCode == keySouthAfrica) {
-    return [keyEnglish, keyZulu, keyXhosa, keyAfrikaans, "nso", keyTswana, keySotho, keyTsonga, keySwati, keyVenda, "nr"];
-    }else if(receivedCode == keyZambia) {
-    return [keyEnglish];
-    }else if(receivedCode == keyZimbabwe) {
-    return [keyEnglish, keyShona, "nr"];
-    }else if(receivedCode == keyFrance) {
-    return [keyFrench];
+      return [keyArabic];
+    } else if (receivedCode == keySolomonIslands) {
+      return [keyEnglish];
+    } else if (receivedCode == keySeychelles) {
+      return ["crs", keyFrench, keyEnglish];
+    } else if (receivedCode == keySudan) {
+      return [keyArabic, keyEnglish];
+    } else if (receivedCode == keySweden) {
+      return [keySwedish];
+    } else if (receivedCode == keySingapore) {
+      return [keyEnglish, keyMalay, keyChinese];
+    } else if (receivedCode == keySaintHelena) {
+      return [keyTamil];
+    } else if (receivedCode == keySlovenia) {
+      return [keySlovenian];
+    } else if (receivedCode == keySlovakia) {
+      return [keySlovak];
+    } else if (receivedCode == keySierraLeone) {
+      return [keyEnglish];
+    } else if (receivedCode == keySanMarino) {
+      return [keyItalian];
+    } else if (receivedCode == keySenegal) {
+      return [keyFrench];
+    } else if (receivedCode == keySomalia) {
+      return [keySomali, keyArabic];
+    } else if (receivedCode == keySuriname) {
+      return [keyDutch];
+    } else if (receivedCode == keySouthSudan) {
+      return [keyEnglish];
+    } else if (receivedCode == keySaoTomePrincipe) {
+      return [keyPortuguese];
+    } else if (receivedCode == keyElSalvador) {
+      return [keySpanish];
+    } else if (receivedCode == keySintMaarten) {
+      return [keyDutch, keyEnglish];
+    } else if (receivedCode == keySyrianArabRepublic) {
+      return [keyArabic];
+    } else if (receivedCode == keyEswatini) {
+      return [keyEnglish, keySwati];
+    } else if (receivedCode == keyTurksCaicosIslands) {
+      return [keyEnglish];
+    } else if (receivedCode == keyChad) {
+      return [keyFrench, keyArabic];
+    } else if (receivedCode == keyFrenchSouthernTerritories) {
+      return [keyFrench];
+    } else if (receivedCode == keyTogo) {
+      return [keyFrench];
+    } else if (receivedCode == keyThailand) {
+      return [keyThai];
+    } else if (receivedCode == keyTajikistan) {
+      return [keyTajik];
+    } else if (receivedCode == keyTokelau) {
+      return ["tkl", keyEnglish];
+    } else if (receivedCode == keyTimorLeste) {
+      return [keyPortuguese, "tet"];
+    } else if (receivedCode == keyTurkmenistan) {
+      return [keyTurkmen];
+    } else if (receivedCode == keyTunisia) {
+      return [keyArabic];
+    } else if (receivedCode == keyTonga) {
+      return [keyTongaIso, keyEnglish];
+    } else if (receivedCode == keyTurkey) {
+      return [keyTurkish];
+    } else if (receivedCode == keyTrinidadTobago) {
+      return [keyEnglish];
+    } else if (receivedCode == keyTuvalu) {
+      return ["tvl", keyEnglish];
+    } else if (receivedCode == keyTaiwan) {
+      return [keyChinese];
+    } else if (receivedCode == keyTanzania) {
+      return [keySwahili, keyEnglish];
+    } else if (receivedCode == keyUkraine) {
+      return [keyUkrainian];
+    } else if (receivedCode == keyUganda) {
+      return [keyEnglish, keySwahili];
+    } else if (receivedCode == keyUnitedStatesAmerica) {
+      return [keyEnglish];
+    } else if (receivedCode == keyUruguay) {
+      return [keySpanish];
+    } else if (receivedCode == keyUzbekistan) {
+      return [keyUzbek];
+    } else if (receivedCode == keyHolySee) {
+      return [keyItalian, keyLatin];
+    } else if (receivedCode == keySaintVincentGrenadines) {
+      return [keyEnglish];
+    } else if (receivedCode == keyVenezuela) {
+      return [keySpanish];
+    } else if (receivedCode == keyVirginIslandsBritish) {
+      return [keyEnglish];
+    } else if (receivedCode == keyVirginIslandsUs) {
+      return [keyEnglish];
+    } else if (receivedCode == keyVietNam) {
+      return [keyVietnamese];
+    } else if (receivedCode == keyVanuatu) {
+      return [keyBislama, keyFrench, keyEnglish];
+    } else if (receivedCode == keyWallisFutuna) {
+      return [keyFrench];
+    } else if (receivedCode == keySamoa) {
+      return [keySamoan, keyEnglish];
+    } else if (receivedCode == keyKosovo) {
+      return [keyAlbanian, keySerbian];
+    } else if (receivedCode == keyYemen) {
+      return [keyArabic];
+    } else if (receivedCode == keyMayotte) {
+      return [keyFrench];
+    } else if (receivedCode == keySouthAfrica) {
+      return [
+        keyEnglish,
+        keyZulu,
+        keyXhosa,
+        keyAfrikaans,
+        "nso",
+        keyTswana,
+        keySotho,
+        keyTsonga,
+        keySwati,
+        keyVenda,
+        "nr"
+      ];
+    } else if (receivedCode == keyZambia) {
+      return [keyEnglish];
+    } else if (receivedCode == keyZimbabwe) {
+      return [keyEnglish, keyShona, "nr"];
+    } else if (receivedCode == keyFrance) {
+      return [keyFrench];
     }
 
     return [];
@@ -5139,7 +5393,7 @@ class QuickHelp {
       return "languages_iso.oj_".tr();
     } else if (receivedCode == keyOromo) {
       return "languages_iso.om_".tr();
-    }else if (receivedCode == keyOssetian) {
+    } else if (receivedCode == keyOssetian) {
       return "languages_iso.os_".tr();
     } else if (receivedCode == keyPanjabi) {
       return "languages_iso.pa_".tr();
@@ -5651,118 +5905,118 @@ class QuickHelp {
       return "assets/countries/rw.png";
     } else if (receivedCode == keySaudiArabia) {
       return "assets/countries/sa.png";
-  }else if(receivedCode == keySolomonIslands) {
-    return "assets/countries/sb.png";
-    }else if(receivedCode == keySeychelles) {
-    return "assets/countries/sc.png";
-    }else if(receivedCode == keySudan) {
-    return "assets/countries/sd.png";
-    }else if(receivedCode == keySweden) {
-    return "assets/countries/se.png";
-    }else if(receivedCode == keySingapore) {
-    return "assets/countries/sg.png";
-    }else if(receivedCode == keySaintHelena) {
-    return "assets/countries/sh.png";
-    }else if(receivedCode == keySlovenia) {
-    return "assets/countries/si.png";
-    }else if(receivedCode == keySlovakia) {
-    return "assets/countries/sk.png";
-    }else if(receivedCode == keySierraLeone) {
-    return "assets/countries/sl.png";
-    }else if(receivedCode == keySanMarino) {
-    return "assets/countries/sm.png";
-    }else if(receivedCode == keySenegal) {
-    return "assets/countries/sn.png";
-    }else if(receivedCode == keySomalia) {
-    return "assets/countries/so.png";
-    }else if(receivedCode == keySuriname) {
-    return "assets/countries/sr.png";
-    }else if(receivedCode == keySouthSudan) {
-    return "assets/countries/ss.png";
-    }else if(receivedCode == keySaoTomePrincipe) {
-    return "assets/countries/st.png";
-    }else if(receivedCode == keyElSalvador) {
-    return "assets/countries/sv.png";
-    }else if(receivedCode == keySintMaarten) {
-    return "assets/countries/sx.png";
-    }else if(receivedCode == keySyrianArabRepublic) {
-    return "assets/countries/sy.png";
-    }else if(receivedCode == keyEswatini) {
-    return "assets/countries/sz.png";
-    }else if(receivedCode == keyTurksCaicosIslands) {
-    return "assets/countries/tc.png";
-    }else if(receivedCode == keyChad) {
-    return "assets/countries/td.png";
-    }else if(receivedCode == keyFrenchSouthernTerritories) {
-    return "assets/countries/tf.png";
-    }else if(receivedCode == keyTogo) {
-    return "assets/countries/tg.png";
-    }else if(receivedCode == keyThailand) {
-    return "assets/countries/th.png";
-    }else if(receivedCode == keyTajikistan) {
-    return "assets/countries/tj.png";
-    }else if(receivedCode == keyTokelau) {
-    return "assets/countries/tk.png";
-    }else if(receivedCode == keyTimorLeste) {
-    return "assets/countries/tl.png";
-    }else if(receivedCode == keyTurkmenistan) {
-    return "assets/countries/tm.png";
-    }else if(receivedCode == keyTunisia) {
-    return "assets/countries/tn.png";
-    }else if(receivedCode == keyTonga) {
-    return "assets/countries/to.png";
-    }else if(receivedCode == keyTurkey) {
-    return "assets/countries/tr.png";
-    }else if(receivedCode == keyTrinidadTobago) {
-    return "assets/countries/tt.png";
-    }else if(receivedCode == keyTuvalu) {
-    return "assets/countries/tv.png";
-    }else if(receivedCode == keyTaiwan) {
-    return "assets/countries/tw.png";
-    }else if(receivedCode == keyTanzania) {
-    return "assets/countries/tz.png";
-    }else if(receivedCode == keyUkraine) {
-    return "assets/countries/ua.png";
-    }else if(receivedCode == keyUganda) {
-    return "assets/countries/ug.png";
-    }else if(receivedCode == keyUnitedStatesAmerica) {
-    return "assets/countries/us.png";
-    }else if(receivedCode == keyUruguay) {
-    return "assets/countries/uy.png";
-    }else if(receivedCode == keyUzbekistan) {
-    return "assets/countries/uz.png";
-    }else if(receivedCode == keyHolySee) {
-    return "assets/countries/va.png";
-    }else if(receivedCode == keySaintVincentGrenadines) {
-    return "assets/countries/vc.png";
-    }else if(receivedCode == keyVenezuela) {
-    return "assets/countries/ve.png";
-    }else if(receivedCode == keyVirginIslandsBritish) {
-    return "assets/countries/vg.png";
-    }else if(receivedCode == keyVirginIslandsUs) {
-    return "assets/countries/vi.png";
-    }else if(receivedCode == keyVietNam) {
-    return "assets/countries/vn.png";
-    }else if(receivedCode == keyVanuatu) {
-    return "assets/countries/vu.png";
-    }else if(receivedCode == keyWallisFutuna) {
-    return "assets/countries/wf.png";
-    }else if(receivedCode == keySamoa) {
-    return "assets/countries/ws.png";
-    }else if(receivedCode == keyKosovo) {
-    return "assets/countries/xk.png";
-    }else if(receivedCode == keyYemen) {
-    return "assets/countries/ye.png";
-    }else if(receivedCode == keyMayotte) {
-    return "assets/countries/yt.png";
-    }else if(receivedCode == keySouthAfrica) {
-    return "assets/countries/za.png";
-    }else if(receivedCode == keyZambia) {
-    return "assets/countries/zm.png";
-    }else if(receivedCode == keyZimbabwe) {
-    return "assets/countries/zw.png";
-    }else if(receivedCode == keyFrance) {
-    return "assets/countries/fr.png";
+    } else if (receivedCode == keySolomonIslands) {
+      return "assets/countries/sb.png";
+    } else if (receivedCode == keySeychelles) {
+      return "assets/countries/sc.png";
+    } else if (receivedCode == keySudan) {
+      return "assets/countries/sd.png";
+    } else if (receivedCode == keySweden) {
+      return "assets/countries/se.png";
+    } else if (receivedCode == keySingapore) {
+      return "assets/countries/sg.png";
+    } else if (receivedCode == keySaintHelena) {
+      return "assets/countries/sh.png";
+    } else if (receivedCode == keySlovenia) {
+      return "assets/countries/si.png";
+    } else if (receivedCode == keySlovakia) {
+      return "assets/countries/sk.png";
+    } else if (receivedCode == keySierraLeone) {
+      return "assets/countries/sl.png";
+    } else if (receivedCode == keySanMarino) {
+      return "assets/countries/sm.png";
+    } else if (receivedCode == keySenegal) {
+      return "assets/countries/sn.png";
+    } else if (receivedCode == keySomalia) {
+      return "assets/countries/so.png";
+    } else if (receivedCode == keySuriname) {
+      return "assets/countries/sr.png";
+    } else if (receivedCode == keySouthSudan) {
+      return "assets/countries/ss.png";
+    } else if (receivedCode == keySaoTomePrincipe) {
+      return "assets/countries/st.png";
+    } else if (receivedCode == keyElSalvador) {
+      return "assets/countries/sv.png";
+    } else if (receivedCode == keySintMaarten) {
+      return "assets/countries/sx.png";
+    } else if (receivedCode == keySyrianArabRepublic) {
+      return "assets/countries/sy.png";
+    } else if (receivedCode == keyEswatini) {
+      return "assets/countries/sz.png";
+    } else if (receivedCode == keyTurksCaicosIslands) {
+      return "assets/countries/tc.png";
+    } else if (receivedCode == keyChad) {
+      return "assets/countries/td.png";
+    } else if (receivedCode == keyFrenchSouthernTerritories) {
+      return "assets/countries/tf.png";
+    } else if (receivedCode == keyTogo) {
+      return "assets/countries/tg.png";
+    } else if (receivedCode == keyThailand) {
+      return "assets/countries/th.png";
+    } else if (receivedCode == keyTajikistan) {
+      return "assets/countries/tj.png";
+    } else if (receivedCode == keyTokelau) {
+      return "assets/countries/tk.png";
+    } else if (receivedCode == keyTimorLeste) {
+      return "assets/countries/tl.png";
+    } else if (receivedCode == keyTurkmenistan) {
+      return "assets/countries/tm.png";
+    } else if (receivedCode == keyTunisia) {
+      return "assets/countries/tn.png";
+    } else if (receivedCode == keyTonga) {
+      return "assets/countries/to.png";
+    } else if (receivedCode == keyTurkey) {
+      return "assets/countries/tr.png";
+    } else if (receivedCode == keyTrinidadTobago) {
+      return "assets/countries/tt.png";
+    } else if (receivedCode == keyTuvalu) {
+      return "assets/countries/tv.png";
+    } else if (receivedCode == keyTaiwan) {
+      return "assets/countries/tw.png";
+    } else if (receivedCode == keyTanzania) {
+      return "assets/countries/tz.png";
+    } else if (receivedCode == keyUkraine) {
+      return "assets/countries/ua.png";
+    } else if (receivedCode == keyUganda) {
+      return "assets/countries/ug.png";
+    } else if (receivedCode == keyUnitedStatesAmerica) {
+      return "assets/countries/us.png";
+    } else if (receivedCode == keyUruguay) {
+      return "assets/countries/uy.png";
+    } else if (receivedCode == keyUzbekistan) {
+      return "assets/countries/uz.png";
+    } else if (receivedCode == keyHolySee) {
+      return "assets/countries/va.png";
+    } else if (receivedCode == keySaintVincentGrenadines) {
+      return "assets/countries/vc.png";
+    } else if (receivedCode == keyVenezuela) {
+      return "assets/countries/ve.png";
+    } else if (receivedCode == keyVirginIslandsBritish) {
+      return "assets/countries/vg.png";
+    } else if (receivedCode == keyVirginIslandsUs) {
+      return "assets/countries/vi.png";
+    } else if (receivedCode == keyVietNam) {
+      return "assets/countries/vn.png";
+    } else if (receivedCode == keyVanuatu) {
+      return "assets/countries/vu.png";
+    } else if (receivedCode == keyWallisFutuna) {
+      return "assets/countries/wf.png";
+    } else if (receivedCode == keySamoa) {
+      return "assets/countries/ws.png";
+    } else if (receivedCode == keyKosovo) {
+      return "assets/countries/xk.png";
+    } else if (receivedCode == keyYemen) {
+      return "assets/countries/ye.png";
+    } else if (receivedCode == keyMayotte) {
+      return "assets/countries/yt.png";
+    } else if (receivedCode == keySouthAfrica) {
+      return "assets/countries/za.png";
+    } else if (receivedCode == keyZambia) {
+      return "assets/countries/zm.png";
+    } else if (receivedCode == keyZimbabwe) {
+      return "assets/countries/zw.png";
+    } else if (receivedCode == keyFrance) {
+      return "assets/countries/fr.png";
     }
 
     return "assets/countries/tt.png";
@@ -6160,124 +6414,123 @@ class QuickHelp {
     } else if (receivedCode == keyRwanda) {
       return "counties_iso.rw_".tr();
     } else if (receivedCode == keySaudiArabia) {
-      return
-    "counties_iso.sa_".tr();
-  }else if(receivedCode == keySolomonIslands) {
-    return "counties_iso.sb_".tr();
-    }else if(receivedCode == keySeychelles) {
-    return "counties_iso.sc_".tr();
-    }else if(receivedCode == keySudan) {
-    return "counties_iso.sd_".tr();
-    }else if(receivedCode == keySweden) {
-    return "counties_iso.se_".tr();
-    }else if(receivedCode == keySingapore) {
-    return "counties_iso.sg_".tr();
-    }else if(receivedCode == keySaintHelena) {
-    return "counties_iso.sh_".tr();
-    }else if(receivedCode == keySlovenia) {
-    return "counties_iso.si_".tr();
-    }else if(receivedCode == keySlovakia) {
-    return "counties_iso.sk_".tr();
-    }else if(receivedCode == keySierraLeone) {
-    return "counties_iso.sl_".tr();
-    }else if(receivedCode == keySanMarino) {
-    return "counties_iso.sm_".tr();
-    }else if(receivedCode == keySenegal) {
-    return "counties_iso.sn_".tr();
-    }else if(receivedCode == keySomalia) {
-    return "counties_iso.so_".tr();
-    }else if(receivedCode == keySuriname) {
-    return "counties_iso.sr_".tr();
-    }else if(receivedCode == keySouthSudan) {
-    return "counties_iso.ss_".tr();
-    }else if(receivedCode == keySaoTomePrincipe) {
-    return "counties_iso.st_".tr();
-    }else if(receivedCode == keyElSalvador) {
-    return "counties_iso.sv_".tr();
-    }else if(receivedCode == keySintMaarten) {
-    return "counties_iso.sx_".tr();
-    }else if(receivedCode == keySyrianArabRepublic) {
-    return "counties_iso.sy_".tr();
-    }else if(receivedCode == keyEswatini) {
-    return "counties_iso.sz_".tr();
-    }else if(receivedCode == keyTurksCaicosIslands) {
-    return "counties_iso.tc_".tr();
-    }else if(receivedCode == keyChad) {
-    return "counties_iso.td_".tr();
-    }else if(receivedCode == keyFrenchSouthernTerritories) {
-    return "counties_iso.tf_".tr();
-    }else if(receivedCode == keyTogo) {
-    return "counties_iso.tg_".tr();
-    }else if(receivedCode == keyThailand) {
-    return "counties_iso.th_".tr();
-    }else if(receivedCode == keyTajikistan) {
-    return "counties_iso.tj_".tr();
-    }else if(receivedCode == keyTokelau) {
-    return "counties_iso.tk_".tr();
-    }else if(receivedCode == keyTimorLeste) {
-    return "counties_iso.tl_".tr();
-    }else if(receivedCode == keyTurkmenistan) {
-    return "counties_iso.tm_".tr();
-    }else if(receivedCode == keyTunisia) {
-    return "counties_iso.tn_".tr();
-    }else if(receivedCode == keyTonga) {
-    return "counties_iso.to_".tr();
-    }else if(receivedCode == keyTurkey) {
-    return "counties_iso.tr_".tr();
-    }else if(receivedCode == keyTrinidadTobago) {
-    return "counties_iso.tt_".tr();
-    }else if(receivedCode == keyTuvalu) {
-    return "counties_iso.tv_".tr();
-    }else if(receivedCode == keyTaiwan) {
-    return "counties_iso.tw_".tr();
-    }else if(receivedCode == keyTanzania) {
-    return "counties_iso.tz_".tr();
-    }else if(receivedCode == keyUkraine) {
-    return "counties_iso.ua_".tr();
-    }else if(receivedCode == keyUganda) {
-    return "counties_iso.ug_".tr();
-    }else if(receivedCode == keyUnitedStatesAmerica) {
-    return "counties_iso.us_".tr();
-    }else if(receivedCode == keyUruguay) {
-    return "counties_iso.uy_".tr();
-    }else if(receivedCode == keyUzbekistan) {
-    return "counties_iso.uz_".tr();
-    }else if(receivedCode == keyHolySee) {
-    return "counties_iso.va_".tr();
-    }else if(receivedCode == keySaintVincentGrenadines) {
-    return "counties_iso.vc_".tr();
-    }else if(receivedCode == keyVenezuela) {
-    return "counties_iso.ve_".tr();
-    }else if(receivedCode == keyVirginIslandsBritish) {
-    return "counties_iso.vg_".tr();
-    }else if(receivedCode == keyVirginIslandsUs) {
-    return "counties_iso.vi_".tr();
-    }else if(receivedCode == keyVietNam) {
-    return "counties_iso.vn_".tr();
-    }else if(receivedCode == keyVanuatu) {
-    return "counties_iso.vu_".tr();
-    }else if(receivedCode == keyWallisFutuna) {
-    return "counties_iso.wf_".tr();
-    }else if(receivedCode == keySamoa) {
-    return "counties_iso.ws_".tr();
-    }else if(receivedCode == keyKosovo) {
-    return "counties_iso.xk_".tr();
-    }else if(receivedCode == keyYemen) {
-    return "counties_iso.ye_".tr();
-    }else if(receivedCode == keyMayotte) {
-    return "counties_iso.yt_".tr();
-    }else if(receivedCode == keySouthAfrica) {
-    return "counties_iso.za_".tr();
-    }else if(receivedCode == keyZambia) {
-    return "counties_iso.zm_".tr();
-    }else if(receivedCode == keyZimbabwe) {
-    return "counties_iso.zw_".tr();
-    }else if(receivedCode == keyFrance) {
-    return "counties_iso.fr_".tr();
+      return "counties_iso.sa_".tr();
+    } else if (receivedCode == keySolomonIslands) {
+      return "counties_iso.sb_".tr();
+    } else if (receivedCode == keySeychelles) {
+      return "counties_iso.sc_".tr();
+    } else if (receivedCode == keySudan) {
+      return "counties_iso.sd_".tr();
+    } else if (receivedCode == keySweden) {
+      return "counties_iso.se_".tr();
+    } else if (receivedCode == keySingapore) {
+      return "counties_iso.sg_".tr();
+    } else if (receivedCode == keySaintHelena) {
+      return "counties_iso.sh_".tr();
+    } else if (receivedCode == keySlovenia) {
+      return "counties_iso.si_".tr();
+    } else if (receivedCode == keySlovakia) {
+      return "counties_iso.sk_".tr();
+    } else if (receivedCode == keySierraLeone) {
+      return "counties_iso.sl_".tr();
+    } else if (receivedCode == keySanMarino) {
+      return "counties_iso.sm_".tr();
+    } else if (receivedCode == keySenegal) {
+      return "counties_iso.sn_".tr();
+    } else if (receivedCode == keySomalia) {
+      return "counties_iso.so_".tr();
+    } else if (receivedCode == keySuriname) {
+      return "counties_iso.sr_".tr();
+    } else if (receivedCode == keySouthSudan) {
+      return "counties_iso.ss_".tr();
+    } else if (receivedCode == keySaoTomePrincipe) {
+      return "counties_iso.st_".tr();
+    } else if (receivedCode == keyElSalvador) {
+      return "counties_iso.sv_".tr();
+    } else if (receivedCode == keySintMaarten) {
+      return "counties_iso.sx_".tr();
+    } else if (receivedCode == keySyrianArabRepublic) {
+      return "counties_iso.sy_".tr();
+    } else if (receivedCode == keyEswatini) {
+      return "counties_iso.sz_".tr();
+    } else if (receivedCode == keyTurksCaicosIslands) {
+      return "counties_iso.tc_".tr();
+    } else if (receivedCode == keyChad) {
+      return "counties_iso.td_".tr();
+    } else if (receivedCode == keyFrenchSouthernTerritories) {
+      return "counties_iso.tf_".tr();
+    } else if (receivedCode == keyTogo) {
+      return "counties_iso.tg_".tr();
+    } else if (receivedCode == keyThailand) {
+      return "counties_iso.th_".tr();
+    } else if (receivedCode == keyTajikistan) {
+      return "counties_iso.tj_".tr();
+    } else if (receivedCode == keyTokelau) {
+      return "counties_iso.tk_".tr();
+    } else if (receivedCode == keyTimorLeste) {
+      return "counties_iso.tl_".tr();
+    } else if (receivedCode == keyTurkmenistan) {
+      return "counties_iso.tm_".tr();
+    } else if (receivedCode == keyTunisia) {
+      return "counties_iso.tn_".tr();
+    } else if (receivedCode == keyTonga) {
+      return "counties_iso.to_".tr();
+    } else if (receivedCode == keyTurkey) {
+      return "counties_iso.tr_".tr();
+    } else if (receivedCode == keyTrinidadTobago) {
+      return "counties_iso.tt_".tr();
+    } else if (receivedCode == keyTuvalu) {
+      return "counties_iso.tv_".tr();
+    } else if (receivedCode == keyTaiwan) {
+      return "counties_iso.tw_".tr();
+    } else if (receivedCode == keyTanzania) {
+      return "counties_iso.tz_".tr();
+    } else if (receivedCode == keyUkraine) {
+      return "counties_iso.ua_".tr();
+    } else if (receivedCode == keyUganda) {
+      return "counties_iso.ug_".tr();
+    } else if (receivedCode == keyUnitedStatesAmerica) {
+      return "counties_iso.us_".tr();
+    } else if (receivedCode == keyUruguay) {
+      return "counties_iso.uy_".tr();
+    } else if (receivedCode == keyUzbekistan) {
+      return "counties_iso.uz_".tr();
+    } else if (receivedCode == keyHolySee) {
+      return "counties_iso.va_".tr();
+    } else if (receivedCode == keySaintVincentGrenadines) {
+      return "counties_iso.vc_".tr();
+    } else if (receivedCode == keyVenezuela) {
+      return "counties_iso.ve_".tr();
+    } else if (receivedCode == keyVirginIslandsBritish) {
+      return "counties_iso.vg_".tr();
+    } else if (receivedCode == keyVirginIslandsUs) {
+      return "counties_iso.vi_".tr();
+    } else if (receivedCode == keyVietNam) {
+      return "counties_iso.vn_".tr();
+    } else if (receivedCode == keyVanuatu) {
+      return "counties_iso.vu_".tr();
+    } else if (receivedCode == keyWallisFutuna) {
+      return "counties_iso.wf_".tr();
+    } else if (receivedCode == keySamoa) {
+      return "counties_iso.ws_".tr();
+    } else if (receivedCode == keyKosovo) {
+      return "counties_iso.xk_".tr();
+    } else if (receivedCode == keyYemen) {
+      return "counties_iso.ye_".tr();
+    } else if (receivedCode == keyMayotte) {
+      return "counties_iso.yt_".tr();
+    } else if (receivedCode == keySouthAfrica) {
+      return "counties_iso.za_".tr();
+    } else if (receivedCode == keyZambia) {
+      return "counties_iso.zm_".tr();
+    } else if (receivedCode == keyZimbabwe) {
+      return "counties_iso.zw_".tr();
+    } else if (receivedCode == keyFrance) {
+      return "counties_iso.fr_".tr();
     }
 
     return "counties_iso.tt_".tr();
-    }
+  }
 
   static String getUserPersonalizedTopCard(String levelCode) {
     if (levelCode == "VIP1") {
@@ -6520,8 +6773,7 @@ class QuickHelp {
     return new DateTime(birthYear, birthday.month, birthday.day);
   }
 
-  static String getDiamondsLeftToRedeem(
-      int diamonds ) {
+  static String getDiamondsLeftToRedeem(int diamonds) {
     if (diamonds >= Setup.diamondsNeededToRedeem) {
       return 0.toString();
     } else {
@@ -6670,7 +6922,6 @@ class QuickHelp {
   }
 
   static String getTimeByDate({required DateTime date}) {
-
     DateTime now = DateTime.now();
     Duration difference = now.difference(date);
 
@@ -6678,7 +6929,8 @@ class QuickHelp {
     int minutes = difference.inMinutes.remainder(60);
     int seconds = difference.inSeconds.remainder(60);
 
-    String formattedTime = DateFormat('HH:mm:ss').format(DateTime(0, 1, 1, hours, minutes, seconds));
+    String formattedTime = DateFormat('HH:mm:ss')
+        .format(DateTime(0, 1, 1, hours, minutes, seconds));
 
     return formattedTime;
   }
@@ -6744,24 +6996,23 @@ class QuickHelp {
   }
 
   static double convertDiamondsToMoney(int diamonds) {
-    double totalMoney = (diamonds.toDouble() / 10000) * Setup.withDrawPercent;
+    double totalMoney = (diamonds.toDouble() / 300) * Setup.withDrawPercent;
     return totalMoney;
   }
 
   static double convertMoneyToDiamonds(double amount) {
-    double diamonds = (amount.toDouble() * 10000) / Setup.withDrawPercent;;
+    double diamonds = (amount.toDouble() * 300) / Setup.withDrawPercent;
+    ;
     return diamonds;
   }
 
   static int getDiamondsForReceiver(int diamonds) {
-    double finalDiamonds =
-        (diamonds / 100) * Setup.diamondsEarnPercent;
+    double finalDiamonds = (diamonds / 100) * Setup.diamondsEarnPercent;
     return int.parse(finalDiamonds.toStringAsFixed(0));
   }
 
   static int getDiamondsForAgency(int diamonds) {
-    double finalDiamonds =
-        (diamonds / 100) * Setup.agencyPercent;
+    double finalDiamonds = (diamonds / 100) * Setup.agencyPercent;
     return int.parse(finalDiamonds.toStringAsFixed(0));
   }
 
@@ -6860,14 +7111,13 @@ class QuickHelp {
             size: size));
   }
 
-  static bool isNormal(UserModel user){
-
+  static bool isNormal(UserModel user) {
     DateTime now = DateTime.now();
 
-    if(user.getNormalVip != null){
+    if (user.getNormalVip != null) {
       DateTime to = user.getNormalVip!;
 
-      if(to.isAfter(now)){
+      if (to.isAfter(now)) {
         return true;
       }
     }
@@ -6875,27 +7125,26 @@ class QuickHelp {
     return false;
   }
 
-  static List<Locale> getLanguages(List<String> languages){
-
+  static List<Locale> getLanguages(List<String> languages) {
     List<Locale> availableLanguages = [];
 
-    for(String language in languages){
+    for (String language in languages) {
       availableLanguages.add(Locale(language));
     }
 
     return availableLanguages;
   }
 
-  static String getLanguageByCode(String code){
-    if(code == "en"){
+  static String getLanguageByCode(String code) {
+    if (code == "en") {
       return "language_screen.en_".tr();
-    }else if(code == "fr") {
+    } else if (code == "fr") {
       return "language_screen.fr_".tr();
-    }else if(code == "pt"){
+    } else if (code == "pt") {
       return "language_screen.pt_".tr();
-    }else if(code == "ar"){
+    } else if (code == "ar") {
       return "language_screen.ar_".tr();
-    } else{
+    } else {
       return "language_screen.en_".tr();
     }
   }
@@ -6929,4 +7178,3 @@ extension DurationExtensions on Duration {
     return "$years y - $months m - $days d";
   }
 }
-

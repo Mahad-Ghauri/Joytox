@@ -18,6 +18,7 @@ import '../../../../../helpers/quick_actions.dart';
 import '../../../../../helpers/quick_cloud.dart';
 import '../../../../../helpers/quick_help.dart';
 import '../../../../../models/GiftSendersModel.dart';
+import '../../../../../models/GiftsModel.dart';
 import '../../../../../models/LiveStreamingModel.dart';
 import '../../../../../models/LiveViewersModel.dart';
 import '../../../../../models/NotificationsModel.dart';

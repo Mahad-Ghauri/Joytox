@@ -14,16 +14,15 @@ import '../../utils/colors.dart';
 class ExchangeCoinsScreen extends StatefulWidget {
   UserModel? currentUser;
 
-  ExchangeCoinsScreen({this.currentUser, Key? key})
-      : super(key: key);
+  ExchangeCoinsScreen({this.currentUser, Key? key}) : super(key: key);
 
   @override
   State<ExchangeCoinsScreen> createState() => _ExchangeCoinsScreenState();
 }
 
 class _ExchangeCoinsScreenState extends State<ExchangeCoinsScreen> {
-  int minCoinAmount = 90000;
-  int maxCoinAmount = 450000;
+  int minCoinAmount = 500000;
+  int maxCoinAmount = 2500000;
   int minPointAmount = 100000;
   int maxPointAmount = 500000;
 
@@ -59,7 +58,7 @@ class _ExchangeCoinsScreenState extends State<ExchangeCoinsScreen> {
           centerTitle: true,
           leading: BackButton(
             color: isDark ? Colors.white : kContentColorLightTheme,
-            onPressed: ()=> selectUser(),
+            onPressed: () => selectUser(),
           ),
           title: TextWithTap(
             "exchange_coins_screen.exchange_coins".tr(),
@@ -382,6 +381,7 @@ class _ExchangeCoinsScreenState extends State<ExchangeCoinsScreen> {
       }
     }
   }
+
   selectUser() {
     QuickHelp.goBackToPreviousPage(context, result: widget.currentUser);
   }

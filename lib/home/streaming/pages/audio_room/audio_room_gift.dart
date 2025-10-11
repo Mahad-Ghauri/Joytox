@@ -32,8 +32,21 @@ extension ZegoLivePageStateGiftExtension on AudioRoomPageState {
             ZegoGiftController()
                 .addToPlayingList(ZegoGiftData(giftPath: giftPath));
 
+            /// Create gift model for music_box
+            final gift = GiftsModel()
+              ..setName = giftName
+              ..setCoins = 100; // Set appropriate coin value for music_box gift
+
+            /// Get host user ID as receiver
+            final hostId = ZegoLiveAudioRoomManager().hostUserID;
+
             /// notify remote host
-            ZegoGiftController().service.sendGift(giftName: giftName);
+            if (hostId.isNotEmpty) {
+              ZegoGiftController().service.sendGift(
+                    receiverId: hostId,
+                    gift: gift,
+                  );
+            }
           },
           icon: const Icon(Icons.blender)),
     );

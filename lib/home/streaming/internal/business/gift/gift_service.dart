@@ -16,12 +16,19 @@ class GiftServiceImpl {
 
   final recvNotifier = ValueNotifier<ZegoGiftCommand?>(null);
 
-  void init({required int appID, required String localUserID, required String localUserName}) {
+  void init(
+      {required int appID,
+      required String localUserID,
+      required String localUserName}) {
     _appID = appID;
     _localUserID = localUserID;
     _localUserName = localUserName;
 
-    _subscriptions.add(ZEGOSDKManager().zimService.onRoomCommandReceivedEventStreamCtrl.stream.listen((event) {
+    _subscriptions.add(ZEGOSDKManager()
+        .zimService
+        .onRoomCommandReceivedEventStreamCtrl
+        .stream
+        .listen((event) {
       onInRoomCommandMessageReceived(event);
     }));
   }
@@ -33,33 +40,48 @@ class GiftServiceImpl {
     ZegoGiftController().destroyMediaPlayer();
   }
 
-  Future<bool> sendGift({required String giftName}) async {
-    final data = ZegoGiftCommand(
-      appID: _appID,
-      liveID: ZEGOSDKManager().expressService.currentRoomID,
-      localUserID: _localUserID,
-      localUserName: _localUserName,
-      giftName: giftName,
-    ).toJson();
+  Future<bool> sendGift({
+    required String receiverId,
+    required GiftsModel gift,
+    int count = 1,
+  }) async {
+    try {
+      // 1) Play Zego animation (same as before)
+      final data = ZegoGiftCommand(
+        appID: _appID,
+        liveID: ZEGOSDKManager().expressService.currentRoomID,
+        localUserID: _localUserID,
+        localUserName: _localUserName,
+        giftName: gift.getName ?? "Unknown",
+      ).toJson();
 
-    ///! This is just a demo for synchronous display effects.
-    ///!
-    ///! If it involves billing or your business logic,
-    ///! please use the SERVER API to send a Message of type ZIMCommandMessage.
-    ///!
-    ///! https://docs.zegocloud.com/article/16201
-    debugPrint('! ${'*' * 80}');
-    debugPrint('! ** Warning: This is just a demo for synchronous display effects.');
-    debugPrint('! ** ');
-    debugPrint('! ** If it involves billing or your business logic,');
-    debugPrint('! ** please use the SERVER API to send a Message of type ZIMCommandMessage.');
-    debugPrint('! ${'*' * 80}');
+      debugPrint("🎁 Sending gift animation: ${gift.getName}");
+      ZEGOSDKManager().zimService.sendRoomCommand(data);
 
-    debugPrint('try send gift, giftName:$giftName, data:$data');
-    ZEGOSDKManager().zimService.sendRoomCommand(data).then((result) {
-      debugPrint('send gift success');
-    });
-    return true;
+      // 2) Call Parse Cloud Function to handle billing (server side)
+      final sendGiftFunction = ParseCloudFunction('send_gift');
+      final response = await sendGiftFunction.execute(parameters: {
+        "senderId": _localUserID,
+        "receiverId": receiverId,
+        "giftId": gift.objectId,
+        "credits": gift.getCoins,
+        "giftName": gift.getName,
+        "count": count,
+      });
+
+      // response handling: ParseCloudFunction returns a ParseResponse-like object
+      if (response?.success == true) {
+        debugPrint("✅ Parse confirmed gift sent: ${gift.getName}");
+        return true;
+      } else {
+        debugPrint(
+            "⚠️ Parse gift send failed: ${response?.result ?? response}");
+        return false;
+      }
+    } catch (e) {
+      debugPrint("❌ Error sending gift: $e");
+      return false;
+    }
   }
 
   Uint8List _stringToUint8List(String input) {
