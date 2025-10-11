@@ -140,3 +140,7 @@ import 'package:trace/home/prebuild_live/test_seat_invitation_screen.dart';
 - Production error handling
 
 The seat invitation system is now fully functional and ready for testing! 🎉
+
+
+
+There is an issue suppose i send u a coin it is not showing in the earning section of the receiver which he can withdraw for a certain amount

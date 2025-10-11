@@ -28,7 +28,7 @@ android {
     namespace 'com.nazcloak.joytox'
 
     // ✅ API 35 = Android 15
-    compileSdkVersion 35
+    compileSdkVersion 36
     ndkVersion "29.0.14033849"
 
     defaultConfig {

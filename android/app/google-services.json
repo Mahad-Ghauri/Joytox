@@ -1,42 +1,57 @@
 {
   "project_info": {
-    "project_number": "452853037055",
-    "project_id": "joytox-official",
-    "storage_bucket": "joytox-official.firebasestorage.app"
+    "project_number": "275552824523",
+    "project_id": "joytox-f922c",
+    "storage_bucket": "joytox-f922c.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:452853037055:android:0fd94e4f8eb9b76bf4d9ca",
+        "mobilesdk_app_id": "1:275552824523:android:ac141da13a2192d9b93f4e",
         "android_client_info": {
           "package_name": "com.nazcloak.joytox"
         }
       },
       "oauth_client": [
         {
-          "client_id": "452853037055-7882fv2bf1c3kc1agfg4bpeut75cr375.apps.googleusercontent.com",
+          "client_id": "275552824523-6r3qoe4ihnq3m6ba3as7tc1t4sq6j64q.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "com.nazcloak.joytox",
-            "certificate_hash": "7119ccc0fdc2092fc54ac2b7459ec36df85ed841"
+            "certificate_hash": "340aec81cf5ff9d41c7724d05c950e789c075542"
           }
         },
         {
-          "client_id": "452853037055-r9smlifcg9c5du0nfpo5depbsscl9h6s.apps.googleusercontent.com",
+          "client_id": "275552824523-ml6tnamhjaibhe05nshu4t5o88nabplp.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.nazcloak.joytox",
+            "certificate_hash": "d686ffdf51ec78b01c26e6a6aba42f14a3aee9a0"
+          }
+        },
+        {
+          "client_id": "275552824523-t7tatv3ar96jcucp3e81pl5432fro98j.apps.googleusercontent.com",
           "client_type": 3
         }
       ],
       "api_key": [
         {
-          "current_key": "AIzaSyBtyEi6TRiu9VrDScStZTUJ0MO1fYnF-tc"
+          "current_key": "AIzaSyBbtwLRe6m_R4JBIf8e-4Bg0nccuLVq_44"
         }
       ],
       "services": {
         "appinvite_service": {
           "other_platform_oauth_client": [
             {
-              "client_id": "452853037055-r9smlifcg9c5du0nfpo5depbsscl9h6s.apps.googleusercontent.com",
+              "client_id": "275552824523-t7tatv3ar96jcucp3e81pl5432fro98j.apps.googleusercontent.com",
               "client_type": 3
+            },
+            {
+              "client_id": "275552824523-opoc1qi2ocjl9f5986g43jbjbilfn4mo.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.nazcloak.joytox"
+              }
             }
           ]
         }
@@ -44,76 +59,43 @@
     },
     {
       "client_info": {
-        "mobilesdk_app_id": "1:452853037055:android:39306ef5c507f0a4f4d9ca",
+        "mobilesdk_app_id": "1:275552824523:android:7185c575dfc249c2b93f4e",
         "android_client_info": {
-          "package_name": "com.trace.appsdabanda"
+          "package_name": "com.nazcloak.joytox"
         }
       },
       "oauth_client": [
         {
-          "client_id": "452853037055-2qqlnl6577lo94geu91sjs5561nv8hqa.apps.googleusercontent.com",
+          "client_id": "275552824523-krg2dloq0ioi730nmi069bctcni28tgo.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
-            "package_name": "com.trace.appsdabanda",
-            "certificate_hash": "d2fbf945a58962bbfc0c7640fbf6c38467be6240"
+            "package_name": "com.nazcloak.joytox",
+            "certificate_hash": "d686ffdf51ec78b01c26e6a6aba42f14a3aee9a0"
           }
         },
         {
-          "client_id": "452853037055-2vpqc965o1oppg60cud8rnqq6374dt2h.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.trace.appsdabanda",
-            "certificate_hash": "ba4b58c80c5b977082ace65dbd83ae4a229fcaa5"
-          }
-        },
-        {
-          "client_id": "452853037055-4ouplj2gctvm5vl853mjq0vr0rhed81t.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.trace.appsdabanda",
-            "certificate_hash": "7119ccc0fdc2092fc54ac2b7459ec36df85ed841"
-          }
-        },
-        {
-          "client_id": "452853037055-830n3e88fdg9g3u8sg7b08rj14661ucs.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.trace.appsdabanda",
-            "certificate_hash": "379cd26c4f45f1aa401733866341fb207386801f"
-          }
-        },
-        {
-          "client_id": "452853037055-85mro502imqjs2nvgbi0fuvp4amba4eq.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.trace.appsdabanda",
-            "certificate_hash": "61a731b773ffd4286df8b8e301c5cc5000703661"
-          }
-        },
-        {
-          "client_id": "452853037055-giclv18lvpmoks240i94aapmbbk240qt.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.trace.appsdabanda",
-            "certificate_hash": "394595f030e6ad8f9068269dec349923cb0bd52f"
-          }
-        },
-        {
-          "client_id": "452853037055-r9smlifcg9c5du0nfpo5depbsscl9h6s.apps.googleusercontent.com",
+          "client_id": "275552824523-t7tatv3ar96jcucp3e81pl5432fro98j.apps.googleusercontent.com",
           "client_type": 3
         }
       ],
       "api_key": [
         {
-          "current_key": "AIzaSyBtyEi6TRiu9VrDScStZTUJ0MO1fYnF-tc"
+          "current_key": "AIzaSyBbtwLRe6m_R4JBIf8e-4Bg0nccuLVq_44"
         }
       ],
       "services": {
         "appinvite_service": {
           "other_platform_oauth_client": [
             {
-              "client_id": "452853037055-r9smlifcg9c5du0nfpo5depbsscl9h6s.apps.googleusercontent.com",
+              "client_id": "275552824523-t7tatv3ar96jcucp3e81pl5432fro98j.apps.googleusercontent.com",
               "client_type": 3
+            },
+            {
+              "client_id": "275552824523-opoc1qi2ocjl9f5986g43jbjbilfn4mo.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.nazcloak.joytox"
+              }
             }
           ]
         }
