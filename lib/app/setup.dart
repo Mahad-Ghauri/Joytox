@@ -75,7 +75,7 @@ class Setup {
 
   //Withdraw calculations
   static final int diamondsEarnPercent = 60; //Percent to give the streamer.
-  static final int withDrawPercent = 50; //Percent to give the streamer.
+  static final int withDrawPercent = 90; //Percent to give the streamer.
   static final int agencyPercent = 10; //Percent to give the agency.
   static final int diamondsNeededToRedeem =
       10000; // Minimum diamonds needed to redeem
@@ -111,7 +111,8 @@ class Setup {
   //Social media links
   static const String facebookPage =
       "https://www.facebook.com/share/1Bo5hwRxdX/?mibextid=wwXIfr";
-  static const String whatsapp = "https://whatsapp.com/channel/0029Vayes3pHFxP57A5Tr73w";
+  static const String whatsapp =
+      "https://whatsapp.com/channel/0029Vayes3pHFxP57A5Tr73w";
   static const String ticktock =
       "https://www.tiktok.com/@joytoxofficial?_t=ZS-90NnjG1mUkR&_r=1";
   // static const String facebookProfile =
