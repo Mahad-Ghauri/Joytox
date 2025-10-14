@@ -261,6 +261,29 @@ class _ResponsiveWelcomeScreenState extends State<ResponsiveWelcomeScreen> {
                           ),
                         ),
                       ),
+                      // Login with Phone (OTP)
+                      ContainerCorner(
+                        height: 50,
+                        borderRadius: 8,
+                        borderWidth: 1,
+                        color: Colors.white,
+                        marginBottom: 12,
+                        child: TextButton(
+                          onPressed: () {
+                            QuickHelp.goToNavigatorScreen(
+                              context,
+                              PhoneLoginScreen(),
+                            );
+                          },
+                          child: TextWithTap(
+                            "login_screen.sign_in_with_phone".tr(),
+                            color: kBlueColor,
+                            alignment: Alignment.center,
+                            textAlign: TextAlign.center,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
                       Align(
                         child: TextButton(
                           onPressed: () {

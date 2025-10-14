@@ -6,6 +6,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import 'package:trace/models/GiftsModel.dart';
+import 'package:trace/models/LeadersModel.dart';
+import 'package:trace/models/UserModel.dart';
 
 import '../../../zego_sdk_manager.dart';
 
@@ -15,14 +17,20 @@ class ZegoGiftController with GiftService {
   static final ZegoGiftController _instance = ZegoGiftController._internal();
   factory ZegoGiftController() => _instance;
   ZegoGiftController._internal() {
-    ZEGOSDKManager().expressService.onMediaPlayerStateUpdateCtrl.stream.listen(onGiftPlayerStateUpdate);
+    ZEGOSDKManager()
+        .expressService
+        .onMediaPlayerStateUpdateCtrl
+        .stream
+        .listen(onGiftPlayerStateUpdate);
     createMediaPlayer();
     playingGiftDataNotifier.addListener(onPlayingGiftDataUpdate);
     giftWidget = ValueListenableBuilder(
       valueListenable: shouldShowNotifier,
       builder: (context, shouldShow, _) {
         return shouldShow
-            ? IgnorePointer(ignoring: true, child: _mediaPlayerView ?? const SizedBox.shrink())
+            ? IgnorePointer(
+                ignoring: true,
+                child: _mediaPlayerView ?? const SizedBox.shrink())
             : const SizedBox.shrink();
       },
     );
@@ -94,7 +102,8 @@ class ZegoGiftController with GiftService {
     _mediaPlayer?.clearView();
     // create widget
     if (_mediaPlayerViewID == -1) {
-      _mediaPlayerView = await ZegoExpressEngine.instance.createCanvasView((viewID) {
+      _mediaPlayerView =
+          await ZegoExpressEngine.instance.createCanvasView((viewID) {
         _mediaPlayerViewID = viewID;
         _mediaPlayer?.setPlayerCanvas(ZegoCanvas(viewID, alphaBlend: true));
       });
@@ -119,7 +128,8 @@ class ZegoGiftController with GiftService {
     _mediaPlayer?.clearView();
   }
 
-  Future<int> loadResource(String giftPath, {ZegoAlphaLayoutType alphaLayout = ZegoAlphaLayoutType.Left}) async {
+  Future<int> loadResource(String giftPath,
+      {ZegoAlphaLayoutType alphaLayout = ZegoAlphaLayoutType.Left}) async {
     if (currentResource == giftPath) return 0;
     var ret = -1;
     if (_mediaPlayer != null) {
@@ -170,7 +180,8 @@ Future<String> getPathFromAssetOrCache(String asset) async {
   final cache = await DefaultCacheManager().getFileFromCache(asset);
   if (cache == null) {
     final assetData = await rootBundle.load(asset);
-    final cacheFile = await DefaultCacheManager().putFile(asset, assetData.buffer.asUint8List());
+    final cacheFile = await DefaultCacheManager()
+        .putFile(asset, assetData.buffer.asUint8List());
     return cacheFile.path;
   } else {
     return cache.file.path;

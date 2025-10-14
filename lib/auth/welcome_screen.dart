@@ -393,6 +393,43 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                                       "assets/svg/ic_phone_login.svg"),
                                 ),
                               ),
+                              // Prominent Phone Login Button
+                              ContainerCorner(
+                                height: 48,
+                                marginLeft: 20,
+                                color: Colors.white,
+                                borderRadius: 50,
+                                borderWidth: 0,
+                                onTap: () {
+                                  if (agreeWithTerms) {
+                                    QuickHelp.goToNavigatorScreen(
+                                        context, PhoneLoginScreen());
+                                  } else {
+                                    showAgreeWithTermsAlert();
+                                  }
+                                },
+                                child: Row(
+                                  children: [
+                                    Padding(
+                                      padding: const EdgeInsets.only(
+                                          left: 15, right: 10),
+                                      child: SvgPicture.asset(
+                                        "assets/svg/ic_phone_login.svg",
+                                        height: 20,
+                                        width: 20,
+                                      ),
+                                    ),
+                                    TextWithTap(
+                                      "Login With Phone",
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w900,
+                                      color: Colors.black,
+                                      textAlign: TextAlign.center,
+                                      marginRight: 15,
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ],
                           ),
                           const SizedBox(

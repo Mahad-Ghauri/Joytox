@@ -26,13 +26,13 @@ extension ZegoLivePageStateGiftExtension on AudioRoomPageState {
           color: Colors.white,
           onPressed: () async {
             /// local play
-            const giftName = 'music_box';
+            const giftName = 'Music Box1';
             final giftPath =
                 await getPathFromAssetOrCache('assets/gift/$giftName.mp4');
             ZegoGiftController()
                 .addToPlayingList(ZegoGiftData(giftPath: giftPath));
 
-            /// Create gift model for music_box
+            /// Create gift model aligned with gift list name
             final gift = GiftsModel()
               ..setName = giftName
               ..setCoins = 100; // Set appropriate coin value for music_box gift

@@ -70,12 +70,43 @@ class GiftServiceImpl {
       });
 
       // response handling: ParseCloudFunction returns a ParseResponse-like object
-      if (response?.success == true) {
+      if (response.success == true) {
         debugPrint("✅ Parse confirmed gift sent: ${gift.getName}");
+        // Update LeadersModel for the sender (gift giver ranking)
+        try {
+          final leadersQuery = QueryBuilder<LeadersModel>(LeadersModel());
+          leadersQuery.whereEqualTo(LeadersModel.keyAuthorId, _localUserID);
+          final leadersResp = await leadersQuery.query();
+
+          final int coinsSpent = gift.getCoins ?? 0;
+
+          if (leadersResp.success && leadersResp.results != null) {
+            final LeadersModel leaders =
+                leadersResp.results!.first as LeadersModel;
+            leaders.incrementDiamondsQuantity =
+                coinsSpent; // rank by coins spent
+            await leaders.save();
+          } else {
+            // Create new leaders entry for this sender
+            final userQuery = QueryBuilder<UserModel>(UserModel.forQuery());
+            userQuery.whereEqualTo(UserModel.keyUid, _localUserID);
+            final userResp = await userQuery.query();
+
+            final LeadersModel leaders = LeadersModel();
+            if (userResp.success && userResp.results != null) {
+              final user = userResp.results!.first as UserModel;
+              leaders.setAuthor = user;
+            }
+            leaders.setAuthorId = _localUserID;
+            leaders.setCounterDiamondsQuantity = coinsSpent;
+            await leaders.save();
+          }
+        } catch (e) {
+          debugPrint('⚠️ Failed to update LeadersModel: $e');
+        }
         return true;
       } else {
-        debugPrint(
-            "⚠️ Parse gift send failed: ${response?.result ?? response}");
+        debugPrint("⚠️ Parse gift send failed: ${response.result ?? response}");
         return false;
       }
     } catch (e) {

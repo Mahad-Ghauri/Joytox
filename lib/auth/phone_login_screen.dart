@@ -128,7 +128,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     TextWithTap(
-                      "login_screen.hello_".tr(),
+                      "Enter Phone Number",
                       fontSize: size.width / 10,
                       marginLeft: size.width / 9,
                       fontWeight: FontWeight.w900,

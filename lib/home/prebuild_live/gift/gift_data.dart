@@ -47,6 +47,34 @@ final List<ZegoGiftItem> giftItemList = [
 ];
 
 ZegoGiftItem? queryGiftInItemList(String name) {
-  final index = giftItemList.indexWhere((item) => item.name == name);
-  return -1 != index ? giftItemList.elementAt(index) : null;
+  // Exact match first
+  final exactIndex = giftItemList.indexWhere((item) => item.name == name);
+  if (-1 != exactIndex) return giftItemList.elementAt(exactIndex);
+
+  // Flexible match: normalize and map aliases
+  final normalized = _normalizeName(name);
+  final aliasTarget = _aliasMap[normalized];
+  if (aliasTarget != null) {
+    final aliasIndex = giftItemList.indexWhere(
+        (item) => _normalizeName(item.name) == _normalizeName(aliasTarget));
+    if (-1 != aliasIndex) return giftItemList.elementAt(aliasIndex);
+  }
+
+  // Fallback: match by normalized name
+  final flexIndex = giftItemList
+      .indexWhere((item) => _normalizeName(item.name) == normalized);
+  return -1 != flexIndex ? giftItemList.elementAt(flexIndex) : null;
 }
+
+String _normalizeName(String input) {
+  return input.toLowerCase().replaceAll(RegExp(r"[\s_\-]+"), '').trim();
+}
+
+// Common alias mappings between backend names and UI gift asset names
+const Map<String, String> _aliasMap = {
+  // e.g. 'music_box' or 'musicbox' -> 'Music Box1'
+  'musicbox': 'Music Box1',
+  'music_box': 'Music Box1',
+  'musicbox1': 'Music Box1',
+  // Add other known mappings if backend names differ from UI asset names
+};

@@ -112,11 +112,18 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
                 children: List.generate(socialMediaURL.length, (index) {
                   return IconButton(
                     onPressed: () => launchURL(socialMediaURL[index]),
-                    icon: SvgPicture.asset(
-                      socialMediaLogos[index],
-                      height: size.width / 15,
-                      width: size.width / 15,
-                    ),
+                    icon: socialMediaLogos[index].endsWith('.svg')
+                        ? SvgPicture.asset(
+                            socialMediaLogos[index],
+                            height: size.width / 15,
+                            width: size.width / 15,
+                          )
+                        : Image.asset(
+                            socialMediaLogos[index],
+                            height: size.width / 15,
+                            width: size.width / 15,
+                            fit: BoxFit.contain,
+                          ),
                   );
                 }),
               ),
