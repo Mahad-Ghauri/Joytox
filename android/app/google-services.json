@@ -66,6 +66,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "275552824523-afgvrn3cknbeb720j2ootji9oadgffik.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.nazcloak.joytox",
+            "certificate_hash": "6d97533acab1e5c1a94f2bf7a6981884d5c4b5eb"
+          }
+        },
+        {
           "client_id": "275552824523-krg2dloq0ioi730nmi069bctcni28tgo.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {

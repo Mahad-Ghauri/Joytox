@@ -134,8 +134,7 @@ dependencies:
 
   #push notifications
   another_flushbar: ^1.12.30
-  onesignal_flutter: ^5.3.4
-  #flutter_local_notifications: ^18.0.0
+  flutter_local_notifications: ^18.0.1
 
   #Social login
   firebase_auth: ^5.3.1
@@ -174,7 +173,7 @@ dependencies:
   cached_video_player_plus: ^3.0.3
 
   gallery_saver_plus: ^3.2.4 #save Videos
-  flutter_local_notifications: ^18.0.1
+  onesignal_flutter: ^5.3.4
 
 dev_dependencies:
   flutter_native_splash: ^2.4.1

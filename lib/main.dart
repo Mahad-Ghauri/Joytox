@@ -55,7 +55,6 @@ import 'package:zego_uikit_prebuilt_call/zego_uikit_prebuilt_call.dart';
 import 'package:zego_uikit_prebuilt_live_streaming/zego_uikit_prebuilt_live_streaming.dart';
 import 'package:zego_uikit_signaling_plugin/zego_uikit_signaling_plugin.dart';
 import 'controllers/feed_controller.dart';
-import 'home/a_shorts/shorts_cached_controller.dart';
 import 'home/responsive_home_screen.dart';
 import 'home/feed/create_pictures_post_screen.dart';
 import 'home/feed/create_video_post_screen.dart';
@@ -101,8 +100,8 @@ import 'package:trace/models/SeatInvitationModel.dart';
 import 'package:trace/views/video_creation_page.dart';
 import 'package:trace/views/video_editor_screen.dart';
 import 'package:trace/services/posts_service.dart';
-import 'package:trace/services/notification_service.dart';
-import 'package:trace/home/notifications/notification_test_screen.dart';
+import 'package:trace/services/firebase_notification_service.dart';
+import 'package:trace/home/notifications/firebase_debug_screen.dart';
 
 GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -168,6 +167,10 @@ void main() async {
   }
   //  Initialize the platform state
   initPlatformState();
+
+  //  Initialize Firebase notifications early for notification permissions
+  await _initializeFirebaseNotificationsEarly();
+
   //  Enabling the system chrome UI mode
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual,
       overlays: [SystemUiOverlay.bottom, SystemUiOverlay.top]);
@@ -269,6 +272,51 @@ Future<void> initPlatformState() async {
   }
 }
 
+/// Initialize Firebase notifications early to request notification permissions
+Future<void> _initializeFirebaseNotificationsEarly() async {
+  try {
+    // Only initialize on mobile platforms
+    if (!QuickHelp.isMobile()) {
+      print(
+          '📱 Skipping Firebase notification initialization on non-mobile platform');
+      return;
+    }
+
+    print('🚀 Early Firebase notification initialization starting...');
+
+    // Request notification permissions
+    FirebaseMessaging messaging = FirebaseMessaging.instance;
+    NotificationSettings settings = await messaging.requestPermission(
+      alert: true,
+      announcement: false,
+      badge: true,
+      carPlay: false,
+      criticalAlert: false,
+      provisional: false,
+      sound: true,
+    );
+
+    print(
+        '📱 Firebase notification permission status: ${settings.authorizationStatus}');
+
+    if (settings.authorizationStatus == AuthorizationStatus.authorized) {
+      // Get FCM token
+      String? token = await messaging.getToken();
+      print('🔑 FCM Token: $token');
+
+      if (token != null) {
+        print('✅ Firebase notification early initialization successful');
+      } else {
+        print('⚠️  Permission granted but FCM token not available yet');
+      }
+    } else {
+      print('❌ Firebase notification permission denied');
+    }
+  } catch (e) {
+    print('❌ Error during early Firebase notification initialization: $e');
+  }
+}
+
 class App extends StatefulWidget {
   @override
   _AppState createState() => _AppState();
@@ -317,7 +365,7 @@ class _AppState extends State<App> with WidgetsBindingObserver {
         _preloadFeed();
 
         // Initialize notification service
-        _initializeNotifications(currentUser!);
+        _initializeFirebaseNotifications(currentUser!);
 
         return currentUser;
       }
@@ -360,17 +408,16 @@ class _AppState extends State<App> with WidgetsBindingObserver {
   }
 
   // Initialize notification service
-  void _initializeNotifications(UserModel currentUser) {
-    if (context != null) {
-      NotificationService.initialize(currentUser, context!).then((success) {
-        if (success) {
-          print('✅ Notifications initialized successfully');
-        } else {
-          print('❌ Failed to initialize notifications');
-        }
-      });
+  void _initializeFirebaseNotifications(UserModel currentUser) {
+    FirebaseNotificationService.initialize(currentUser, context)
+        .then((success) {
+      if (success) {
+        print('✅ Firebase notifications initialized successfully');
+      } else {
+        print('❌ Failed to initialize Firebase notifications');
+      }
+    });
     }
-  }
 
   RemoveOnline() async {
     currentUser = await ParseUser.currentUser();
@@ -454,7 +501,7 @@ class _AppState extends State<App> with WidgetsBindingObserver {
         ResponsiveHomeScreen.route: (_) => ResponsiveHomeScreen(),
 
         NotificationsScreen.route: (_) => NotificationsScreen(),
-        "/notification-test": (_) => NotificationTestScreen(),
+        "/firebase-debug": (_) => FirebaseDebugScreen(),
         LocationScreen.route: (_) => LocationScreen(),
         ReelsHomeScreen.route: (_) => ReelsHomeScreen(),
 
