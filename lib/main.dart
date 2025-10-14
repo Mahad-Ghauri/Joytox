@@ -101,10 +101,33 @@ import 'package:trace/models/SeatInvitationModel.dart';
 import 'package:trace/views/video_creation_page.dart';
 import 'package:trace/views/video_editor_screen.dart';
 import 'package:trace/services/posts_service.dart';
+import 'package:trace/services/notification_service.dart';
+import 'package:trace/home/notifications/notification_test_screen.dart';
 
 GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
-Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {}
+Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  // Initialize Firebase if not already initialized
+  await Firebase.initializeApp();
+
+  print('📱 Background message received: ${message.messageId}');
+  print('📱 Message data: ${message.data}');
+  print('📱 Message notification: ${message.notification?.title}');
+
+  // Handle different notification types
+  if (message.data.isNotEmpty) {
+    String? type = message.data['type'];
+    String? senderId = message.data['senderId'];
+    String? objectId = message.data['objectId'];
+
+    print('📱 Notification type: $type');
+    print('📱 Sender ID: $senderId');
+    print('📱 Object ID: $objectId');
+
+    // You can add custom logic here for background processing
+    // For example, updating local database, analytics, etc.
+  }
+}
 
 // Constants para o Parse Server
 const String kParseApplicationId = "trace-app-id";
@@ -124,6 +147,10 @@ void main() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
+
+    // Initialize Firebase Messaging for background notifications
+    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+    print('✅ Firebase Messaging background handler initialized');
   } catch (e) {
     // Firebase is already initialized, which is fine
     if (e.toString().contains('duplicate-app')) {
@@ -289,6 +316,9 @@ class _AppState extends State<App> with WidgetsBindingObserver {
         // Após obter o usuário actual, pré-carrega o feed
         _preloadFeed();
 
+        // Initialize notification service
+        _initializeNotifications(currentUser!);
+
         return currentUser;
       }
     } catch (e) {
@@ -326,6 +356,19 @@ class _AppState extends State<App> with WidgetsBindingObserver {
     } catch (e) {
       print("Error ao pré-carregar feed: $e");
       _initializingFeed = false;
+    }
+  }
+
+  // Initialize notification service
+  void _initializeNotifications(UserModel currentUser) {
+    if (context != null) {
+      NotificationService.initialize(currentUser, context!).then((success) {
+        if (success) {
+          print('✅ Notifications initialized successfully');
+        } else {
+          print('❌ Failed to initialize notifications');
+        }
+      });
     }
   }
 
@@ -411,6 +454,7 @@ class _AppState extends State<App> with WidgetsBindingObserver {
         ResponsiveHomeScreen.route: (_) => ResponsiveHomeScreen(),
 
         NotificationsScreen.route: (_) => NotificationsScreen(),
+        "/notification-test": (_) => NotificationTestScreen(),
         LocationScreen.route: (_) => LocationScreen(),
         ReelsHomeScreen.route: (_) => ReelsHomeScreen(),
 

@@ -37,32 +37,45 @@ class SendNotifications {
   static final String typeLikedReels = "reelsLiked";
   static final String typeCommentReels = "reelsComment";
 
-  static void sendPush(UserModel fromUser, UserModel toUser, String type,
+  static Future<bool> sendPush(
+      UserModel fromUser, UserModel toUser, String type,
       {String? message, String? objectId, String? pictureURL}) async {
-    ParseCloudFunction function = ParseCloudFunction(pushNotificationSendParam);
+    try {
+      ParseCloudFunction function =
+          ParseCloudFunction(pushNotificationSendParam);
 
-    Map<String, dynamic> params = <String, dynamic>{
-      pushNotificationReceiver: toUser.objectId,
-      pushNotificationSender: fromUser.objectId,
-      pushNotificationSenderName: fromUser.getFullName,
-      pushNotificationSenderAvatar:
-          fromUser.getAvatar != null ? fromUser.getAvatar?.url : "",
-      pushNotificationTitle: getTitle(type, name: fromUser.getFullName),
-      pushNotificationAlert:
-          getMessage(type, name: fromUser.getFullName, chat: message),
-      pushNotificationViewGroup: getViewGroup(type),
-      pushNotificationChat: message != null ? message : "",
-      pushNotificationType: type,
-      pushNotificationObjectId: objectId != null ? objectId : "",
-      pushNotificationFollowers: fromUser.getFollowers,
-      pushNotificationBigPicture: pictureURL ?? "",
-      pushNotificationLargeIcon: fromUser.getAvatar!.url ?? "",
-    };
+      Map<String, dynamic> params = <String, dynamic>{
+        pushNotificationReceiver: toUser.objectId,
+        pushNotificationSender: fromUser.objectId,
+        pushNotificationSenderName: fromUser.getFullName,
+        pushNotificationSenderAvatar:
+            fromUser.getAvatar != null ? fromUser.getAvatar?.url : "",
+        pushNotificationTitle: getTitle(type, name: fromUser.getFullName),
+        pushNotificationAlert:
+            getMessage(type, name: fromUser.getFullName, chat: message),
+        pushNotificationViewGroup: getViewGroup(type),
+        pushNotificationChat: message != null ? message : "",
+        pushNotificationType: type,
+        pushNotificationObjectId: objectId != null ? objectId : "",
+        pushNotificationFollowers: fromUser.getFollowers,
+        pushNotificationBigPicture: pictureURL ?? "",
+        pushNotificationLargeIcon: fromUser.getAvatar?.url ?? "",
+      };
 
-    if (type == typeLive && toUser.getLiveNotification!) {
-      await function.execute(parameters: params);
-    } else {
-      await function.execute(parameters: params);
+      print('📤 Sending push notification: $type to ${toUser.getFullName}');
+
+      ParseResponse response = await function.execute(parameters: params);
+
+      if (response.success) {
+        print('✅ Push notification sent successfully');
+        return true;
+      } else {
+        print('❌ Failed to send push notification: ${response.error}');
+        return false;
+      }
+    } catch (e) {
+      print('❌ Error sending push notification: $e');
+      return false;
     }
   }
 

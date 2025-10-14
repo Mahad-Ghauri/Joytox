@@ -16,7 +16,7 @@ class Config {
   static final String clientKey = "uVuyaNglVAc07KyQhnnrNoUjlAaEcnsRpzx7C0QK";
 
   //OneSignal
-  static final String oneSignalAppId = "";
+  static final String oneSignalAppId = "6bba40d5-5f22-439b-b8b1-3652dbc8c182";
 
   // Firebase Cloud Messaging
   static final String pushGcm = "732846852135";
