@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:parse_server_sdk/parse_server_sdk.dart';
 import 'package:zego_uikit_prebuilt_live_streaming/zego_uikit_prebuilt_live_streaming.dart';
 import '../helpers/quick_help.dart';
@@ -22,6 +23,16 @@ class FirebaseNotificationService {
   static bool _isInitialized = false;
   static UserModel? _currentUser;
   static BuildContext? _context;
+  static final FlutterLocalNotificationsPlugin _localNotifications =
+      FlutterLocalNotificationsPlugin();
+  static const AndroidNotificationChannel _androidChannel =
+      AndroidNotificationChannel(
+    'high_importance_channel', // Must match AndroidManifest meta-data
+    'High Importance Notifications',
+    description: 'Used for important notifications.',
+    importance: Importance.high,
+    playSound: true,
+  );
 
   /// Initialize Firebase Cloud Messaging
   static Future<bool> initialize(
@@ -75,6 +86,7 @@ class FirebaseNotificationService {
       }
 
       // Set up message handlers
+      await _initializeLocalNotifications();
       _setupMessageHandlers();
 
       _isInitialized = true;
@@ -118,9 +130,30 @@ class FirebaseNotificationService {
   static void _handleForegroundMessage(RemoteMessage message) {
     // Show local notification or in-app notification
     if (message.notification != null) {
-      // You can show a custom in-app notification here
-      print(
-          '📱 Showing foreground notification: ${message.notification!.title}');
+      final notification = message.notification!;
+      final android = notification.android;
+      final String? title = notification.title ?? 'Notification';
+      final String? body = notification.body ?? '';
+
+      // Display as system notification while app is in foreground
+      _localNotifications.show(
+        DateTime.now().millisecondsSinceEpoch ~/ 1000,
+        title,
+        body,
+        NotificationDetails(
+          android: AndroidNotificationDetails(
+            _androidChannel.id,
+            _androidChannel.name,
+            channelDescription: _androidChannel.description,
+            importance: Importance.high,
+            priority: Priority.high,
+            playSound: true,
+            icon: android?.smallIcon, // fallback to app icon if null
+          ),
+          iOS: const DarwinNotificationDetails(),
+        ),
+        payload: message.data.isNotEmpty ? message.data.toString() : null,
+      );
     }
   }
 
@@ -305,6 +338,37 @@ class FirebaseNotificationService {
       print('❌ Error getting FCM token: $e');
       return null;
     }
+  }
+
+  /// Initialize local notifications and Android channel
+  static Future<void> _initializeLocalNotifications() async {
+    // Android initialization
+    const AndroidInitializationSettings androidInitSettings =
+        AndroidInitializationSettings('@mipmap/ic_launcher');
+
+    // iOS initialization
+    const DarwinInitializationSettings iosInitSettings =
+        DarwinInitializationSettings();
+
+    const InitializationSettings initializationSettings =
+        InitializationSettings(
+      android: androidInitSettings,
+      iOS: iosInitSettings,
+    );
+
+    await _localNotifications.initialize(
+      initializationSettings,
+      onDidReceiveNotificationResponse: (response) {
+        // Optionally handle tap when app is in foreground
+        // We already handle deep links via FCM listeners
+      },
+    );
+
+    // Create Android channel
+    final androidPlatform =
+        _localNotifications.resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>();
+    await androidPlatform?.createNotificationChannel(_androidChannel);
   }
 
   /// Subscribe to topic
