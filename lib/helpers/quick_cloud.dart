@@ -6,6 +6,7 @@ import 'package:trace/app/setup.dart';
 import 'package:trace/helpers/quick_help.dart';
 import 'package:trace/models/InvitedUsersModel.dart';
 import 'package:trace/models/UserModel.dart';
+import 'package:trace/models/LeadersModel.dart';
 
 class QuickCloudCode {
   static Future<ParseResponse> restartPKBattle(
@@ -105,6 +106,37 @@ class QuickCloudCode {
         print("🎁 [GIFT DEBUG] Receiver new diamonds: ${author.getDiamonds}");
       } catch (e) {
         print("🎁 [GIFT DEBUG] Error refreshing receiver data: $e");
+      }
+
+      // Update LeadersModel for the sender (gift giver ranking)
+      try {
+        final leadersQuery = QueryBuilder<LeadersModel>(LeadersModel());
+        leadersQuery.whereEqualTo(
+            LeadersModel.keyAuthorId, currentUser.objectId);
+        final leadersResp = await leadersQuery.query();
+
+        if (leadersResp.success && leadersResp.results != null) {
+          final LeadersModel leaders =
+              leadersResp.results!.first as LeadersModel;
+          leaders.incrementDiamondsQuantity = credits;
+          await leaders.save();
+        } else {
+          // Create new leaders entry for this sender
+          final userQuery = QueryBuilder<UserModel>(UserModel.forQuery());
+          userQuery.whereEqualTo(UserModel.keyObjectId, currentUser.objectId);
+          final userResp = await userQuery.query();
+
+          final LeadersModel leaders = LeadersModel();
+          if (userResp.success && userResp.results != null) {
+            final user = userResp.results!.first as UserModel;
+            leaders.setAuthor = user;
+          }
+          leaders.setAuthorId = currentUser.objectId!;
+          leaders.setCounterDiamondsQuantity = credits;
+          await leaders.save();
+        }
+      } catch (e) {
+        print('⚠️ [GIFT DEBUG] Failed to update LeadersModel: $e');
       }
     } else {
       // Fallback: If cloud function fails, add diamonds directly to receiver

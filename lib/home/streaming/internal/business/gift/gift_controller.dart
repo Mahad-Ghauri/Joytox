@@ -10,6 +10,9 @@ import 'package:trace/models/LeadersModel.dart';
 import 'package:trace/models/UserModel.dart';
 
 import '../../../zego_sdk_manager.dart';
+import 'package:trace/home/prebuild_live/gift/gift_data.dart';
+// defines used indirectly via gift_service payload
+// (no external gift catalog imports here)
 
 part 'gift_service.dart';
 
@@ -176,12 +179,19 @@ class ZegoGiftData {
   ZegoGiftData({this.giftPath});
 }
 
-Future<String> getPathFromAssetOrCache(String asset) async {
-  final cache = await DefaultCacheManager().getFileFromCache(asset);
+Future<String> getPathFromAssetOrCache(String assetOrUrl) async {
+  // If it's a network URL, download and cache it
+  if (assetOrUrl.startsWith('http://') || assetOrUrl.startsWith('https://')) {
+    final file = await DefaultCacheManager().getSingleFile(assetOrUrl);
+    return file.path;
+  }
+
+  // Otherwise, treat as bundled asset path and cache it by key
+  final cache = await DefaultCacheManager().getFileFromCache(assetOrUrl);
   if (cache == null) {
-    final assetData = await rootBundle.load(asset);
+    final assetData = await rootBundle.load(assetOrUrl);
     final cacheFile = await DefaultCacheManager()
-        .putFile(asset, assetData.buffer.asUint8List());
+        .putFile(assetOrUrl, assetData.buffer.asUint8List());
     return cacheFile.path;
   } else {
     return cache.file.path;

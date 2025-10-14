@@ -46,13 +46,17 @@ class GiftServiceImpl {
     int count = 1,
   }) async {
     try {
-      // 1) Play Zego animation (same as before)
+      // 1) Play Zego animation and notify with enriched protocol
+      final item = queryGiftInItemList(gift.getName ?? '');
       final data = ZegoGiftCommand(
         appID: _appID,
         liveID: ZEGOSDKManager().expressService.currentRoomID,
         localUserID: _localUserID,
         localUserName: _localUserName,
         giftName: gift.getName ?? "Unknown",
+        giftSourceURL: item?.sourceURL ?? 'assets/gift/${gift.getName}.mp4',
+        giftType: item?.type.name ?? 'mp4',
+        count: count,
       ).toJson();
 
       debugPrint("🎁 Sending gift animation: ${gift.getName}");
@@ -78,13 +82,14 @@ class GiftServiceImpl {
           leadersQuery.whereEqualTo(LeadersModel.keyAuthorId, _localUserID);
           final leadersResp = await leadersQuery.query();
 
-          final int coinsSpent = gift.getCoins ?? 0;
+          // Total spent = gift price * count
+          final int coinsSpent = ((gift.getCoins ?? 0) * count);
 
           if (leadersResp.success && leadersResp.results != null) {
             final LeadersModel leaders =
                 leadersResp.results!.first as LeadersModel;
-            leaders.incrementDiamondsQuantity =
-                coinsSpent; // rank by coins spent
+            // rank by total coins spent in this operation
+            leaders.incrementDiamondsQuantity = coinsSpent;
             await leaders.save();
           } else {
             // Create new leaders entry for this sender
@@ -139,6 +144,9 @@ class ZegoGiftCommand {
   String localUserID = '';
   String localUserName = '';
   String giftName;
+  String giftSourceURL;
+  String giftType;
+  int count;
 
   ZegoGiftCommand({
     required this.appID,
@@ -146,6 +154,9 @@ class ZegoGiftCommand {
     required this.localUserID,
     required this.localUserName,
     required this.giftName,
+    required this.giftSourceURL,
+    required this.giftType,
+    required this.count,
   });
 
   String toJson() => json.encode({
@@ -154,6 +165,9 @@ class ZegoGiftCommand {
         'user_id': localUserID,
         'user_name': localUserName,
         'gift_name': giftName,
+        'gift_source_url': giftSourceURL,
+        'gift_type': giftType,
+        'count': count,
         'timestamp': DateTime.now().millisecondsSinceEpoch,
       });
 
@@ -170,6 +184,9 @@ class ZegoGiftCommand {
       localUserID: json['user_id'] ?? '',
       localUserName: json['user_name'] ?? '',
       giftName: json['gift_name'] ?? '',
+      giftSourceURL: json['gift_source_url'] ?? '',
+      giftType: json['gift_type'] ?? 'mp4',
+      count: json['count'] ?? 1,
     );
   }
 }

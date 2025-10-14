@@ -28,8 +28,12 @@ extension ZegoLivePageStateGiftExtension on ZegoNormalLivePageState {
       return;
     }
 
-    final giftPath = await getPathFromAssetOrCache(
-        'assets/gift/${receivedGiftCommand.giftName}.mp4');
+    // Prefer protocol-provided source URL/type if available
+    final candidate = receivedGiftCommand.giftSourceURL.isNotEmpty == true
+        ? receivedGiftCommand.giftSourceURL
+        : 'assets/gift/${receivedGiftCommand.giftName}.mp4';
+
+    final giftPath = await getPathFromAssetOrCache(candidate);
     ZegoGiftController().addToPlayingList(ZegoGiftData(giftPath: giftPath));
   }
 }
