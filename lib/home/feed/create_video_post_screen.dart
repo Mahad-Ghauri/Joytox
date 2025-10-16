@@ -698,6 +698,11 @@ class _CreateVideoPostScreenState extends State<CreateVideoPostScreen> {
     newPost.setAuthor = widget.currentUser!;
     newPost.setText = captionTextEditing.text;
     newPost.setAuthorId = widget.currentUser!.objectId!;
+    // Ensure reels-friendly metadata and visibility
+    newPost.setPostType = PostsModel.postTypeVideo;
+    ParseACL acl = ParseACL();
+    acl.setPublicReadAccess(allowed: true);
+    newPost.setACL(acl);
 
     newPost.setTargetPeople = selectedUser;
     newPost.setTargetPeopleID = selectedUserIds;
