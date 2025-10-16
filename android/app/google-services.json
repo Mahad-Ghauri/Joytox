@@ -7,64 +7,20 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:275552824523:android:ac141da13a2192d9b93f4e",
-        "android_client_info": {
-          "package_name": "com.nazcloak.joytox"
-        }
-      },
-      "oauth_client": [
-        {
-          "client_id": "275552824523-6r3qoe4ihnq3m6ba3as7tc1t4sq6j64q.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.nazcloak.joytox",
-            "certificate_hash": "340aec81cf5ff9d41c7724d05c950e789c075542"
-          }
-        },
-        {
-          "client_id": "275552824523-ml6tnamhjaibhe05nshu4t5o88nabplp.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.nazcloak.joytox",
-            "certificate_hash": "d686ffdf51ec78b01c26e6a6aba42f14a3aee9a0"
-          }
-        },
-        {
-          "client_id": "275552824523-t7tatv3ar96jcucp3e81pl5432fro98j.apps.googleusercontent.com",
-          "client_type": 3
-        }
-      ],
-      "api_key": [
-        {
-          "current_key": "AIzaSyBbtwLRe6m_R4JBIf8e-4Bg0nccuLVq_44"
-        }
-      ],
-      "services": {
-        "appinvite_service": {
-          "other_platform_oauth_client": [
-            {
-              "client_id": "275552824523-t7tatv3ar96jcucp3e81pl5432fro98j.apps.googleusercontent.com",
-              "client_type": 3
-            },
-            {
-              "client_id": "275552824523-opoc1qi2ocjl9f5986g43jbjbilfn4mo.apps.googleusercontent.com",
-              "client_type": 2,
-              "ios_info": {
-                "bundle_id": "com.nazcloak.joytox"
-              }
-            }
-          ]
-        }
-      }
-    },
-    {
-      "client_info": {
         "mobilesdk_app_id": "1:275552824523:android:7185c575dfc249c2b93f4e",
         "android_client_info": {
           "package_name": "com.nazcloak.joytox"
         }
       },
       "oauth_client": [
+        {
+          "client_id": "275552824523-7k5i18grv2cso1ohk2adot11kaud9aj9.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.nazcloak.joytox",
+            "certificate_hash": "bee0d02833a510b5678df1e5b3f3ac57b10163f1"
+          }
+        },
         {
           "client_id": "275552824523-afgvrn3cknbeb720j2ootji9oadgffik.apps.googleusercontent.com",
           "client_type": 1,
@@ -102,7 +58,7 @@
               "client_id": "275552824523-opoc1qi2ocjl9f5986g43jbjbilfn4mo.apps.googleusercontent.com",
               "client_type": 2,
               "ios_info": {
-                "bundle_id": "com.nazcloak.joytox"
+                "bundle_id": "com.arsu.joytox"
               }
             }
           ]

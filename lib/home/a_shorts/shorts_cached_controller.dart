@@ -16,6 +16,8 @@ class ShortsCachedController extends GetxController {
 
   var showPlayPauseIcon = false.obs;
   var isPlaying = true.obs;
+  // Tracks whether user explicitly paused to avoid auto-resume
+  var userPaused = false.obs;
 
   final int preloadCount = 3; // REDUCED from 5 to 3 - saves ~30MB memory
 
@@ -79,6 +81,7 @@ class ShortsCachedController extends GetxController {
 
   //Get first videos
   Future<void> queryInitialVideos() async {
+    debugPrint('ShortsCachedController: querying initial videos...');
     QueryBuilder query = QueryBuilder(PostsModel())
       ..whereValueExists(PostsModel.keyVideo, true)
       ..includeObject([PostsModel.keyAuthor])
@@ -86,15 +89,27 @@ class ShortsCachedController extends GetxController {
       ..setLimit(limit);
 
     ParseResponse response = await query.query();
+    debugPrint(
+        'ShortsCachedController: query success=${response.success}, count=${response.count}, hasResults=${response.results != null}');
 
     if (response.success && response.results != null) {
       List<PostsModel> loadedVideos =
           response.results!.map((e) => e as PostsModel).toList();
+      debugPrint(
+          'ShortsCachedController: loaded ${loadedVideos.length} videos');
+      if (loadedVideos.isNotEmpty) {
+        for (final v in loadedVideos.take(3)) {
+          debugPrint(
+              'ShortsCachedController: sample video id=${v.objectId} url=${v.getVideo?.url} thumb=${v.getVideoThumbnail?.url}');
+        }
+      }
       shorts.value = loadedVideos;
       isLoading.value = false;
       _initializeVideoController();
     } else {
       isLoading.value = false;
+      debugPrint(
+          'ShortsCachedController: no results or error: ${response.error?.message}');
     }
   }
 
@@ -389,21 +404,21 @@ class ShortsCachedController extends GetxController {
     try {
       final currentIndex = currentVideoIndex.value;
       if (currentIndex >= 0 && currentIndex < shorts.length) {
-        final controller = await videoControllers[currentIndex];
-        if (controller != null) {
-          if (controller.value.isPlaying) {
-            await controller.pause();
-            isPlaying.value = false;
-          } else {
-            await controller.play();
-            isPlaying.value = true;
-          }
-
-          showPlayPauseIcon.value = true;
-          Future.delayed(Duration(milliseconds: 800), () {
-            showPlayPauseIcon.value = false;
-          });
+        final controller = videoControllers[currentIndex];
+        if (controller.value.isPlaying) {
+          await controller.pause();
+          isPlaying.value = false;
+          userPaused.value = true;
+        } else {
+          await controller.play();
+          isPlaying.value = true;
+          userPaused.value = false;
         }
+
+        showPlayPauseIcon.value = true;
+        Future.delayed(Duration(milliseconds: 800), () {
+          showPlayPauseIcon.value = false;
+        });
       }
     } catch (e) {
       print('ReelsController: Erro ao alternar reprodução: $e');
@@ -412,6 +427,10 @@ class ShortsCachedController extends GetxController {
 
   Future<void> playCurrentVideo() async {
     try {
+      // Don't auto-resume if the user explicitly paused
+      if (userPaused.value) {
+        return;
+      }
       final currentIndex = currentVideoIndex.value;
       if (currentIndex >= 0 && currentIndex < shorts.length) {
         debugPrint(

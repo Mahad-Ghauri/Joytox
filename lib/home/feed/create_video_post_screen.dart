@@ -26,6 +26,7 @@ import '../../ui/text_with_tap.dart';
 import '../../utils/colors.dart';
 
 import 'package:trace/widgets/dospace/dospace.dart' as dospace;
+import 'package:video_thumbnail/video_thumbnail.dart';
 
 class CreateVideoPostScreen extends StatefulWidget {
   static String route = "/create/video/post";
@@ -672,8 +673,28 @@ class _CreateVideoPostScreenState extends State<CreateVideoPostScreen> {
 
     PostsModel newPost = PostsModel();
 
+    // Ensure files are uploaded to Parse before saving the post
+    try {
+      if (parseVideoFile != null) {
+        await parseVideoFile!.save();
+      }
+      if (parseVideoThumbnailFile != null) {
+        await parseVideoThumbnailFile!.save();
+      }
+    } catch (e) {
+      QuickHelp.hideLoadingDialog(context);
+      QuickHelp.showAppNotificationAdvanced(
+        context: context,
+        title: "error".tr(),
+        message: "try_again_later".tr(),
+      );
+      return;
+    }
+
     newPost.setVideo = parseVideoFile!;
-    newPost.setVideoThumbnail = parseVideoThumbnailFile!;
+    if (parseVideoThumbnailFile != null) {
+      newPost.setVideoThumbnail = parseVideoThumbnailFile!;
+    }
     newPost.setAuthor = widget.currentUser!;
     newPost.setText = captionTextEditing.text;
     newPost.setAuthorId = widget.currentUser!.objectId!;
@@ -720,7 +741,7 @@ class _CreateVideoPostScreenState extends State<CreateVideoPostScreen> {
       QuickHelp.showAppNotificationAdvanced(
         context: context,
         title: "error".tr(),
-        message: "try_again_later".tr(),
+        message: parseResponse.error?.message ?? "try_again_later".tr(),
       );
     }
   }
@@ -789,29 +810,30 @@ class _CreateVideoPostScreenState extends State<CreateVideoPostScreen> {
   prepareVideo(File file, Uint8List? previewPath) async {
     DateTime date = DateTime.now();
 
-    // Criar arquivo de thumbnail
+    // Generate a real thumbnail from the selected video
     final tempDir = await getTemporaryDirectory();
     String videoThumbnailName =
         'thumbnail_${date.second}_${date.millisecond}.jpg';
-    File videoThumbnailFile = File('${tempDir.path}/$videoThumbnailName');
-
-    if (previewPath != null) {
-      await videoThumbnailFile.writeAsBytes(previewPath);
-    } else {
-      // Create a placeholder thumbnail file since we don't have preview data
-      await videoThumbnailFile.writeAsBytes([]);
-    }
+    String? thumbPath = await VideoThumbnail.thumbnailFile(
+      video: file.path,
+      imageFormat: ImageFormat.JPEG,
+      maxWidth: 480,
+      quality: 75,
+      thumbnailPath: tempDir.path,
+    );
+    File? videoThumbnailFile = thumbPath != null ? File(thumbPath) : null;
 
     // Configurar arquivo de vídeo
     videoFile = file;
 
-    // Configurar thumbnail
-    parseVideoThumbnailFile =
-        ParseFile(videoThumbnailFile, name: "thumbnail.jpg");
-
-    setState(() {
-      selectedVideos.add(videoThumbnailFile);
-    });
+    // Configure thumbnail if available
+    if (videoThumbnailFile != null && await videoThumbnailFile.exists()) {
+      parseVideoThumbnailFile =
+          ParseFile(videoThumbnailFile, name: videoThumbnailName);
+      setState(() {
+        selectedVideos.add(videoThumbnailFile);
+      });
+    }
 
     // Configurar arquivo de vídeo para upload
     if (file.absolute.path.isNotEmpty) {

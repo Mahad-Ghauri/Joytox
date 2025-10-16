@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
+import 'package:get/get.dart';
 import 'package:trace/models/PostsModel.dart';
-
+import 'package:trace/services/posts_service.dart';
 import 'package:video_player/video_player.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
@@ -15,26 +15,43 @@ class _FastReelsScreenState extends State<FastReelsScreen> {
   int _currentVideoIndex = 0;
   VideoPlayerController? _videoController;
   bool _isLoading = true;
+  String? _errorMessage;
+  late PostsService _postsService;
 
   @override
   void initState() {
     super.initState();
-    _initializeParse();
-  }
-
-  Future<void> _initializeParse() async {
-    await Parse().initialize('APPLICATION_ID', 'SERVER_URL');
+    // Ensure PostsService is available
+    if (!Get.isRegistered<PostsService>()) {
+      Get.put(PostsService(), permanent: true);
+    }
+    _postsService = Get.find<PostsService>();
     _loadVideos();
   }
 
   Future<void> _loadVideos() async {
-    final query = QueryBuilder<PostsModel>(PostsModel());
-    final response = await query.query();
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
 
-    if (response.success && response.results != null) {
-      setState(() {
-        _videos = response.results as List<PostsModel>;
+    try {
+      final videos = await _postsService.loadInitialVideos();
+      if (videos.isNotEmpty) {
+        setState(() {
+          _videos = videos;
+        });
         _loadVideo(_currentVideoIndex);
+      } else {
+        setState(() {
+          _isLoading = false;
+          _videos = [];
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = 'Failed to load reels';
       });
     }
   }
@@ -44,9 +61,15 @@ class _FastReelsScreenState extends State<FastReelsScreen> {
       _videoController!.dispose();
     }
 
-    final videoUrl = _videos[index].get<String>('videoUrl');
+    final videoUrl = _videos[index].getVideo?.url;
+    if (videoUrl == null || videoUrl.isEmpty) {
+      setState(() {
+        _isLoading = false;
+      });
+      return;
+    }
 
-    _videoController = VideoPlayerController.networkUrl(Uri.parse(videoUrl!))
+    _videoController = VideoPlayerController.networkUrl(Uri.parse(videoUrl))
       ..initialize().then((_) {
         setState(() {
           _isLoading = false;
@@ -72,34 +95,39 @@ class _FastReelsScreenState extends State<FastReelsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _videos.isEmpty
+      body: _isLoading
           ? Center(child: CircularProgressIndicator())
-          : PageView.builder(
-        scrollDirection: Axis.vertical,
-        onPageChanged: _onVideoChanged,
-        itemCount: _videos.length,
-        itemBuilder: (context, index) {
-          final video = _videos[index];
-          final thumbnailUrl = video.get<String>('thumbnailUrl');
-          return Stack(
-            alignment: Alignment.center,
-            children: [
-              if (_isLoading)
-                CachedNetworkImage(
-                  imageUrl: thumbnailUrl!,
-                  fit: BoxFit.cover,
-                  width: double.infinity,
-                  height: double.infinity,
-                ),
-              if (!_isLoading && _videoController!.value.isInitialized)
-                AspectRatio(
-                  aspectRatio: _videoController!.value.aspectRatio,
-                  child: VideoPlayer(_videoController!),
-                ),
-            ],
-          );
-        },
-      ),
+          : (_videos.isEmpty
+              ? Center(
+                  child: Text(_errorMessage ?? 'No reels available'),
+                )
+              : PageView.builder(
+                  scrollDirection: Axis.vertical,
+                  onPageChanged: _onVideoChanged,
+                  itemCount: _videos.length,
+                  itemBuilder: (context, index) {
+                    final video = _videos[index];
+                    final thumbnailUrl = video.getVideoThumbnail?.url;
+                    return Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        if (_isLoading)
+                          CachedNetworkImage(
+                            imageUrl: thumbnailUrl ?? '',
+                            fit: BoxFit.cover,
+                            width: double.infinity,
+                            height: double.infinity,
+                          ),
+                        if (!_isLoading &&
+                            _videoController!.value.isInitialized)
+                          AspectRatio(
+                            aspectRatio: _videoController!.value.aspectRatio,
+                            child: VideoPlayer(_videoController!),
+                          ),
+                      ],
+                    );
+                  },
+                )),
     );
   }
 }

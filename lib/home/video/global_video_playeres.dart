@@ -102,9 +102,7 @@ class _GlobalVideoPlayerState extends State<GlobalVideoPlayer> {
     if (oldWidget.video.objectId != widget.video.objectId) {
       _disposeCurrentController();
       _initializePlayer();
-    }
-
-    else if (widget.externalController != oldWidget.externalController) {
+    } else if (widget.externalController != oldWidget.externalController) {
       if (widget.externalController?.textureId != _controller?.textureId) {
         _disposeCurrentController();
         _initializePlayer();
@@ -150,13 +148,22 @@ class _GlobalVideoPlayerState extends State<GlobalVideoPlayer> {
       return QuickHelp.appLoading();
     }
 
+    final videoSize = _controller!.value.size;
+
     return Stack(
       alignment: AlignmentDirectional.center,
       children: [
-        // Player de vídeo
-        AspectRatio(
-          aspectRatio: _controller!.value.aspectRatio,
-          child: CachedVideoPlayerPlus(_controller!),
+        // Player de vídeo com render confiável em tela cheia
+        SizedBox.expand(
+          child: FittedBox(
+            fit: BoxFit.cover,
+            clipBehavior: Clip.hardEdge,
+            child: SizedBox(
+              width: videoSize.width > 0 ? videoSize.width : 9,
+              height: videoSize.height > 0 ? videoSize.height : 16,
+              child: CachedVideoPlayerPlus(_controller!),
+            ),
+          ),
         ),
 
         if (widget.showControls)
@@ -190,14 +197,14 @@ class _GlobalVideoPlayerState extends State<GlobalVideoPlayer> {
           postModel: widget.video,
           currentUser: widget.currentUser ?? Get.find<UserModel>(),
         ),
-
       ],
     );
   }
 }
 
 extension GlobalVideoPlayerExtensions on GlobalVideoPlayer {
-  static Future<void> pauseAllPlayers(List<CachedVideoPlayerPlusController> controllers) async {
+  static Future<void> pauseAllPlayers(
+      List<CachedVideoPlayerPlusController> controllers) async {
     for (final controller in controllers) {
       try {
         if (controller.value.isInitialized && controller.value.isPlaying) {

@@ -1,6 +1,6 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
-import 'package:parse_server_sdk/parse_server_sdk.dart';
+import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import 'package:preload_page_view/preload_page_view.dart';
 import 'package:trace/home/feed/videoutils/api.dart';
 import 'package:trace/home/feed/videoutils/screen_config.dart';
@@ -40,7 +40,6 @@ class _ReelsSingleScreenState extends State<ReelsSingleScreen>
 
   @override
   void initState() {
-
     QuickHelp.saveCurrentRoute(route: ReelsSingleScreen.route);
 
     _tabController = TabController(length: 2, vsync: this);
@@ -124,14 +123,12 @@ class _ReelsSingleScreenState extends State<ReelsSingleScreen>
     );
   }
 
-  setViewer(PostsModel post) async{
-
-    if(widget.currentUser!.objectId! != post.getAuthor!.objectId!){
+  setViewer(PostsModel post) async {
+    if (widget.currentUser!.objectId! != post.getAuthor!.objectId!) {
       post.setViewer = widget.currentUser!.objectId!;
       //post.addView = 1;
       await post.save();
     }
-
   }
 
   @override
@@ -162,18 +159,16 @@ class _ReelsSingleScreenState extends State<ReelsSingleScreen>
     queryBuilder.whereValueExists(PostsModel.keyVideo, true);
     queryBuilder.orderByDescending(PostsModel.keyCreatedAt);
 
-    if(widget.post != null){
+    if (widget.post != null) {
       queryBuilder.whereEqualTo(PostsModel.keyObjectId, widget.post!.objectId);
-
     } else {
-
       queryBuilder.whereEqualTo(PostsModel.keyExclusive, isExclusive);
       queryBuilder.whereNotContainedIn(
           PostsModel.keyAuthor, widget.currentUser!.getBlockedUsers!);
       queryBuilder.whereNotContainedIn(
           PostsModel.keyObjectId, widget.currentUser!.getReportedPostIDs!);
 
-      queryBuilder.whereDoesNotMatchQuery(PostsModel.keyAuthor, queryUsers);
+      queryBuilder.whereMatchesQuery(PostsModel.keyAuthor, queryUsers);
       queryBuilder.setAmountToSkip(skip!);
     }
 
@@ -191,7 +186,7 @@ class _ReelsSingleScreenState extends State<ReelsSingleScreen>
       if (apiResponse.results != null) {
         for (PostsModel postsModel in apiResponse.results!) {
           VideoInfo videoInfo = VideoInfo(
-            /*userName: postsModel.getAuthor!.getFullName!,
+              /*userName: postsModel.getAuthor!.getFullName!,
               liked: postsModel.getLikes!.contains(widget.currentUser!.objectId),
               dateTime: postsModel.createdAt!,
               songName: postsModel.getText,

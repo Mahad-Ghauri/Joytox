@@ -1,6 +1,6 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
-import 'package:parse_server_sdk/parse_server_sdk.dart';
+import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import 'package:preload_page_view/preload_page_view.dart';
 import 'package:trace/home/feed/videoutils/api.dart';
 import 'package:trace/home/feed/videoutils/screen_config.dart';
@@ -172,7 +172,7 @@ class _ReelsHomeScreenState extends State<ReelsHomeScreen>
       queryBuilder.whereNotContainedIn(
           PostsModel.keyObjectId, widget.currentUser!.getReportedPostIDs!);
 
-      queryBuilder.whereDoesNotMatchQuery(PostsModel.keyAuthor, queryUsers);
+      queryBuilder.whereMatchesQuery(PostsModel.keyAuthor, queryUsers);
     }
 
     queryBuilder.includeObject([
