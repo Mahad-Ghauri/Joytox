@@ -8,7 +8,8 @@ abstract class ZegoLiveStreamingManagerInterface {
   Future<void> endCoHost();
 
   Future<PKInviteSentResult> startPKBattle(String anotherHostID);
-  Future<PKInviteSentResult> startPKBattleWith(List<String> anotherHostIDList);
+  Future<PKInviteSentResult> startPKBattleWith(List<String> anotherHostIDList,
+      [int durationMinutes = 3]);
   Future<PKInviteSentResult> invitePKBattle(String targetUserID);
   Future<PKInviteSentResult> invitePKBattleWith(List<String> targetUserIDList);
   Future<void> cancelPKBattleRequest(String requestID, String targetUserID);

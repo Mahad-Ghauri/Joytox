@@ -2,6 +2,7 @@
 
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/cupertino.dart';
@@ -29,9 +30,11 @@ import '../../../../../utils/colors.dart';
 import '../../../components/components.dart';
 import '../../../utils/zegocloud_token.dart';
 import '../../../zego_live_streaming_manager.dart';
-import '../../../zego_sdk_key_center.dart';
-import '../../../../prebuild_live/gift/gift_data.dart';
-import '../../../../prebuild_live/gift/gift_manager/defines.dart';
+// import '../../../zego_sdk_key_center.dart';
+import 'package:zego_uikit_prebuilt_live_streaming/zego_uikit_prebuilt_live_streaming.dart'
+    as prebuilt show ZegoUIKitPrebuiltLiveStreamingController;
+// import '../../../../prebuild_live/gift/gift_data.dart';
+// import '../../../../prebuild_live/gift/gift_manager/defines.dart';
 import 'live_command.dart';
 
 part 'live_page_buttons.dart';

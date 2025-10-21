@@ -11,7 +11,8 @@ extension PKServiceZIMExtension on PKService {
     }
     if (inviterExtendedData.type == PKExtendedData.START_PK) {
       final currentRoomID = ZEGOSDKManager().expressService.currentRoomID;
-      final userNotHost = currentRoomID.isEmpty || (cohostService?.iamHost() ?? false);
+      final userNotHost =
+          currentRoomID.isEmpty || (cohostService?.iamHost() ?? false);
       if (pkInfo != null && userNotHost) {
         rejectPKBattle(event.requestID);
         return;
@@ -20,7 +21,9 @@ extension PKServiceZIMExtension on PKService {
       for (final callUserInfo in event.info.callUserList) {
         final pkuser = PKUser(
             userID: callUserInfo.userID,
-            sdkUser: callUserInfo.userID == localUser?.userID ? localUser! : ZegoSDKUser(userID: callUserInfo.userID, userName: ''))
+            sdkUser: callUserInfo.userID == localUser?.userID
+                ? localUser!
+                : ZegoSDKUser(userID: callUserInfo.userID, userName: ''))
           ..callUserState = callUserInfo.state
           ..extendedData = callUserInfo.extendedData;
         if (callUserInfo.extendedData.isNotEmpty) {
@@ -47,13 +50,17 @@ extension PKServiceZIMExtension on PKService {
           }
         }
       }
+      // carry over duration from inviter's extended data if present
+      newPKInfo.durationMinutes = inviterExtendedData.durationMinutes;
       pkInfo = newPKInfo;
-      onPKBattleReceived.add(PKBattleReceivedEvent(requestID: event.requestID, info: event.info));
+      onPKBattleReceived.add(
+          PKBattleReceivedEvent(requestID: event.requestID, info: event.info));
     }
   }
 
   void onReceiveUserRequestCancel(IncomingUserRequestCancelledEvent event) {
-    onPKBattleCancelStreamCtrl.add(PKBattleCancelledEvent(requestID: event.requestID));
+    onPKBattleCancelStreamCtrl
+        .add(PKBattleCancelledEvent(requestID: event.requestID));
   }
 
   void onUserRequestEnded(UserRequestEndEvent event) {
@@ -91,10 +98,13 @@ extension PKServiceZIMExtension on PKService {
           }
         }
         if (!findIfAlreadyAdded) {
-          final newPKUser =
-              PKUser(userID: userInfo.userID, sdkUser: userInfo.userID == localUser?.userID ? localUser! : ZegoSDKUser(userID: userInfo.userID, userName: ''))
-                ..callUserState = userInfo.state
-                ..extendedData = userInfo.extendedData;
+          final newPKUser = PKUser(
+              userID: userInfo.userID,
+              sdkUser: userInfo.userID == localUser?.userID
+                  ? localUser!
+                  : ZegoSDKUser(userID: userInfo.userID, userName: ''))
+            ..callUserState = userInfo.state
+            ..extendedData = userInfo.extendedData;
           if (newPKUser.userID == localUser?.userID) {
             newPKUser
               ..roomID = ZEGOSDKManager().expressService.currentRoomID
@@ -118,16 +128,20 @@ extension PKServiceZIMExtension on PKService {
         if (userInfo.state == ZIMCallUserState.accepted) {
           final oldPKUser = getPKUser(pkInfo!, userInfo.userID);
           if (oldPKUser != null) {
-            onPKBattleAcceptedCtrl.add(PKBattleAcceptedEvent(userID: oldPKUser.userID, extendedData: oldPKUser.extendedData));
+            onPKBattleAcceptedCtrl.add(PKBattleAcceptedEvent(
+                userID: oldPKUser.userID,
+                extendedData: oldPKUser.extendedData));
             _onReceivePKUserAccepted(userInfo);
           }
         } else if (userInfo.state == ZIMCallUserState.rejected) {
-          onPKBattleRejectedStreamCtrl.add(PKBattleRejectedEvent(userID: userInfo.userID, extendedData: userInfo.extendedData));
+          onPKBattleRejectedStreamCtrl.add(PKBattleRejectedEvent(
+              userID: userInfo.userID, extendedData: userInfo.extendedData));
           if (localUser != null) {
             checkIfPKEnd(event.requestID, localUser!);
           }
         } else if (userInfo.state == ZIMCallUserState.timeout) {
-          onPKBattleTimeoutCtrl.add(PKBattleTimeoutEvent(userID: userInfo.userID, extendedData: userInfo.extendedData));
+          onPKBattleTimeoutCtrl.add(PKBattleTimeoutEvent(
+              userID: userInfo.userID, extendedData: userInfo.extendedData));
           if (localUser != null) {
             checkIfPKEnd(event.requestID, localUser!);
           }
@@ -156,7 +170,9 @@ extension PKServiceZIMExtension on PKService {
           }
         }
       }
-      if (meHasAccepted && moreThanOneAcceptedExceptMe && pkStateNotifier.value != RoomPKState.isStartPK) {
+      if (meHasAccepted &&
+          moreThanOneAcceptedExceptMe &&
+          pkStateNotifier.value != RoomPKState.isStartPK) {
         updatePKMixTask().then((value) {
           if (value.errorCode == 0) {
             startSendSEI();
@@ -165,7 +181,8 @@ extension PKServiceZIMExtension on PKService {
             onPKStartStreamCtrl.add(null);
             for (final pkuser in pkInfo!.pkUserList.value) {
               if (pkuser.hasAccepted) {
-                onPKUserJoinCtrl.add(PKBattleUserJoinEvent(userID: pkuser.userID, extendedData: pkuser.extendedData));
+                onPKUserJoinCtrl.add(PKBattleUserJoinEvent(
+                    userID: pkuser.userID, extendedData: pkuser.extendedData));
               }
             }
           } else {
@@ -176,7 +193,8 @@ extension PKServiceZIMExtension on PKService {
       } else {
         updatePKMixTask().then((value) {
           if (value.errorCode == 0) {
-            onPKUserJoinCtrl.add(PKBattleUserJoinEvent(userID: userInfo.userID, extendedData: userInfo.extendedData));
+            onPKUserJoinCtrl.add(PKBattleUserJoinEvent(
+                userID: userInfo.userID, extendedData: userInfo.extendedData));
           }
         });
       }
@@ -201,9 +219,11 @@ extension PKServiceZIMExtension on PKService {
           }
         }
       }
-      if (moreThanOneAcceptedExceptMe && pkStateNotifier.value == RoomPKState.isStartPK) {
+      if (moreThanOneAcceptedExceptMe &&
+          pkStateNotifier.value == RoomPKState.isStartPK) {
         updatePKMixTask().then((value) {
-          onPKBattleUserQuitCtrl.add(PKBattleUserQuitEvent(userID: userInfo.userID, extendedData: userInfo.extendedData));
+          onPKBattleUserQuitCtrl.add(PKBattleUserQuitEvent(
+              userID: userInfo.userID, extendedData: userInfo.extendedData));
         });
       }
       if (!hasWaitingUser) {
@@ -216,12 +236,14 @@ extension PKServiceZIMExtension on PKService {
   void onReceivePKTimeout(IncomingUserRequestTimeoutEvent event) {
     if (pkInfo?.requestID == event.requestID) {
       pkInfo = null;
-      incomingPKRequestTimeoutStreamCtrl.add(IncomingPKRequestTimeoutEvent(requestID: event.requestID));
+      incomingPKRequestTimeoutStreamCtrl
+          .add(IncomingPKRequestTimeoutEvent(requestID: event.requestID));
     }
   }
 
   void onReceivePKAnswerTimeout(OutgoingUserRequestTimeoutEvent event) {
-    outgoingPKRequestAnsweredTimeoutStreamCtrl.add(OutgoingPKRequestTimeoutEvent(requestID: event.requestID));
+    outgoingPKRequestAnsweredTimeoutStreamCtrl
+        .add(OutgoingPKRequestTimeoutEvent(requestID: event.requestID));
   }
 
   void onRoomAttributesUpdated2(RoomAttributesUpdatedEvent event) {
@@ -281,20 +303,24 @@ extension PKServiceZIMExtension on PKService {
             ..requestID = requestId ?? ''
             ..pkUserList.value = pkUserList;
           checkSEITime();
-          ZEGOSDKManager().expressService.startPlayingMixerStream(generateMixerStreamID());
+          ZEGOSDKManager()
+              .expressService
+              .startPlayingMixerStream(generateMixerStreamID());
           pkStateNotifier.value = RoomPKState.isStartPK;
           onPKStartStreamCtrl.add(null);
 
           for (final pkuser in pkInfo!.pkUserList.value) {
             if (pkuser.hasAccepted) {
-              onPKUserJoinCtrl.add(PKBattleUserJoinEvent(userID: pkuser.userID, extendedData: pkuser.extendedData));
+              onPKUserJoinCtrl.add(PKBattleUserJoinEvent(
+                  userID: pkuser.userID, extendedData: pkuser.extendedData));
             }
           }
         }
       } else {
         pkInfo?.pkUserList.value = pkUserList;
         final updateUsers = pkUserList.map((e) => e.userID).toList();
-        onPKBattleUserUpdateCtrl.add(PKBattleUserUpdateEvent(userList: updateUsers));
+        onPKBattleUserUpdateCtrl
+            .add(PKBattleUserUpdateEvent(userList: updateUsers));
       }
     }
   }

@@ -3,14 +3,21 @@ part of 'live_page.dart';
 extension ZegoLiveStreamingPKBattleManagerEventConv on ZegoNormalLivePageState {
   void listenPKEvents() {
     subscriptions.addAll([
-      widget.liveStreamingManager.onPKBattleReceived.stream.listen(onPKRequestReceived),
-      widget.liveStreamingManager.onPKBattleCancelStreamCtrl.stream.listen(onPKRequestCancelled),
-      widget.liveStreamingManager.onPKBattleRejectedStreamCtrl.stream.listen(onPKRequestRejected),
-      widget.liveStreamingManager.incomingPKRequestTimeoutStreamCtrl.stream.listen(onIncomingPKRequestTimeout),
-      widget.liveStreamingManager.outgoingPKRequestAnsweredTimeoutStreamCtrl.stream.listen(onOutgoingPKRequestTimeout),
+      widget.liveStreamingManager.onPKBattleReceived.stream
+          .listen(onPKRequestReceived),
+      widget.liveStreamingManager.onPKBattleCancelStreamCtrl.stream
+          .listen(onPKRequestCancelled),
+      widget.liveStreamingManager.onPKBattleRejectedStreamCtrl.stream
+          .listen(onPKRequestRejected),
+      widget.liveStreamingManager.incomingPKRequestTimeoutStreamCtrl.stream
+          .listen(onIncomingPKRequestTimeout),
+      widget.liveStreamingManager.outgoingPKRequestAnsweredTimeoutStreamCtrl
+          .stream
+          .listen(onOutgoingPKRequestTimeout),
       widget.liveStreamingManager.onPKStartStreamCtrl.stream.listen(onPKStart),
       widget.liveStreamingManager.onPKEndStreamCtrl.stream.listen(onPKEnd),
-      widget.liveStreamingManager.onPKUserConnectingCtrl.stream.listen(onPKUserConnecting),
+      widget.liveStreamingManager.onPKUserConnectingCtrl.stream
+          .listen(onPKUserConnecting),
     ]);
   }
 
@@ -19,7 +26,8 @@ extension ZegoLiveStreamingPKBattleManagerEventConv on ZegoNormalLivePageState {
   }
 
   void onPKRequestRejected(PKBattleRejectedEvent event) {
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('pk request is rejected')));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(const SnackBar(content: Text('pk request is rejected')));
   }
 
   void onPKRequestCancelled(PKBattleCancelledEvent event) {
@@ -52,9 +60,28 @@ extension ZegoLiveStreamingPKBattleManagerEventConv on ZegoNormalLivePageState {
       widget.liveStreamingManager.endCoHost();
     }
     if (widget.liveStreamingManager.iamHost()) {
-      ZEGOSDKManager().zimService.roomRequestMapNoti.value.values.toList().forEach((element) {
+      ZEGOSDKManager()
+          .zimService
+          .roomRequestMapNoti
+          .value
+          .values
+          .toList()
+          .forEach((element) {
         refuseApplyCohost(element);
       });
+    }
+
+    // send timer command when PK starts (host sends)
+    if (widget.liveStreamingManager.iamHost()) {
+      final pkInfo = widget.liveStreamingManager.pkInfo;
+      final duration = pkInfo?.durationMinutes ?? 3;
+      final startTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      final command =
+          jsonEncode({'startTime': startTime, 'duration': duration * 60});
+      prebuilt.ZegoUIKitPrebuiltLiveStreamingController().room.sendCommand(
+            roomID: widget.roomID,
+            command: Uint8List.fromList(utf8.encode(command)),
+          );
     }
   }
 

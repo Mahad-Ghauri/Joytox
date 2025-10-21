@@ -5,6 +5,7 @@ import 'package:get/instance_manager.dart';
 import 'package:zego_uikit_prebuilt_live_streaming/zego_uikit_prebuilt_live_streaming.dart';
 
 import '../controller/controller.dart';
+
 Controller controller = Get.put(Controller());
 
 class TimerController {
@@ -13,7 +14,8 @@ class TimerController {
   static int _battleStartTime = 0;
   //static int _remainingTime = 0;
 
-  static void initialize({required String roomID, required Function(int) onTimerUpdate}) {
+  static void initialize(
+      {required String roomID, required Function(int) onTimerUpdate}) {
     _subscribeToCommands(roomID: roomID, onTimerUpdate: onTimerUpdate);
   }
 
@@ -24,18 +26,26 @@ class TimerController {
 
   static void _subscribeToCommands(
       {required String roomID, required Function(int) onTimerUpdate}) {
-    _subscription = ZegoUIKitPrebuiltLiveStreamingController().room.commandReceivedStream().listen((event) {
+    _subscription = ZegoUIKitPrebuiltLiveStreamingController()
+        .room
+        .commandReceivedStream()
+        .listen((event) {
       for (var message in event.messages) {
         final commandString = utf8.decode(message.message);
         print('Raw command received: $commandString');
         try {
           final command = jsonDecode(commandString);
-          if (command is Map<String, dynamic> && command.containsKey('startTime') && command.containsKey('duration')) {
+          if (command is Map<String, dynamic> &&
+              command.containsKey('startTime') &&
+              command.containsKey('duration')) {
             final startTime = command['startTime'];
             final int duration = command['duration'];
             debugPrint('Command received: $commandString');
-            if(duration > 0) {
-              startTimer(startTime: startTime, onTimerUpdate: onTimerUpdate, battleDuration: duration);
+            if (duration > 0) {
+              startTimer(
+                  startTime: startTime,
+                  onTimerUpdate: onTimerUpdate,
+                  battleDuration: duration);
             }
           } else {
             debugPrint('Invalid command format');
@@ -75,11 +85,12 @@ class TimerController {
     return battleDuration - elapsedTime;
   }
 
-  static void startLocalTimer({
-    required Function(int) onTimerUpdate,
-    required int duration
-  }) {
+  static void startLocalTimer(
+      {required Function(int) onTimerUpdate, required int duration}) {
     final currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-    startTimer(startTime: currentTime, onTimerUpdate: onTimerUpdate, battleDuration: duration);
+    startTimer(
+        startTime: currentTime,
+        onTimerUpdate: onTimerUpdate,
+        battleDuration: duration);
   }
 }

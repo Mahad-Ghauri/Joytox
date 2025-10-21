@@ -8,6 +8,7 @@ class PKExtendedData {
   int type = 91000;
   String userID = '';
   bool autoAccept = false;
+  int? durationMinutes;
 
   static const START_PK = 91000;
 
@@ -32,6 +33,14 @@ class PKExtendedData {
         if (extendedDataMap.keys.contains('auto_accept')) {
           data.autoAccept = extendedDataMap['auto_accept'] as bool;
         }
+        if (extendedDataMap.keys.contains('duration')) {
+          final dynamic dur = extendedDataMap['duration'];
+          if (dur is int) {
+            data.durationMinutes = dur;
+          } else if (dur is String) {
+            data.durationMinutes = int.tryParse(dur);
+          }
+        }
         return data;
       }
     }
@@ -47,6 +56,9 @@ class PKExtendedData {
       map['user_id'] = userID;
     }
     map['auto_accept'] = autoAccept;
+    if (durationMinutes != null && durationMinutes! > 0) {
+      map['duration'] = durationMinutes;
+    }
     return jsonEncode(map);
   }
 }

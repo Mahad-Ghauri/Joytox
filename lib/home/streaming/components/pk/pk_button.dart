@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../../zego_live_streaming_manager.dart';
 import '../common/common_button.dart';
+import 'pk_timer_selection_dialog.dart';
 
 class PKButton extends StatefulWidget {
   const PKButton({
@@ -51,7 +52,13 @@ class _PKButtonState extends State<PKButton> {
         });
   }
 
-  void startPK() {
+  void startPK() async {
+    // First show timer selection dialog
+    final selectedDuration = await context.showPKTimerSelectionDialog();
+    if (selectedDuration == null) {
+      return; // User cancelled
+    }
+
     final editingController1 = TextEditingController();
     final editingController2 = TextEditingController();
     final editingController3 = TextEditingController();
@@ -96,7 +103,7 @@ class _PKButtonState extends State<PKButton> {
                   editingController5.text,
                   editingController6.text
                 ]);
-                invitePKBattle(inviteUsers);
+                invitePKBattle(inviteUsers, selectedDuration);
                 Navigator.of(context).pop();
               },
               child: const Text('OK'),
@@ -124,13 +131,16 @@ class _PKButtonState extends State<PKButton> {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('start pk failed')));
     });
   }*/
-  Future<void> invitePKBattle(List<String> userList) async {
-    widget.liveStreamingManager.startPKBattleWith(["4hYGj5u1Yv"]).then((value) {
+  Future<void> invitePKBattle(
+      List<String> userList, int durationMinutes) async {
+    widget.liveStreamingManager
+        .startPKBattleWith(["4hYGj5u1Yv"], durationMinutes).then((value) {
       // if (value.errorUserList.map((e) => e.userID).contains(editingController.text)) {
       //   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('start pk failed')));
       // }
     }).catchError((error) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('start pk failed')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('start pk failed')));
     });
   }
 }
