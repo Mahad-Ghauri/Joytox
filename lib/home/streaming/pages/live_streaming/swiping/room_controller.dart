@@ -5,7 +5,6 @@ import 'package:flutter/foundation.dart';
 import '../../../../../app/setup.dart';
 import '../../../utils/zegocloud_token.dart';
 import '../../../zego_live_streaming_manager.dart';
-import '../../../zego_sdk_key_center.dart';
 import '../normal/live_command.dart';
 
 class ZegoSwipingRoomController {

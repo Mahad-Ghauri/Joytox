@@ -248,6 +248,8 @@ class PKService implements PKServiceInterface {
 
   @override
   Future<void> stopPKBattle() async {
+    debugPrint('PKService: Stopping PK battle');
+
     if (iamHost) {
       await deletePKAttributes();
       await stopMixTask();
@@ -255,6 +257,8 @@ class PKService implements PKServiceInterface {
       if (pkInfo != null) {
         for (final pkUser in pkInfo!.pkUserList.value) {
           if (pkUser.userID == localUser?.userID) {
+            debugPrint(
+                'PKService: Stopping publish stream for self: ${pkUser.pkUserStream}');
             await ZEGOSDKManager().expressService.stopPublishingStream();
             break;
           }
@@ -269,6 +273,8 @@ class PKService implements PKServiceInterface {
       if (pkInfo != null) {
         for (final pkUser in pkInfo!.pkUserList.value) {
           if (pkUser.userID != localUser?.userID) {
+            debugPrint(
+                'PKService: Stopping play stream for other host: ${pkUser.pkUserStream}');
             await ZEGOSDKManager()
                 .expressService
                 .stopPlayingStream(pkUser.pkUserStream);

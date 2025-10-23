@@ -149,6 +149,14 @@ class _ZegoLiveBottomBarState extends State<ZegoLiveBottomBar> {
             return;
           }
 
+          // Check if user is already a co-host
+          if (widget.liveStreamingManager
+              .isCoHost(ZEGOSDKManager().currentUser!.userID)) {
+            ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('You are already a co-host.')));
+            return;
+          }
+
           final signaling = jsonEncode({
             'room_request_type': RoomRequestType.audienceApplyToBecomeCoHost,
           });
@@ -164,6 +172,10 @@ class _ZegoLiveBottomBarState extends State<ZegoLiveBottomBar> {
                 .zimService
                 .roomRequestMapNoti
                 .value[value.requestID];
+
+            // Show success message
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                content: Text('Co-host application sent successfully!')));
           }).catchError((error) {
             debugPrint('Cohost request failed: $error');
             ScaffoldMessenger.of(context).showSnackBar(

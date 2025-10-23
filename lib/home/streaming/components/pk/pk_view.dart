@@ -28,16 +28,29 @@ class _PKViewState extends State<PKView> {
     subscriptions.add(widget.liveStreamingManager.onPKUserConnectingCtrl.stream
         .listen(onPKUserConnecting));
 
+    // Ensure proper stream management for PK battles
+    _initializePKStream();
+  }
+
+  void _initializePKStream() async {
     if (widget.pkUser.userID == ZEGOSDKManager().currentUser!.userID) {
       // For self (host), ensure we're publishing our stream
       if (widget.pkUser.pkUserStream.isNotEmpty) {
-        ZEGOSDKManager()
+        debugPrint(
+            'PKView: Starting to publish stream for self: ${widget.pkUser.pkUserStream}');
+        await ZEGOSDKManager()
             .expressService
             .startPublishingStream(widget.pkUser.pkUserStream);
+
+        // Ensure camera and mic are on for PK
+        ZEGOSDKManager().expressService.turnCameraOn(true);
+        ZEGOSDKManager().expressService.turnMicrophoneOn(true);
       }
     } else {
       // For other hosts, start playing their stream
-      ZEGOSDKManager().expressService.startPlayingAnotherHostStream(
+      debugPrint(
+          'PKView: Starting to play stream for other host: ${widget.pkUser.pkUserStream}');
+      await ZEGOSDKManager().expressService.startPlayingAnotherHostStream(
           widget.pkUser.pkUserStream, widget.pkUser.sdkUser);
     }
   }
@@ -45,6 +58,15 @@ class _PKViewState extends State<PKView> {
   @override
   void dispose() {
     super.dispose();
+
+    // Clean up streams when PK view is disposed
+    if (widget.pkUser.userID != ZEGOSDKManager().currentUser!.userID) {
+      // Stop playing other host's stream
+      ZEGOSDKManager()
+          .expressService
+          .stopPlayingStream(widget.pkUser.pkUserStream);
+    }
+
     for (final element in subscriptions) {
       element.cancel();
     }

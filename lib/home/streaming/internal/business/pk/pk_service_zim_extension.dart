@@ -153,6 +153,52 @@ extension PKServiceZIMExtension on PKService {
     }
   }
 
+  Future<void> _startPKUserStreams() async {
+    for (final pkuser in pkInfo!.pkUserList.value) {
+      if (pkuser.hasAccepted) {
+        if (pkuser.userID == localUser?.userID) {
+          // Start publishing stream for self
+          print(
+              'PKService: Starting to publish stream for self: ${pkuser.pkUserStream}');
+          await ZEGOSDKManager()
+              .expressService
+              .startPublishingStream(pkuser.pkUserStream);
+
+          // Ensure camera and mic are on for PK
+          ZEGOSDKManager().expressService.turnCameraOn(true);
+          ZEGOSDKManager().expressService.turnMicrophoneOn(true);
+        } else {
+          // Start playing stream for other hosts
+          print(
+              'PKService: Starting to play stream for other host: ${pkuser.pkUserStream}');
+          await ZEGOSDKManager().expressService.startPlayingAnotherHostStream(
+              pkuser.pkUserStream, pkuser.sdkUser);
+        }
+        onPKUserJoinCtrl.add(PKBattleUserJoinEvent(
+            userID: pkuser.userID, extendedData: pkuser.extendedData));
+      }
+    }
+  }
+
+  Future<void> _startStreamForUser(String userID) async {
+    final pkuser = getPKUser(pkInfo!, userID);
+    if (pkuser != null && pkuser.hasAccepted) {
+      if (pkuser.userID == localUser?.userID) {
+        print(
+            'PKService: Starting to publish stream for self: ${pkuser.pkUserStream}');
+        await ZEGOSDKManager()
+            .expressService
+            .startPublishingStream(pkuser.pkUserStream);
+      } else {
+        print(
+            'PKService: Starting to play stream for other host: ${pkuser.pkUserStream}');
+        await ZEGOSDKManager()
+            .expressService
+            .startPlayingAnotherHostStream(pkuser.pkUserStream, pkuser.sdkUser);
+      }
+    }
+  }
+
   void _onReceivePKUserAccepted(ZIMCallUserInfo userInfo) {
     final pkExtendedData = PKExtendedData.parse(userInfo.extendedData);
     if (pkExtendedData == null || pkInfo == null) {
@@ -181,22 +227,7 @@ extension PKServiceZIMExtension on PKService {
             onPKStartStreamCtrl.add(null);
 
             // Ensure all PK users start their streams properly
-            for (final pkuser in pkInfo!.pkUserList.value) {
-              if (pkuser.hasAccepted) {
-                if (pkuser.userID == localUser?.userID) {
-                  // Start publishing stream for self
-                  ZEGOSDKManager()
-                      .expressService
-                      .startPublishingStream(pkuser.pkUserStream);
-                } else {
-                  // Start playing stream for other hosts
-                  ZEGOSDKManager().expressService.startPlayingAnotherHostStream(
-                      pkuser.pkUserStream, pkuser.sdkUser);
-                }
-                onPKUserJoinCtrl.add(PKBattleUserJoinEvent(
-                    userID: pkuser.userID, extendedData: pkuser.extendedData));
-              }
-            }
+            _startPKUserStreams();
           } else {
             pkStateNotifier.value = RoomPKState.isNoPK;
             quitPKBattle(pkInfo?.requestID ?? '');
@@ -206,17 +237,7 @@ extension PKServiceZIMExtension on PKService {
         updatePKMixTask().then((value) {
           if (value.errorCode == 0) {
             // Start stream for the newly accepted user
-            final pkuser = getPKUser(pkInfo!, userInfo.userID);
-            if (pkuser != null && pkuser.hasAccepted) {
-              if (pkuser.userID == localUser?.userID) {
-                ZEGOSDKManager()
-                    .expressService
-                    .startPublishingStream(pkuser.pkUserStream);
-              } else {
-                ZEGOSDKManager().expressService.startPlayingAnotherHostStream(
-                    pkuser.pkUserStream, pkuser.sdkUser);
-              }
-            }
+            _startStreamForUser(userInfo.userID);
             onPKUserJoinCtrl.add(PKBattleUserJoinEvent(
                 userID: userInfo.userID, extendedData: userInfo.extendedData));
           }

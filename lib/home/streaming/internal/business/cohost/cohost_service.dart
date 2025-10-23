@@ -40,10 +40,14 @@ class CoHostService {
   }
 
   void startCoHost() {
+    debugPrint(
+        'CoHostService: Starting co-host for user: ${ZEGOSDKManager().currentUser!.userID}');
     coHostUserListNotifier.add(ZEGOSDKManager().currentUser!);
   }
 
   void endCoHost() {
+    debugPrint(
+        'CoHostService: Ending co-host for user: ${ZEGOSDKManager().currentUser!.userID}');
     coHostUserListNotifier.removeWhere((element) {
       return element.userID == ZEGOSDKManager().currentUser!.userID;
     });

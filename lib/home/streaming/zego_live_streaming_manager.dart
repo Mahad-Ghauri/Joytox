@@ -166,20 +166,43 @@ class ZegoLiveStreamingManager implements ZegoLiveStreamingManagerInterface {
 
   @override
   Future<void> startCoHost() async {
+    debugPrint('LiveStreamingManager: Starting co-host');
+
+    // Ensure camera and mic are on
     ZEGOSDKManager().expressService.turnCameraOn(true);
     ZEGOSDKManager().expressService.turnMicrophoneOn(true);
+
+    // Start preview
     ZEGOSDKManager().expressService.startPreview();
-    ZEGOSDKManager().expressService.startPublishingStream(coHostStreamID());
+
+    // Start publishing co-host stream
+    final coHostStreamIDValue = coHostStreamID();
+    debugPrint(
+        'LiveStreamingManager: Publishing co-host stream: $coHostStreamIDValue');
+    await ZEGOSDKManager()
+        .expressService
+        .startPublishingStream(coHostStreamIDValue);
+
+    // Update role and service
     currentUserRoleNotifier.value = ZegoLiveStreamingRole.coHost;
     cohostService?.startCoHost();
+
+    debugPrint('LiveStreamingManager: Co-host started successfully');
   }
 
   @override
   Future<void> endCoHost() async {
+    debugPrint('LiveStreamingManager: Ending co-host');
+
+    // Stop preview and publishing
     ZEGOSDKManager().expressService.stopPreview();
     ZEGOSDKManager().expressService.stopPublishingStream();
+
+    // Update role and service
     currentUserRoleNotifier.value = ZegoLiveStreamingRole.audience;
     cohostService?.endCoHost();
+
+    debugPrint('LiveStreamingManager: Co-host ended successfully');
   }
 
   @override
