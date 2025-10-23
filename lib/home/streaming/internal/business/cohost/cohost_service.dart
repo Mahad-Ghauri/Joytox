@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../zego_sdk_manager.dart';
 
 bool isHostStreamID(String streamID) {
-  return streamID.endsWith('_host');
+  return streamID.endsWith('_main_host');
 }
 
 class CoHostService {
@@ -50,22 +50,35 @@ class CoHostService {
   }
 
   void onReceiveStreamUpdate(ZegoRoomStreamListUpdateEvent event) {
+    debugPrint(
+        'CoHostService: Stream update - Type: ${event.updateType}, Streams: ${event.streamList.map((s) => s.streamID).toList()}');
+
     if (event.updateType == ZegoUpdateType.Add) {
       for (final element in event.streamList) {
         if (isHostStreamID(element.streamID)) {
+          debugPrint(
+              'CoHostService: Host stream detected: ${element.streamID}');
           hostNotifier.value = ZEGOSDKManager().getUser(element.user.userID);
+          debugPrint(
+              'CoHostService: Host set to: ${hostNotifier.value?.userID}');
         } else if (element.streamID.endsWith('_cohost')) {
+          debugPrint(
+              'CoHostService: Cohost stream detected: ${element.streamID}');
           final cohostUser = ZEGOSDKManager().getUser(element.user.userID);
           if (cohostUser != null) {
             coHostUserListNotifier.add(cohostUser);
+            debugPrint('CoHostService: Cohost added: ${cohostUser.userID}');
           }
         }
       }
     } else {
       for (final element in event.streamList) {
         if (isHostStreamID(element.streamID)) {
+          debugPrint('CoHostService: Host stream removed: ${element.streamID}');
           hostNotifier.value = null;
         } else if (element.streamID.endsWith('_cohost')) {
+          debugPrint(
+              'CoHostService: Cohost stream removed: ${element.streamID}');
           coHostUserListNotifier.removeWhere((coHostUser) {
             return coHostUser.userID == element.user.userID;
           });
@@ -77,7 +90,8 @@ class CoHostService {
   void onRoomUserListUpdate(ZegoRoomUserListUpdateEvent event) {
     for (final user in event.userList) {
       if (event.updateType == ZegoUpdateType.Delete) {
-        coHostUserListNotifier.removeWhere((coHost) => coHost.userID == user.userID);
+        coHostUserListNotifier
+            .removeWhere((coHost) => coHost.userID == user.userID);
         if (hostNotifier.value?.userID == user.userID) {
           hostNotifier.value = null;
         }

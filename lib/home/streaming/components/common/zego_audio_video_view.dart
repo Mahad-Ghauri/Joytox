@@ -38,7 +38,7 @@ class _ZegoAudioVideoViewState extends State<ZegoAudioVideoView> {
 
   Widget noVideoView(BoxConstraints constraints) {
     if (widget.userInfo.streamID != null) {
-      if (widget.userInfo.streamID!.endsWith('_host')) {
+      if (widget.userInfo.streamID!.endsWith('_main_host')) {
         return backGroundView();
       } else {
         return normalView();
@@ -94,9 +94,12 @@ class _ZegoAudioVideoViewState extends State<ZegoAudioVideoView> {
                 child: SizedBox(
                   height: 20,
                   child: Text(
-                    widget.userInfo.userName.isNotEmpty ? widget.userInfo.userName[0] : '',
+                    widget.userInfo.userName.isNotEmpty
+                        ? widget.userInfo.userName[0]
+                        : '',
                     textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                 ),
               );

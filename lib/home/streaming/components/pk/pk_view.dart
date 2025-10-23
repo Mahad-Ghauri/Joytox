@@ -25,11 +25,20 @@ class _PKViewState extends State<PKView> {
   @override
   void initState() {
     super.initState();
-    subscriptions.add(widget.liveStreamingManager.onPKUserConnectingCtrl.stream.listen(onPKUserConnecting));
+    subscriptions.add(widget.liveStreamingManager.onPKUserConnectingCtrl.stream
+        .listen(onPKUserConnecting));
 
     if (widget.pkUser.userID == ZEGOSDKManager().currentUser!.userID) {
+      // For self (host), ensure we're publishing our stream
+      if (widget.pkUser.pkUserStream.isNotEmpty) {
+        ZEGOSDKManager()
+            .expressService
+            .startPublishingStream(widget.pkUser.pkUserStream);
+      }
     } else {
-      ZEGOSDKManager().expressService.startPlayingAnotherHostStream(widget.pkUser.pkUserStream, widget.pkUser.sdkUser);
+      // For other hosts, start playing their stream
+      ZEGOSDKManager().expressService.startPlayingAnotherHostStream(
+          widget.pkUser.pkUserStream, widget.pkUser.sdkUser);
     }
   }
 
@@ -65,7 +74,9 @@ class _PKViewState extends State<PKView> {
   }
 
   void mutePlayAudio(bool mute) {
-    ZEGOSDKManager().expressService.mutePlayStreamAudio(widget.pkUser.pkUserStream, mute);
+    ZEGOSDKManager()
+        .expressService
+        .mutePlayStreamAudio(widget.pkUser.pkUserStream, mute);
   }
 
   @override
@@ -119,7 +130,8 @@ class _PKViewState extends State<PKView> {
                   child: Text(
                     widget.pkUser.userName[0],
                     textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.bold),
                   )),
             ),
           ),

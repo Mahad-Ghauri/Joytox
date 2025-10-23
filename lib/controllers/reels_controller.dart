@@ -239,8 +239,7 @@ class ReelsController extends GetxController with WidgetsBindingObserver {
   }
 
   // Configurar opções de qualidade adaptativa
-  void setAdaptiveQuality(bool enabled) {
-  }
+  void setAdaptiveQuality(bool enabled) {}
 
   @override
   void onInit() async {
@@ -792,26 +791,23 @@ class ReelsController extends GetxController with WidgetsBindingObserver {
         return;
       }
 
-      // Obter ID do vídeo atual
+      // Obter URL do vídeo atual
       final currentVideo = videos[currentVideoIndex.value];
-      if (currentVideo.objectId == null) return;
+      final currentVideoUrl = currentVideo.getVideo?.url;
+      if (currentVideoUrl == null) return;
 
-      final currentVideoId = currentVideo.objectId!;
-
-      // Lista de IDs a manter (atual e próximo)
-      final List<String> idsToKeep = [currentVideoId];
-
-      // Adicionar próximo vídeo à lista se existir
+      // Manter atual e próximo por URL
+      final List<String> urlsToKeep = [currentVideoUrl];
       if (currentVideoIndex.value < videos.length - 1) {
         final nextVideo = videos[currentVideoIndex.value + 1];
-        if (nextVideo.objectId != null) {
-          idsToKeep.add(nextVideo.objectId!);
+        if (nextVideo.getVideo?.url != null) {
+          urlsToKeep.add(nextVideo.getVideo!.url!);
         }
       }
 
-      // Lista de controladores a liberar
+      // Lista de controladores a liberar (chaves são URLs)
       final List<String> idsToRelease = _videoControllers.keys
-          .where((id) => !idsToKeep.contains(id))
+          .where((url) => !urlsToKeep.contains(url))
           .toList();
 
       // Liberar controladores não utilizados
@@ -917,10 +913,11 @@ class ReelsController extends GetxController with WidgetsBindingObserver {
     }
 
     final video = videos[index];
-    final videoId = video.objectId!;
+    final videoUrl = video.getVideo?.url;
+    if (videoUrl == null) return;
 
-    if (_videoControllers.containsKey(videoId)) {
-      final controller = _videoControllers[videoId];
+    if (_videoControllers.containsKey(videoUrl)) {
+      final controller = _videoControllers[videoUrl];
       if (controller != null && controller.value.isInitialized) {
         await controller.seekTo(position);
         print('ReelsController: Vídeo buscado para posição $position');
@@ -1222,10 +1219,11 @@ class ReelsController extends GetxController with WidgetsBindingObserver {
     }
 
     final video = videos[index];
-    final videoId = video.objectId!;
+    final videoUrl = video.getVideo?.url;
+    if (videoUrl == null) return;
 
-    if (_videoControllers.containsKey(videoId)) {
-      final controller = _videoControllers[videoId];
+    if (_videoControllers.containsKey(videoUrl)) {
+      final controller = _videoControllers[videoUrl];
       if (controller != null && controller.value.isInitialized) {
         final currentPosition = controller.value.position;
         final newPosition = currentPosition - Duration(seconds: seconds);
@@ -1246,10 +1244,11 @@ class ReelsController extends GetxController with WidgetsBindingObserver {
     }
 
     final video = videos[index];
-    final videoId = video.objectId!;
+    final videoUrl = video.getVideo?.url;
+    if (videoUrl == null) return;
 
-    if (_videoControllers.containsKey(videoId)) {
-      final controller = _videoControllers[videoId];
+    if (_videoControllers.containsKey(videoUrl)) {
+      final controller = _videoControllers[videoUrl];
       if (controller != null && controller.value.isInitialized) {
         final currentPosition = controller.value.position;
         final duration = controller.value.duration;
@@ -1312,8 +1311,9 @@ class ReelsController extends GetxController with WidgetsBindingObserver {
         return;
       }
 
-      final String? currentVideoId = videos[currentVideoIndex.value].objectId;
-      if (currentVideoId == null) return;
+      final String? currentVideoUrl =
+          videos[currentVideoIndex.value].getVideo?.url;
+      if (currentVideoUrl == null) return;
 
       // Pausar todos os vídeos primeiro
       await pauseAllVideos();
@@ -1321,9 +1321,9 @@ class ReelsController extends GetxController with WidgetsBindingObserver {
       // Liberar todos os controladores exceto o atual
       final List<String> keysToRemove = [];
 
-      _videoControllers.forEach((id, controller) {
-        if (id != currentVideoId) {
-          keysToRemove.add(id);
+      _videoControllers.forEach((url, controller) {
+        if (url != currentVideoUrl) {
+          keysToRemove.add(url);
         }
       });
 
@@ -1343,8 +1343,8 @@ class ReelsController extends GetxController with WidgetsBindingObserver {
 
       // Liberar memória adicional
       _controllerLoadOrder.clear();
-      if (currentVideoId.isNotEmpty) {
-        _controllerLoadOrder.add(currentVideoId);
+      if (currentVideoUrl.isNotEmpty) {
+        _controllerLoadOrder.add(currentVideoUrl);
       }
 
       // Forçar coleta de lixo

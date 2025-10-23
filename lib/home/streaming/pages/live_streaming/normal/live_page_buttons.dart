@@ -141,23 +141,33 @@ class _ZegoLiveBottomBarState extends State<ZegoLiveBottomBar> {
         style: OutlinedButton.styleFrom(
             side: const BorderSide(width: 1, color: Colors.white)),
         onPressed: () {
+          final hostID = widget.liveStreamingManager.hostNotifier.value?.userID;
+          if (hostID == null || hostID.isEmpty) {
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                content: Text(
+                    'No host found in the room. Cannot apply for cohost.')));
+            return;
+          }
+
           final signaling = jsonEncode({
             'room_request_type': RoomRequestType.audienceApplyToBecomeCoHost,
           });
+
+          debugPrint('Sending cohost request to host: $hostID');
           ZEGOSDKManager()
               .zimService
-              .sendRoomRequest(
-                  widget.liveStreamingManager.hostNotifier.value?.userID ?? '',
-                  signaling)
+              .sendRoomRequest(hostID, signaling)
               .then((value) {
+            debugPrint('Cohost request sent successfully: ${value.requestID}');
             widget.applying?.value = true;
             myRoomRequest = ZEGOSDKManager()
                 .zimService
                 .roomRequestMapNoti
                 .value[value.requestID];
           }).catchError((error) {
+            debugPrint('Cohost request failed: $error');
             ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('apply to co-host failed: $error')));
+                SnackBar(content: Text('Apply to co-host failed: $error')));
           });
         },
         child: const Text(

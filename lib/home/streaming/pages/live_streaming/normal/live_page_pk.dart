@@ -45,13 +45,7 @@ extension ZegoLiveStreamingPKBattleManagerEventConv on ZegoNormalLivePageState {
   void onOutgoingPKRequestTimeout(OutgoingPKRequestTimeoutEvent event) {}
 
   void onPKUserConnecting(PKBattleUserConnectingEvent event) {
-    if (event.duration > 60000) {
-      if (event.userID != ZEGOSDKManager().currentUser!.userID) {
-        widget.liveStreamingManager.removeUserFromPKBattle(event.userID);
-      } else {
-        widget.liveStreamingManager.quitPKBattle();
-      }
-    }
+    // Remove auto-removal after 60s; keep PK running until manual action
   }
 
   void onPKStart(dynamic event) {

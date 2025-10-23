@@ -179,8 +179,20 @@ extension PKServiceZIMExtension on PKService {
             checkSEITime();
             pkStateNotifier.value = RoomPKState.isStartPK;
             onPKStartStreamCtrl.add(null);
+
+            // Ensure all PK users start their streams properly
             for (final pkuser in pkInfo!.pkUserList.value) {
               if (pkuser.hasAccepted) {
+                if (pkuser.userID == localUser?.userID) {
+                  // Start publishing stream for self
+                  ZEGOSDKManager()
+                      .expressService
+                      .startPublishingStream(pkuser.pkUserStream);
+                } else {
+                  // Start playing stream for other hosts
+                  ZEGOSDKManager().expressService.startPlayingAnotherHostStream(
+                      pkuser.pkUserStream, pkuser.sdkUser);
+                }
                 onPKUserJoinCtrl.add(PKBattleUserJoinEvent(
                     userID: pkuser.userID, extendedData: pkuser.extendedData));
               }
@@ -193,6 +205,18 @@ extension PKServiceZIMExtension on PKService {
       } else {
         updatePKMixTask().then((value) {
           if (value.errorCode == 0) {
+            // Start stream for the newly accepted user
+            final pkuser = getPKUser(pkInfo!, userInfo.userID);
+            if (pkuser != null && pkuser.hasAccepted) {
+              if (pkuser.userID == localUser?.userID) {
+                ZEGOSDKManager()
+                    .expressService
+                    .startPublishingStream(pkuser.pkUserStream);
+              } else {
+                ZEGOSDKManager().expressService.startPlayingAnotherHostStream(
+                    pkuser.pkUserStream, pkuser.sdkUser);
+              }
+            }
             onPKUserJoinCtrl.add(PKBattleUserJoinEvent(
                 userID: userInfo.userID, extendedData: userInfo.extendedData));
           }
@@ -208,12 +232,9 @@ extension PKServiceZIMExtension on PKService {
     final selfPKUser = getPKUser(pkInfo!, localUser?.userID ?? '');
     if (selfPKUser != null && selfPKUser.hasAccepted) {
       var moreThanOneAcceptedExceptMe = false;
-      var hasWaitingUser = false;
+      // no auto-termination: keep PK alive until explicitly ended by user
       for (final pkuser in pkInfo!.pkUserList.value) {
         if (pkuser.userID != localUser?.userID) {
-          if (pkuser.hasAccepted || pkuser.isWaiting) {
-            hasWaitingUser = true;
-          }
           if (pkuser.hasAccepted) {
             moreThanOneAcceptedExceptMe = true;
           }
@@ -226,10 +247,7 @@ extension PKServiceZIMExtension on PKService {
               userID: userInfo.userID, extendedData: userInfo.extendedData));
         });
       }
-      if (!hasWaitingUser) {
-        quitPKBattle(requestID);
-        stopPKBattle();
-      }
+      // Do not auto-quit when last peer leaves; host/user must end manually
     }
   }
 
@@ -303,9 +321,12 @@ extension PKServiceZIMExtension on PKService {
             ..requestID = requestId ?? ''
             ..pkUserList.value = pkUserList;
           checkSEITime();
+
+          // Start playing the mixed stream for spectators
           ZEGOSDKManager()
               .expressService
               .startPlayingMixerStream(generateMixerStreamID());
+
           pkStateNotifier.value = RoomPKState.isStartPK;
           onPKStartStreamCtrl.add(null);
 

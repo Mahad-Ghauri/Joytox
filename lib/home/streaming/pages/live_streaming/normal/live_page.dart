@@ -605,7 +605,7 @@ class ZegoNormalLivePageState extends State<ZegoNormalLivePage> {
     } else {
       for (final userInfo in expressService.userInfoList) {
         if (userInfo.streamID != null) {
-          if (userInfo.streamID!.endsWith('_host')) {
+          if (userInfo.streamID!.endsWith('_main_host')) {
             return userInfo;
           }
         }

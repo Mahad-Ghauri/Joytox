@@ -251,12 +251,30 @@ class PKService implements PKServiceInterface {
     if (iamHost) {
       await deletePKAttributes();
       await stopMixTask();
-      //...
+      // Stop publishing PK stream
+      if (pkInfo != null) {
+        for (final pkUser in pkInfo!.pkUserList.value) {
+          if (pkUser.userID == localUser?.userID) {
+            await ZEGOSDKManager().expressService.stopPublishingStream();
+            break;
+          }
+        }
+      }
     } else {
       await muteHostAudioVideo(false);
       await ZEGOSDKManager()
           .expressService
           .stopPlayingMixerStream(generateMixerStreamID());
+      // Stop playing individual PK streams
+      if (pkInfo != null) {
+        for (final pkUser in pkInfo!.pkUserList.value) {
+          if (pkUser.userID != localUser?.userID) {
+            await ZEGOSDKManager()
+                .expressService
+                .stopPlayingStream(pkUser.pkUserStream);
+          }
+        }
+      }
     }
 
     pkInfo = null;
@@ -595,18 +613,12 @@ class PKService implements PKServiceInterface {
     final selfPKUser = getPKUser(pkInfo!, ZEGOSDKManager().currentUser!.userID);
     if (selfPKUser != null) {
       if (selfPKUser.hasAccepted) {
-        var hasWaitingUser = false;
+        // do not auto-end PK; keep session until manual end
         for (final pkuser in pkInfo!.pkUserList.value) {
           if (pkuser.userID != ZEGOSDKManager().currentUser!.userID) {
-            // except self
-            if (pkuser.hasAccepted || pkuser.isWaiting) {
-              hasWaitingUser = true;
-            }
+            // except self - check if other users are still active
+            // no-op: manual control only
           }
-        }
-        if (!hasWaitingUser) {
-          quitPKBattle(requestID);
-          stopPKBattle();
         }
       }
     }

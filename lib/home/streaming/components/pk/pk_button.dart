@@ -133,8 +133,10 @@ class _PKButtonState extends State<PKButton> {
   }*/
   Future<void> invitePKBattle(
       List<String> userList, int durationMinutes) async {
+    // Use the provided user list and selected duration
     widget.liveStreamingManager
-        .startPKBattleWith(["4hYGj5u1Yv"], durationMinutes).then((value) {
+        .startPKBattleWith(userList, durationMinutes)
+        .then((value) {
       // if (value.errorUserList.map((e) => e.userID).contains(editingController.text)) {
       //   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('start pk failed')));
       // }
