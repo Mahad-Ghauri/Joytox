@@ -18,6 +18,7 @@ import 'package:text_scroll/text_scroll.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:zego_uikit_prebuilt_live_audio_room/zego_uikit_prebuilt_live_audio_room.dart';
 import 'package:zego_uikit_prebuilt_live_streaming/zego_uikit_prebuilt_live_streaming.dart';
+import 'package:trace/home/streaming/internal/business/gift/gift_controller.dart';
 import '../../app/constants.dart';
 import '../../app/setup.dart';
 import '../../helpers/quick_actions.dart';
@@ -2519,6 +2520,17 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
         author: mUser,
         credits: giftsModel.getCoins!,
       );
+
+      // Send gift via ZegoGiftController service for real-time room commands
+      try {
+        await ZegoGiftController().service.sendGift(
+              receiverId: mUser.objectId!,
+              gift: giftsModel,
+            );
+        debugPrint("🎁 Gift sent via ZegoGiftController service");
+      } catch (e) {
+        debugPrint("⚠️ Failed to send gift via ZegoGiftController: $e");
+      }
 
       if (mUser.objectId == widget.liveStreaming!.getAuthorId) {
         widget.liveStreaming!.addDiamonds = QuickHelp.getDiamondsForReceiver(

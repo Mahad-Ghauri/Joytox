@@ -21,6 +21,8 @@ import 'package:trace/home/prebuild_live/timer_controller.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:zego_uikit_prebuilt_live_streaming/zego_uikit_prebuilt_live_streaming.dart';
 import 'package:zego_uikit_signaling_plugin/zego_uikit_signaling_plugin.dart';
+import 'package:trace/home/streaming/internal/business/gift/gift_controller.dart';
+import 'package:trace/home/prebuild_live/pk_points_controller.dart';
 
 import '../../app/constants.dart';
 import '../../helpers/quick_actions.dart';
@@ -1882,17 +1884,52 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
         credits: giftsModel.getCoins!,
       );
 
+      // Send gift via ZegoGiftController service for real-time room commands
+      try {
+        await ZegoGiftController().service.sendGift(
+              receiverId: mUser.objectId!,
+              gift: giftsModel,
+            );
+        debugPrint("🎁 Gift sent via ZegoGiftController service");
+      } catch (e) {
+        debugPrint("⚠️ Failed to send gift via ZegoGiftController: $e");
+      }
+
       if (mUser.objectId == widget.liveStreaming!.getAuthorId) {
+        // Add diamonds to live streaming (for earnings)
         widget.liveStreaming!.addDiamonds = QuickHelp.getDiamondsForReceiver(
           giftsModel.getCoins!,
         );
+
+        // Handle PK battle points if battle is active
         if (showGiftSendersController.battleTimer.value > 0 &&
             widget.liveStreaming!.getBattleStatus ==
                 LiveStreamingModel.battleAlive) {
-          widget.liveStreaming!.addMyBattlePoints =
+          // Calculate battle points (1 point per 5 coins, same as diamonds)
+          final battlePoints =
               QuickHelp.getDiamondsForReceiver(giftsModel.getCoins!);
+
+          // Update local battle points
+          widget.liveStreaming!.addMyBattlePoints = battlePoints;
+
+          // Update local controller for real-time display
+          showGiftSendersController.myBattlePoints.value += battlePoints;
+
+          // Send real-time battle points update to opponent via room commands
+          try {
+            PointsController.sendPointsUpdate(
+              roomID: widget.liveID,
+              hisPoints: 0, // No change to opponent's points from this gift
+              myPoints: battlePoints, // Add points to my side
+            );
+            debugPrint("🎯 Battle points sent via room command: $battlePoints");
+          } catch (e) {
+            debugPrint("⚠️ Failed to send battle points via room command: $e");
+          }
+
+          // Save to cloud function for persistence
           QuickCloudCode.saveHisBattlePoints(
-            points: QuickHelp.getDiamondsForReceiver(giftsModel.getCoins!),
+            points: battlePoints,
             liveChannel: widget.liveStreaming!.getBattleLiveId!,
           );
         }
