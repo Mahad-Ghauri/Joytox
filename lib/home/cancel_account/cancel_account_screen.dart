@@ -13,12 +13,12 @@ import '../../models/UserModel.dart';
 import '../../ui/container_with_corner.dart';
 import '../../ui/text_with_tap.dart';
 import '../../utils/colors.dart';
+import '../../services/call_services.dart';
 
 class CancelAccountScreen extends StatefulWidget {
   UserModel? currentUser;
 
-  CancelAccountScreen({this.currentUser, Key? key})
-      : super(key: key);
+  CancelAccountScreen({this.currentUser, Key? key}) : super(key: key);
 
   @override
   State<CancelAccountScreen> createState() => _CancelAccountScreenState();
@@ -95,7 +95,8 @@ class _CancelAccountScreenState extends State<CancelAccountScreen> {
   confirmAccountCancellation() {
     bool isDark = QuickHelp.isDarkMode(context);
     bool activateHeight = true;
-    showDialog(context: context,
+    showDialog(
+        context: context,
         builder: (BuildContext context) {
           Size size = MediaQuery.of(context).size;
           return StatefulBuilder(builder: (context, newState) {
@@ -223,10 +224,10 @@ class _CancelAccountScreenState extends State<CancelAccountScreen> {
                                   deleteAccount();
                                 } else {
                                   QuickHelp.showAppNotificationAdvanced(
-                                      title: "error".tr(),
-                                      context: context,
-                                      message: "cancel_account_screen.wrong_id"
-                                          .tr(),
+                                    title: "error".tr(),
+                                    context: context,
+                                    message:
+                                        "cancel_account_screen.wrong_id".tr(),
                                   );
                                 }
                               }
@@ -260,6 +261,15 @@ class _CancelAccountScreenState extends State<CancelAccountScreen> {
   void doUserLogout(UserModel? userModel) async {
     ParseResponse response = await userModel!.logout(deleteLocalUserData: true);
     if (response.success) {
+      // Clean up ZegoUIKit call service on logout
+      print("📞 [CALL SERVICE] Cleaning up call service on account deletion");
+      try {
+        onUserLogout();
+        print("📞 [CALL SERVICE] ✅ Call service cleaned up successfully");
+      } catch (e) {
+        print("📞 [CALL SERVICE] ❌ Failed to cleanup call service: $e");
+      }
+
       QuickHelp.hideLoadingDialog(context);
       QuickHelp.goToNavigatorScreen(context,
           QuickHelp.isMobile() ? WelcomeScreen() : ResponsiveWelcomeScreen(),

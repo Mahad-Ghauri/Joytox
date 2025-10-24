@@ -9,8 +9,8 @@ class PKTimerSelectionDialog extends StatefulWidget {
 }
 
 class _PKTimerSelectionDialogState extends State<PKTimerSelectionDialog> {
-  int selectedDuration = 3; // Default to 3 minutes
-  final List<int> durationOptions = [3, 10, 15]; // Duration options in minutes
+  int selectedDuration = 5; // Default to 5 minutes
+  final List<int> durationOptions = [5, 10, 15]; // Duration options in minutes
 
   @override
   Widget build(BuildContext context) {
