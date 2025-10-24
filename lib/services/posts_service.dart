@@ -486,6 +486,8 @@ class PostsService extends GetxService {
         List<PostsModel> updatedFeed = List<PostsModel>.from(allPosts);
         updatedFeed[feedIndex] = updatedPost;
         allPosts.value = updatedFeed;
+        // Forçar atualização da UI
+        allPosts.refresh();
       }
 
       // Se for vídeo, atualizar também no cache e na lista de vídeos
@@ -508,6 +510,8 @@ class PostsService extends GetxService {
           List<PostsModel> updatedVideos = List<PostsModel>.from(videoPosts);
           updatedVideos[videoIndex] = updatedPost;
           videoPosts.value = updatedVideos;
+          // Forçar atualização da UI
+          videoPosts.refresh();
         }
       }
 

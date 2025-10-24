@@ -133,10 +133,17 @@ class FeedController extends GetxController {
 
       // MEMORY OPTIMIZATION: Skip lastLikeAuthor fetch to save memory and network
 
-      // Atualizar apenas posts de feed
+      // Atualizar posts de feed e vídeos
       if (post.getVideo == null || post.getVideoThumbnail == null) {
         postsService.updateFeedPost(post);
+      } else {
+        // Se for vídeo, também atualizar na lista de vídeos
+        postsService.updatePost(post);
       }
+
+      // Forçar atualização da UI
+      postsService.allPosts.refresh();
+      postsService.videoPosts.refresh();
     });
 
     subscription!.on(LiveQueryEvent.delete, (PostsModel post) {

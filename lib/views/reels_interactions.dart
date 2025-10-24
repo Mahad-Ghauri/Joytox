@@ -27,7 +27,6 @@ class ReelsInteractions extends GetView<VideoInteractionsController> {
     required this.postModel,
     this.currentUser,
   }) {
-
     if (!Get.isRegistered<VideoInteractionsController>(
         tag: postModel.objectId)) {
       Get.put(
@@ -46,7 +45,6 @@ class ReelsInteractions extends GetView<VideoInteractionsController> {
   @override
   Widget build(BuildContext context) {
     if (postModel.getAuthor == null) {
-
       if (Get.isRegistered<PostsService>()) {
         final postsService = Get.find<PostsService>();
         Future.microtask(() => postsService.fetchAuthorForPost(postModel));
@@ -119,17 +117,17 @@ class ReelsInteractions extends GetView<VideoInteractionsController> {
         children: [
           // Like Button com feedback visual melhorado
           Obx(() => _buildInteractionButton(
-            icon: controller.isLiked.value
-                ? Icons.favorite
-                : Icons.favorite_outline_outlined,
-            color: controller.isLiked.value ? kRedColor1 : Colors.white,
-            count: controller.likesCount.value,
-            onTap: () async {
-              HapticFeedback.mediumImpact();
-              await controller.toggleLike();
-            },
-            showAnimation: true,
-          )),
+                icon: controller.isLiked.value
+                    ? Icons.favorite
+                    : Icons.favorite_outline_outlined,
+                color: controller.isLiked.value ? kRedColor1 : Colors.white,
+                count: controller.likesCount.value,
+                onTap: () async {
+                  HapticFeedback.mediumImpact();
+                  await controller.toggleLike();
+                },
+                showAnimation: true,
+              )),
 
           // Save Button com feedback visual melhorado
           Visibility(
@@ -140,19 +138,19 @@ class ReelsInteractions extends GetView<VideoInteractionsController> {
               children: [
                 SizedBox(height: 10),
                 Obx(() => _buildInteractionButton(
-                  icon: controller.isSaved.value
-                      ? Icons.bookmark
-                      : Icons.bookmark_border_outlined,
-                  color: controller.isSaved.value
-                      ? kOrangeColor
-                      : Colors.white,
-                  count: controller.savesCount.value,
-                  onTap: () async {
-                    HapticFeedback.mediumImpact();
-                    await controller.toggleSave();
-                  },
-                  showAnimation: true,
-                )),
+                      icon: controller.isSaved.value
+                          ? Icons.bookmark
+                          : Icons.bookmark_border_outlined,
+                      color: controller.isSaved.value
+                          ? kOrangeColor
+                          : Colors.white,
+                      count: controller.savesCount.value,
+                      onTap: () async {
+                        HapticFeedback.mediumImpact();
+                        await controller.toggleSave();
+                      },
+                      showAnimation: true,
+                    )),
               ],
             ),
           ),
@@ -160,16 +158,16 @@ class ReelsInteractions extends GetView<VideoInteractionsController> {
           // Comments Button com feedback visual melhorado
           SizedBox(height: 10),
           Obx(() => _buildInteractionButton(
-            icon: Icons.comment,
-            color: Colors.white,
-            iconSize: 24,
-            count: controller.commentsCount.value,
-            onTap: () {
-              HapticFeedback.mediumImpact();
-              controller.showComments(context);
-            },
-            showAnimation: false,
-          )),
+                icon: Icons.comment,
+                color: Colors.white,
+                iconSize: 24,
+                count: controller.commentsCount.value,
+                onTap: () {
+                  HapticFeedback.mediumImpact();
+                  controller.showComments(context);
+                },
+                showAnimation: false,
+              )),
           SizedBox(height: 10),
           _buildInteractionButton(
             icon: Icons.save_alt,
@@ -235,51 +233,50 @@ class ReelsInteractions extends GetView<VideoInteractionsController> {
       alignment: AlignmentDirectional.centerEnd,
       child: showAnimation
           ? LikeButton(
-        size: iconSize,
-        mainAxisAlignment: MainAxisAlignment.end,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        countPostion: CountPostion.top,
-        circleColor:
-        CircleColor(start: color, end: color),
-        bubblesColor: BubblesColor(
-          dotPrimaryColor: color,
-          dotSecondaryColor: color,
-        ),
-        likeBuilder: (bool isLiked) => Icon(
-          icon,
-          color: color,
-          size: iconSize,
-        ),
-        likeCount: count,
-        countBuilder: (count, bool isLiked, String text) {
-          return count == 0
-              ? const SizedBox.shrink()
-              : Text(
-            QuickHelp.convertNumberToK(count!),
-            style: TextStyle(color: Colors.white),
-          );
-        },
-        onTap: (isLiked) async {
-          onTap();
-          return !isLiked;
-        },
-      )
+              size: iconSize,
+              mainAxisAlignment: MainAxisAlignment.end,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              countPostion: CountPostion.top,
+              circleColor: CircleColor(start: color, end: color),
+              bubblesColor: BubblesColor(
+                dotPrimaryColor: color,
+                dotSecondaryColor: color,
+              ),
+              likeBuilder: (bool isLiked) => Icon(
+                icon,
+                color: color,
+                size: iconSize,
+              ),
+              likeCount: count,
+              countBuilder: (count, bool isLiked, String text) {
+                return count == 0
+                    ? const SizedBox.shrink()
+                    : Text(
+                        QuickHelp.convertNumberToK(count!),
+                        style: TextStyle(color: Colors.white),
+                      );
+              },
+              onTap: (isLiked) async {
+                onTap();
+                return !isLiked;
+              },
+            )
           : GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: EdgeInsets.all(8),
-          child: Column(
-            children: [
-              Icon(icon, color: color, size: iconSize),
-              if (count != null && count > 0)
-                Text(
-                  QuickHelp.convertNumberToK(count),
-                  style: TextStyle(color: Colors.white),
+              onTap: onTap,
+              child: Container(
+                padding: EdgeInsets.all(8),
+                child: Column(
+                  children: [
+                    Icon(icon, color: color, size: iconSize),
+                    if (count != null && count > 0)
+                      Text(
+                        QuickHelp.convertNumberToK(count),
+                        style: TextStyle(color: Colors.white),
+                      ),
+                  ],
                 ),
-            ],
-          ),
-        ),
-      ),
+              ),
+            ),
     );
   }
 
@@ -293,7 +290,7 @@ class ReelsInteractions extends GetView<VideoInteractionsController> {
         maxLines: 2,
         linkColor: Colors.blue,
         style: GoogleFonts.nunito(
-            color: Colors.white,
+          color: Colors.white,
           fontWeight: FontWeight.bold,
         ),
       ),
@@ -334,7 +331,7 @@ class ReelsInteractions extends GetView<VideoInteractionsController> {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         GestureDetector(
-          //onTap: () => controller.goToProfile(context),
+          onTap: () => controller.goToProfile(context),
           child: QuickActions.avatarWidget(
             author,
             width: 45,
@@ -400,44 +397,44 @@ class ReelsInteractions extends GetView<VideoInteractionsController> {
           Align(
             alignment: Alignment.centerRight,
             child: Obx(() => LikeButton(
-              size: 37,
-              mainAxisAlignment: MainAxisAlignment.end,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              countPostion: CountPostion.top,
-              circleColor:
-              CircleColor(start: kPrimaryColor, end: kPrimaryColor),
-              bubblesColor: BubblesColor(
-                dotPrimaryColor: kPrimaryColor,
-                dotSecondaryColor: kPrimaryColor,
-              ),
-              isLiked: controller.isFollowing.value,
-              likeCountAnimationType: LikeCountAnimationType.none,
-              likeBuilder: (bool isLiked) {
-                return ContainerCorner(
-                  colors: [
-                    isLiked ? Colors.black.withOpacity(0.4) : kPrimaryColor,
-                    isLiked ? Colors.black.withOpacity(0.4) : kPrimaryColor
-                  ],
-                  child: ContainerCorner(
-                    color: kTransparentColor,
-                    height: 30,
-                    width: 30,
-                    child: Icon(
-                      isLiked ? Icons.done : Icons.add,
-                      color: Colors.white,
-                      size: 24,
-                    ),
+                  size: 37,
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  countPostion: CountPostion.top,
+                  circleColor:
+                      CircleColor(start: kPrimaryColor, end: kPrimaryColor),
+                  bubblesColor: BubblesColor(
+                    dotPrimaryColor: kPrimaryColor,
+                    dotSecondaryColor: kPrimaryColor,
                   ),
-                  borderRadius: 50,
-                  height: 40,
-                  width: 40,
-                );
-              },
-              onTap: (isLiked) async {
-                await controller.toggleFollow();
-                return !isLiked;
-              },
-            )),
+                  isLiked: controller.isFollowing.value,
+                  likeCountAnimationType: LikeCountAnimationType.none,
+                  likeBuilder: (bool isLiked) {
+                    return ContainerCorner(
+                      colors: [
+                        isLiked ? Colors.black.withOpacity(0.4) : kPrimaryColor,
+                        isLiked ? Colors.black.withOpacity(0.4) : kPrimaryColor
+                      ],
+                      child: ContainerCorner(
+                        color: kTransparentColor,
+                        height: 30,
+                        width: 30,
+                        child: Icon(
+                          isLiked ? Icons.done : Icons.add,
+                          color: Colors.white,
+                          size: 24,
+                        ),
+                      ),
+                      borderRadius: 50,
+                      height: 40,
+                      width: 40,
+                    );
+                  },
+                  onTap: (isLiked) async {
+                    await controller.toggleFollow();
+                    return !isLiked;
+                  },
+                )),
           ),
         ],
       ),

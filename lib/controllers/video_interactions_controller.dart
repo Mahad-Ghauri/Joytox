@@ -11,7 +11,6 @@ import 'package:share_plus/share_plus.dart';
 import 'package:trace/helpers/quick_actions.dart';
 import 'package:trace/helpers/quick_cloud.dart';
 import 'package:trace/helpers/quick_help.dart';
-import 'package:trace/home/reels/reels_video_screen.dart';
 import 'package:trace/models/NotificationsModel.dart';
 import 'package:trace/models/PostsModel.dart';
 import 'package:trace/models/ReportModel.dart';
@@ -21,6 +20,7 @@ import 'package:trace/controllers/reels_controller.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:trace/controllers/video_recommendation_controller.dart';
 import 'package:trace/services/posts_service.dart';
+import 'package:trace/home/profile/user_profile_screen.dart';
 
 import '../app/setup.dart';
 import '../services/deep_links_service.dart';
@@ -77,6 +77,9 @@ class VideoInteractionsController extends GetxController {
     commentsCount.value = video.getComments.length;
     viewsCount.value = video.getViews;
     sharesCount.value = video.getShares.length;
+
+    print(
+        "VideoInteractionsController: Initialized counts - Likes: ${likesCount.value}, Comments: ${commentsCount.value}, Views: ${viewsCount.value}");
   }
 
   void updateVideoProgress(Duration position, Duration duration) {
@@ -93,7 +96,6 @@ class VideoInteractionsController extends GetxController {
     try {
       if (currentUser != null &&
           !video.getViewers!.contains(currentUser!.objectId)) {
-
         video.setViewer = currentUser!.objectId!;
 
         video.setViews = video.getViews + 1;
@@ -113,7 +115,8 @@ class VideoInteractionsController extends GetxController {
 
   void _recordViewInteraction() {
     if (Get.isRegistered<VideoRecommendationController>()) {
-      final recommendationController = Get.find<VideoRecommendationController>();
+      final recommendationController =
+          Get.find<VideoRecommendationController>();
       recommendationController.recordInteraction(
         video: video,
         user: currentUser!,
@@ -283,9 +286,9 @@ class VideoInteractionsController extends GetxController {
 
   Future<void> _deleteLikeNotification() async {
     QueryBuilder<NotificationsModel> queryBuilder =
-    QueryBuilder<NotificationsModel>(NotificationsModel())
-      ..whereEqualTo(NotificationsModel.keyAuthor, currentUser)
-      ..whereEqualTo(NotificationsModel.keyPost, video);
+        QueryBuilder<NotificationsModel>(NotificationsModel())
+          ..whereEqualTo(NotificationsModel.keyAuthor, currentUser)
+          ..whereEqualTo(NotificationsModel.keyPost, video);
 
     ParseResponse parseResponse = await queryBuilder.query();
     if (parseResponse.success && parseResponse.results != null) {
@@ -302,12 +305,19 @@ class VideoInteractionsController extends GetxController {
     if (Get.isRegistered<ReelsController>()) {
       _reelsController.updateVideo(video);
     }
+
+    // Forçar atualização das variáveis reativas
+    likesCount.refresh();
+    savesCount.refresh();
+    commentsCount.refresh();
+    viewsCount.refresh();
+    sharesCount.refresh();
   }
 
   void _recordLikeInteraction({double weight = 1.0}) {
     if (Get.isRegistered<VideoRecommendationController>()) {
       final recommendationController =
-      Get.find<VideoRecommendationController>();
+          Get.find<VideoRecommendationController>();
       recommendationController.recordInteraction(
         video: video,
         user: currentUser!,
@@ -315,7 +325,6 @@ class VideoInteractionsController extends GetxController {
       );
     }
   }
-
 
   Future<void> downloadVideo(BuildContext context) async {
     try {
@@ -393,7 +402,7 @@ class VideoInteractionsController extends GetxController {
   void _recordSaveInteraction({double weight = 1.0}) {
     if (Get.isRegistered<VideoRecommendationController>()) {
       final recommendationController =
-      Get.find<VideoRecommendationController>();
+          Get.find<VideoRecommendationController>();
       recommendationController.recordInteraction(
         video: video,
         user: currentUser!,
@@ -414,7 +423,7 @@ class VideoInteractionsController extends GetxController {
     // Registrar interação para recomendações
     if (Get.isRegistered<VideoRecommendationController>()) {
       final recommendationController =
-      Get.find<VideoRecommendationController>();
+          Get.find<VideoRecommendationController>();
       recommendationController.recordInteraction(
         video: video,
         user: currentUser!,
@@ -423,20 +432,32 @@ class VideoInteractionsController extends GetxController {
     }
   }
 
+  // Método para atualizar contagem de comentários quando um novo comentário é criado
+  void updateCommentCount() {
+    commentsCount.value = video.getComments.length;
+    _updateVideoInReels();
+  }
+
   void goToProfile(BuildContext context) {
     if (video.getAuthor!.objectId == currentUser!.objectId!) {
+      // If it's the current user's own profile, navigate to their profile screen
       QuickHelp.goToNavigatorScreen(
         context,
-        ReelsVideosScreen(
+        UserProfileScreen(
           currentUser: currentUser,
+          mUser: currentUser,
+          isFollowing: false, // User is following themselves
         ),
       );
     } else {
+      // If it's another user's profile, navigate to their profile screen
       QuickHelp.goToNavigatorScreen(
         context,
-        ReelsVideosScreen(
+        UserProfileScreen(
           currentUser: currentUser,
           mUser: video.getAuthor,
+          isFollowing:
+              currentUser!.getFollowing!.contains(video.getAuthor!.objectId),
         ),
       );
     }
@@ -468,7 +489,7 @@ class VideoInteractionsController extends GetxController {
             if (currentUser!.objectId != video.getAuthorId) ...[
               ListTile(
                 leading:
-                Icon(Icons.report_problem_outlined, color: Colors.white),
+                    Icon(Icons.report_problem_outlined, color: Colors.white),
                 title: Text(
                   tr("feed.report_post",
                       namedArgs: {"name": video.getAuthor!.getFullName!}),
@@ -611,9 +632,9 @@ class VideoInteractionsController extends GetxController {
       if (response.success) {
         // Remover posts do usuário bloqueado
         _postsService.allPosts.removeWhere(
-                (post) => post.getAuthorId == video.getAuthor!.objectId);
+            (post) => post.getAuthorId == video.getAuthor!.objectId);
         _postsService.videoPosts.removeWhere(
-                (video) => video.getAuthorId == video.getAuthor!.objectId);
+            (video) => video.getAuthorId == video.getAuthor!.objectId);
 
         QuickHelp.showAppNotificationAdvanced(
           context: context,
