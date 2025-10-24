@@ -9,7 +9,6 @@ import 'package:trace/app/setup.dart';
 import 'package:trace/auth/dispache_screen.dart';
 import 'package:trace/models/UserModel.dart';
 import 'package:trace/helpers/quick_help.dart';
-import 'package:trace/services/call_services.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:parse_server_sdk/parse_server_sdk.dart';
@@ -486,19 +485,8 @@ await user.save();
   static void goHome(
     BuildContext context,
     UserModel userModel,
-  ) async {
+  ) {
     QuickHelp.hideLoadingDialog(context);
-
-    // Initialize ZegoUIKit call service for the logged-in user
-    print(
-        "📞 [CALL SERVICE] Initializing call service for user: ${userModel.getFullName}");
-    try {
-      await onUserLogin(userModel);
-      print("📞 [CALL SERVICE] ✅ Call service initialized successfully");
-    } catch (e) {
-      print("📞 [CALL SERVICE] ❌ Failed to initialize call service: $e");
-    }
-
     QuickHelp.goToNavigatorScreen(
         context,
         DispacheScreen(

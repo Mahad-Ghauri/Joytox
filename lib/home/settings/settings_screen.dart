@@ -24,7 +24,6 @@ import '../privacy/privacy_screen.dart';
 import '../privilege/privilege_setting_screen.dart';
 import '../profile/profile_edit.dart';
 import 'package:trace/app/config.dart' as conf;
-import 'package:trace/services/call_services.dart';
 
 class SettingsScreen extends StatefulWidget {
   UserModel? currentUser;
@@ -477,15 +476,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         QuickHelp.showLoadingDialog(context);
 
         widget.currentUser!.logout(deleteLocalUserData: true).then((value) {
-          // Clean up ZegoUIKit call service on logout
-          print("📞 [CALL SERVICE] Cleaning up call service on logout");
-          try {
-            onUserLogout();
-            print("📞 [CALL SERVICE] ✅ Call service cleaned up successfully");
-          } catch (e) {
-            print("📞 [CALL SERVICE] ❌ Failed to cleanup call service: $e");
-          }
-
           QuickHelp.hideLoadingDialog(context);
           QuickHelp.initInstallation(null, null);
           QuickHelp.goToPageWithClear(

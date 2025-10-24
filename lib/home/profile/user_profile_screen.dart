@@ -26,6 +26,7 @@ import 'package:trace/models/UserModel.dart';
 import 'package:trace/ui/container_with_corner.dart';
 import 'package:trace/ui/text_with_tap.dart';
 import 'package:trace/utils/colors.dart';
+import 'package:zego_uikit_prebuilt_call/zego_uikit_prebuilt_call.dart';
 
 import '../../app/constants.dart';
 import '../../app/setup.dart';
@@ -41,8 +42,6 @@ import '../../models/VisitsModel.dart';
 import '../../services/deep_links_service.dart';
 import '../calls/video_call_screen.dart';
 import '../calls/voice_call_screen.dart';
-import '../streaming/zego_call_manager.dart';
-import '../streaming/pages/call/waiting_page.dart';
 import '../coins/coins_payment_widget.dart';
 import '../feed/comment_post_screen.dart';
 import '../feed/feed_on_reels_screen.dart';
@@ -1213,51 +1212,15 @@ class _UserProfileScreenState extends State<UserProfileScreen>
                                 color: Colors.white,
                               ),
                             ),
-                            ContainerCorner(
-                              color: kPrimaryColor,
-                              height: 60,
-                              width: 60,
-                              borderRadius: 50,
-                              onTap: () async {
-                                print(
-                                    "📞 [CALL BUTTON] Video call button pressed from profile");
-                                print(
-                                    "📞 [CALL BUTTON] Target user: ${widget.mUser!.getFullName} (${widget.mUser!.objectId})");
-                                print(
-                                    "📞 [CALL BUTTON] Current user: ${widget.currentUser!.getFullName} (${widget.currentUser!.objectId})");
-
-                                try {
-                                  await ZegoCallManager()
-                                      .sendVideoCallInvitation(
-                                          widget.mUser!.objectId!);
-                                  print(
-                                      "📞 [CALL BUTTON] ✅ Video call invitation sent");
-
-                                  // Navigate to call waiting page
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      fullscreenDialog: true,
-                                      builder: (context) => CallWaitingPage(
-                                          callData: ZegoCallManager()
-                                              .currentCallData!),
-                                    ),
-                                  );
-                                } catch (e) {
-                                  print(
-                                      "📞 [CALL BUTTON] ❌ Error sending call invitation: $e");
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                        content: Text(
-                                            'Failed to send call invitation: $e')),
-                                  );
-                                }
-                              },
-                              child: Icon(
-                                Icons.videocam,
-                                color: Colors.white,
-                                size: 30,
-                              ),
+                            ZegoSendCallInvitationButton(
+                              isVideoCall: true,
+                              resourceID: Setup.zegoPushResourceID,
+                              invitees: [
+                                ZegoUIKitUser(
+                                  id: widget.mUser!.objectId!,
+                                  name: widget.mUser!.getFullName!,
+                                ),
+                              ],
                             ),
                           ],
                         ),

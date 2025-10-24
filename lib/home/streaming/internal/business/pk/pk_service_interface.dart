@@ -8,7 +8,7 @@ abstract class PKServiceInterface {
   Future<void> stopPKBattle();
   Future<PKInviteSentResult> invitePKBattle(
       List<String> targetUserIDList, bool autoAccept,
-      [int durationMinutes = 3]);
+      [int durationMinutes = 5]);
   Future<void> acceptPKBattle(String requestID);
   Future<ZIMCallQuitSentResult> quitPKBattle(String requestID);
   Future<ZIMCallEndSentResult> endPKBattle(String requestID);

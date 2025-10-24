@@ -202,11 +202,11 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
       onOutgoingRequestAccepted: (event, defaultAction) {
         defaultAction.call();
         updateLiveToBattle(event.fromLiveID);
-        initiateBattleTimer(durationMinutes: 5);
+        initiateBattleTimer();
       },
       onUserJoined: (user) {
         updateLiveToBattle(user.streamID);
-        initiateBattleTimer(durationMinutes: 5);
+        initiateBattleTimer();
       },
     );
 
@@ -396,7 +396,7 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
                         ),
                       );
                   updateLiveToBattle(event.fromLiveID);
-                  initiateBattleTimer(durationMinutes: 5);
+                  initiateBattleTimer();
                   updateBattleInvitee();
                   QuickHelp.goBackToPreviousPage(context);
                 },
@@ -431,50 +431,25 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
     widget.liveStreaming!.save();
   }
 
-  initiateBattleTimer({int durationMinutes = 2}) {
-    final durationSeconds = durationMinutes * 60; // Convert minutes to seconds
-    print(
-        "⏰ [PK BATTLE] Starting battle timer with duration: $durationMinutes minutes ($durationSeconds seconds)");
-
+  initiateBattleTimer() {
     Future.delayed(Duration(seconds: 3)).then((value) {
       final currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-      sendSyncCommand(startTime: currentTime, duration: durationSeconds);
+      sendSyncCommand(startTime: currentTime, duration: 120);
       TimerController.startLocalTimer(
           onTimerUpdate: (remainingTimer) {
             showGiftSendersController.battleTimer.value = remainingTimer;
-            print(
-                "⏰ [PK BATTLE] Timer update: $remainingTimer seconds remaining");
-
             if (showGiftSendersController.battleTimer.value == 0) {
-              print("🏆 [PK BATTLE] Timer finished! Showing battle results...");
               showGiftSendersController.showBattleWinner.value = true;
-
-              // Send battle result command to opponent so they also see the result
-              if (widget.isHost) {
-                print(
-                    "🏆 [PK BATTLE] Host sending battle result to opponent...");
-                sendBattleResultCommand();
-              }
-
-              // Ensure the result is visible for longer and add sound/notification
-              Future.delayed(Duration(seconds: 15)).then((value) {
-                print("🏆 [PK BATTLE] Hiding battle results after 15 seconds");
+              Future.delayed(Duration(seconds: 10)).then((value) {
                 showGiftSendersController.showBattleWinner.value = false;
-
-                // Send hide result command to opponent
-                if (widget.isHost) {
-                  sendHideBattleResultCommand();
-                }
               });
-
               if (widget.isHost) {
-                print("🏆 [PK BATTLE] Host updating victories and user data");
                 updateVictories();
                 updateUserBattleData();
               }
             }
           },
-          duration: durationSeconds);
+          duration: 120);
     });
   }
 
@@ -520,54 +495,6 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
       }
     } catch (e) {
       debugPrint('Error sending command: $e');
-    }
-  }
-
-  Future<void> sendBattleResultCommand() async {
-    final command = jsonEncode({
-      'type': 'battleResult',
-      'action': 'show',
-      'myPoints': showGiftSendersController.myBattlePoints.value,
-      'hisPoints': showGiftSendersController.hisBattlePoints.value,
-    });
-    try {
-      final commandSent =
-          await ZegoUIKitPrebuiltLiveStreamingController().room.sendCommand(
-                roomID: widget.liveID,
-                command: Uint8List.fromList(utf8.encode(command)),
-              );
-
-      if (commandSent) {
-        debugPrint(
-            '🏆 [PK BATTLE] Battle result command sent successfully: $command');
-      } else {
-        debugPrint('🏆 [PK BATTLE] Failed to send battle result command');
-      }
-    } catch (e) {
-      debugPrint('🏆 [PK BATTLE] Error sending battle result command: $e');
-    }
-  }
-
-  Future<void> sendHideBattleResultCommand() async {
-    final command = jsonEncode({
-      'type': 'battleResult',
-      'action': 'hide',
-    });
-    try {
-      final commandSent =
-          await ZegoUIKitPrebuiltLiveStreamingController().room.sendCommand(
-                roomID: widget.liveID,
-                command: Uint8List.fromList(utf8.encode(command)),
-              );
-
-      if (commandSent) {
-        debugPrint(
-            '🏆 [PK BATTLE] Hide battle result command sent successfully: $command');
-      } else {
-        debugPrint('🏆 [PK BATTLE] Failed to send hide battle result command');
-      }
-    } catch (e) {
-      debugPrint('🏆 [PK BATTLE] Error sending hide battle result command: $e');
     }
   }
 
@@ -714,48 +641,37 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
   }
 
   Widget winnerWidget() {
-    return Obx(() {
-      Size size = MediaQuery.sizeOf(context);
-      int myPoints = showGiftSendersController.myBattlePoints.value;
-      int hisPoints = showGiftSendersController.hisBattlePoints.value;
-
-      print(
-          "🏆 [PK BATTLE] winnerWidget called - showBattleWinner: ${showGiftSendersController.showBattleWinner.value}");
-      print("🏆 [PK BATTLE] myPoints: $myPoints, hisPoints: $hisPoints");
-
-      if (showGiftSendersController.showBattleWinner.value) {
-        if (myPoints > hisPoints) {
-          print("🏆 [PK BATTLE] Showing winner animation for me");
-          return Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Lottie.asset("assets/lotties/battle_winner.json",
-                  height: size.width / 2.3, width: size.width / 2.3),
-              Lottie.asset("assets/lotties/battle_lost.json",
-                  height: size.width / 3, width: size.width / 3),
-            ],
-          );
-        } else if (hisPoints > myPoints) {
-          print("🏆 [PK BATTLE] Showing winner animation for opponent");
-          return Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Lottie.asset("assets/lotties/battle_lost.json",
-                  height: size.width / 3, width: size.width / 3),
-              Lottie.asset("assets/lotties/battle_winner.json",
-                  height: size.width / 2.3, width: size.width / 2.3),
-            ],
-          );
-        } else {
-          print("🏆 [PK BATTLE] Showing tie animation");
-          return Lottie.asset("assets/lotties/no_winner.json",
-              height: size.width / 2.3, width: size.width / 2.3);
-        }
+    Size size = MediaQuery.sizeOf(context);
+    int myPoints = showGiftSendersController.myBattlePoints.value;
+    int hisPoints = showGiftSendersController.hisBattlePoints.value;
+    if (showGiftSendersController.showBattleWinner.value) {
+      if (myPoints > hisPoints) {
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Lottie.asset("assets/lotties/battle_winner.json",
+                height: size.width / 2.3, width: size.width / 2.3),
+            Lottie.asset("assets/lotties/battle_lost.json",
+                height: size.width / 3, width: size.width / 3),
+          ],
+        );
+      } else if (hisPoints > myPoints) {
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Lottie.asset("assets/lotties/battle_lost.json",
+                height: size.width / 3, width: size.width / 3),
+            Lottie.asset("assets/lotties/battle_winner.json",
+                height: size.width / 2.3, width: size.width / 2.3),
+          ],
+        );
       } else {
-        print("🏆 [PK BATTLE] Not showing winner widget");
-        return SizedBox();
+        return Lottie.asset("assets/lotties/no_winner.json",
+            height: size.width / 2.3, width: size.width / 2.3);
       }
-    });
+    } else {
+      return SizedBox();
+    }
   }
 
   @override
@@ -2080,7 +1996,7 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
       if (newUpdatedLive.getRepeatBattleTimes! > 0 &&
           newUpdatedLive.getRepeatBattleTimes! > repeatPkTimes) {
         repeatPkTimes = newUpdatedLive.getRepeatBattleTimes!;
-        initiateBattleTimer(durationMinutes: 5);
+        initiateBattleTimer();
       }
       showGiftSendersController.isBattleLive.value = newUpdatedLive.getBattle!;
       if (!newUpdatedLive.getStreaming! && !widget.isHost) {

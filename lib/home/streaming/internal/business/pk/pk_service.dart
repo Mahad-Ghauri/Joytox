@@ -105,7 +105,7 @@ class PKService implements PKServiceInterface {
   @override
   Future<PKInviteSentResult> invitePKBattle(
       List<String> targetUserIDList, bool autoAccept,
-      [int durationMinutes = 3]) async {
+      [int durationMinutes = 5]) async {
     if (pkInfo != null) {
       final result =
           await addUserToRequest(targetUserIDList, pkInfo!.requestID ?? '');

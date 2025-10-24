@@ -35,28 +35,17 @@ class TimerController {
         print('Raw command received: $commandString');
         try {
           final command = jsonDecode(commandString);
-          if (command is Map<String, dynamic>) {
-            // Handle timer commands
-            if (command.containsKey('startTime') &&
-                command.containsKey('duration')) {
-              final startTime = command['startTime'];
-              final int duration = command['duration'];
-              debugPrint('Timer command received: $commandString');
-              if (duration > 0) {
-                startTimer(
-                    startTime: startTime,
-                    onTimerUpdate: onTimerUpdate,
-                    battleDuration: duration);
-              }
-            }
-            // Handle battle result commands
-            else if (command.containsKey('type') &&
-                command['type'] == 'battleResult') {
-              debugPrint(
-                  '🏆 [PK BATTLE] Battle result command received: $commandString');
-              handleBattleResultCommand(command);
-            } else {
-              debugPrint('Invalid command format');
+          if (command is Map<String, dynamic> &&
+              command.containsKey('startTime') &&
+              command.containsKey('duration')) {
+            final startTime = command['startTime'];
+            final int duration = command['duration'];
+            debugPrint('Command received: $commandString');
+            if (duration > 0) {
+              startTimer(
+                  startTime: startTime,
+                  onTimerUpdate: onTimerUpdate,
+                  battleDuration: duration);
             }
           } else {
             debugPrint('Invalid command format');
@@ -66,30 +55,6 @@ class TimerController {
         }
       }
     });
-  }
-
-  static void handleBattleResultCommand(Map<String, dynamic> command) {
-    final action = command['action'];
-    if (action == 'show') {
-      final myPoints = command['myPoints'] ?? 0;
-      final hisPoints = command['hisPoints'] ?? 0;
-      debugPrint(
-          '🏆 [PK BATTLE] Showing battle result - My points: $myPoints, His points: $hisPoints');
-
-      // Update battle points for display
-      controller.myBattlePoints.value = myPoints;
-      controller.hisBattlePoints.value = hisPoints;
-      controller.showBattleWinner.value = true;
-
-      // Auto-hide after 15 seconds
-      Future.delayed(Duration(seconds: 15), () {
-        controller.showBattleWinner.value = false;
-        debugPrint('🏆 [PK BATTLE] Auto-hiding battle result after 15 seconds');
-      });
-    } else if (action == 'hide') {
-      debugPrint('🏆 [PK BATTLE] Hiding battle result');
-      controller.showBattleWinner.value = false;
-    }
   }
 
   static void startTimer({

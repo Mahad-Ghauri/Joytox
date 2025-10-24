@@ -616,6 +616,39 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
   final isSeatClosedNotifier = ValueNotifier<bool>(false);
   final isRequestingNotifier = ValueNotifier<bool>(false);
 
+  // Calculate seat index based on user ID and seat layout
+  int _calculateSeatIndex(String? userId) {
+    if (userId == null) return 1;
+
+    // Host always gets seat index 0
+    if (userId == widget.liveStreaming!.getAuthorId) {
+      return 0;
+    }
+
+    // For other users, we need to determine their seat index
+    final seatStates = showGiftSendersController.seatStates;
+    for (int i = 1; i < seatStates.length; i++) {
+      final seatState = seatStates[i];
+      if (seatState != null && seatState['userId'] == userId) {
+        return i;
+      }
+    }
+
+    // If user not found in any seat, return -1
+    return 1;
+  }
+
+  // Validate if a user can occupy a specific seat
+  bool _canUserOccupySeat(int seatIndex, String userId) {
+    // Seat 0 is reserved for host/admin only
+    if (seatIndex == 0) {
+      return userId == widget.liveStreaming!.getAuthorId;
+    }
+
+    // Other seats can be occupied by any user (subject to other restrictions)
+    return true;
+  }
+
   // Initialize and sync room background theme using Zego room properties
   Future<void> _initThemeSync() async {
     try {
@@ -628,7 +661,7 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
         final result = await ZegoUIKitSignalingPlugin().queryRoomProperties(
           roomID: roomID,
         );
-        props = Map<String, String>.from(result.properties);
+        props = Map<String, String>.from(result.properties ?? {});
       } catch (e) {
         debugPrint('queryRoomProperties failed: $e');
       }
@@ -1113,24 +1146,14 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
               },
               user: ZegoLiveAudioRoomUserEvents(
                 onEnter: (user) {
-                  print(
-                      "🎧 [USER ENTRY] User ${user.name} (${user.id}) entered the room");
                   if (user.id != widget.liveStreaming!.getAuthorId) {
                     addOrUpdateLiveViewers();
                     sendMessage("${user.name} ${"has_entered_the_room".tr()}");
-                    print(
-                        "🎧 [USER ENTRY] ✅ User entry processed successfully");
-                  } else {
-                    print(
-                        "🎧 [USER ENTRY] Host entered - no additional processing needed");
                   }
                 },
                 onLeave: (user) {
-                  print(
-                      "🎧 [USER EXIT] User ${user.name} (${user.id}) left the room");
                   sendMessage("${user.name} ${"has_left_the_room".tr()}");
                   onViewerLeave();
-                  print("🎧 [USER EXIT] ✅ User exit processed successfully");
                 },
               ),
               memberList: ZegoLiveAudioRoomMemberListEvents(
@@ -2963,46 +2986,22 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
   }
 
   Future<void> muteSeat(int seatIndex) async {
-    print("🔇 [MUTE] Starting mute process for seat $seatIndex");
-
-    // Get the user in the seat
+    // Get the user in the seat (this would need to be implemented based on ZegoUIKit user tracking)
     final seatState = showGiftSendersController.getSeatState(seatIndex);
     final userId = seatState?['userId'];
 
-    if (userId == null) {
-      print("🔇 [MUTE] No user found in seat $seatIndex");
-      return;
-    }
-
-    print("🔇 [MUTE] Muting user $userId in seat $seatIndex");
+    if (userId == null) return;
 
     try {
       QuickHelp.showLoadingDialog(context);
 
-      // Update local state first
+      // Update local state
       showGiftSendersController.muteSeat(seatIndex);
-
-      // Use Zego API to mute the user
-      final controller = ZegoUIKitPrebuiltLiveAudioRoomController();
-      try {
-        await controller.seat.host.mute(targetIndex: seatIndex, muted: true);
-        print("🔇 [MUTE] ✅ Successfully muted seat $seatIndex via Zego API");
-      } catch (zegoError) {
-        print("🔇 [MUTE] ❌ Zego API mute failed: $zegoError");
-        // Try alternative method with user ID
-        try {
-          await controller.seat.host.muteByUserID(userId, muted: true);
-          print("🔇 [MUTE] ✅ Successfully muted user $userId via userID");
-        } catch (e2) {
-          print("🔇 [MUTE] ❌ Alternative mute method failed: $e2");
-          throw e2;
-        }
-      }
 
       // Update backend
       widget.liveStreaming!.addMutedUserIds = userId;
-      ParseResponse response = await widget.liveStreaming!.save();
 
+      ParseResponse response = await widget.liveStreaming!.save();
       if (response.success) {
         QuickHelp.hideLoadingDialog(context);
         QuickHelp.showAppNotificationAdvanced(
@@ -3012,7 +3011,6 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
             namedArgs: {"seat": "${seatIndex + 1}"},
           ),
         );
-        print("🔇 [MUTE] ✅ Mute operation completed successfully");
       } else {
         QuickHelp.hideLoadingDialog(context);
         showGiftSendersController.unmuteSeat(seatIndex); // Revert local state
@@ -3022,62 +3020,30 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
           message: "seat_actions.action_failed".tr(),
           isError: true,
         );
-        print("🔇 [MUTE] ❌ Backend save failed");
       }
     } catch (e) {
       QuickHelp.hideLoadingDialog(context);
       showGiftSendersController.unmuteSeat(seatIndex);
-      print("🔇 [MUTE] ❌ Error muting seat: $e");
-      QuickHelp.showAppNotificationAdvanced(
-        context: context,
-        title: "error".tr(),
-        message: "seat_actions.action_failed".tr(),
-        isError: true,
-      );
+      print("Error muting seat: $e");
     }
   }
 
   Future<void> unmuteSeat(int seatIndex) async {
-    print("🔊 [UNMUTE] Starting unmute process for seat $seatIndex");
-
     final seatState = showGiftSendersController.getSeatState(seatIndex);
     final userId = seatState?['userId'];
 
-    if (userId == null) {
-      print("🔊 [UNMUTE] No user found in seat $seatIndex");
-      return;
-    }
-
-    print("🔊 [UNMUTE] Unmuting user $userId in seat $seatIndex");
+    if (userId == null) return;
 
     try {
       QuickHelp.showLoadingDialog(context);
 
-      // Update local state first
+      // Update local state
       showGiftSendersController.unmuteSeat(seatIndex);
-
-      // Use Zego API to unmute the user
-      final controller = ZegoUIKitPrebuiltLiveAudioRoomController();
-      try {
-        await controller.seat.host.mute(targetIndex: seatIndex, muted: false);
-        print(
-            "🔊 [UNMUTE] ✅ Successfully unmuted seat $seatIndex via Zego API");
-      } catch (zegoError) {
-        print("🔊 [UNMUTE] ❌ Zego API unmute failed: $zegoError");
-        // Try alternative method with user ID
-        try {
-          await controller.seat.host.muteByUserID(userId, muted: false);
-          print("🔊 [UNMUTE] ✅ Successfully unmuted user $userId via userID");
-        } catch (e2) {
-          print("🔊 [UNMUTE] ❌ Alternative unmute method failed: $e2");
-          throw e2;
-        }
-      }
 
       // Update backend
       widget.liveStreaming!.removeMutedUserIds = userId;
-      ParseResponse response = await widget.liveStreaming!.save();
 
+      ParseResponse response = await widget.liveStreaming!.save();
       if (response.success) {
         QuickHelp.hideLoadingDialog(context);
         QuickHelp.showAppNotificationAdvanced(
@@ -3086,7 +3052,6 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
           message: "seat_actions.seat_unmuted_success"
               .tr(namedArgs: {"seat": "${seatIndex + 1}"}),
         );
-        print("🔊 [UNMUTE] ✅ Unmute operation completed successfully");
       } else {
         QuickHelp.hideLoadingDialog(context);
         showGiftSendersController.muteSeat(seatIndex); // Revert local state
@@ -3096,18 +3061,11 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
           message: "seat_actions.action_failed".tr(),
           isError: true,
         );
-        print("🔊 [UNMUTE] ❌ Backend save failed");
       }
     } catch (e) {
       QuickHelp.hideLoadingDialog(context);
       showGiftSendersController.muteSeat(seatIndex);
-      print("🔊 [UNMUTE] ❌ Error unmuting seat: $e");
-      QuickHelp.showAppNotificationAdvanced(
-        context: context,
-        title: "error".tr(),
-        message: "seat_actions.action_failed".tr(),
-        isError: true,
-      );
+      print("Error un-muting seat: $e");
     }
   }
 
@@ -3464,6 +3422,40 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
         }
       });
     }
+  }
+
+  // Theme management methods
+  void _showThemeSelector() {
+    if (!widget.isHost!) {
+      QuickHelp.showAppNotificationAdvanced(
+        context: context,
+        title: "Error",
+        message: "Only the host can change the room theme.",
+        isError: true,
+      );
+      return;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => RoomThemeSelector(
+        currentUser: widget.currentUser!,
+        liveStreaming: widget.liveStreaming!,
+        onThemeSelected: _onThemeChanged,
+      ),
+    );
+  }
+
+  void _onThemeChanged(String newTheme) {
+    print("🎨 Theme changed to: $newTheme");
+
+    // Update the controller state
+    showGiftSendersController.updateRoomTheme(newTheme);
+
+    // The UI will automatically update due to Obx wrapper on background
+    print("🎨 Theme applied successfully!");
   }
 
   Future<void> _ensureMusicPlayer() async {

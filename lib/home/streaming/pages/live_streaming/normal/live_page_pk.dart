@@ -68,7 +68,7 @@ extension ZegoLiveStreamingPKBattleManagerEventConv on ZegoNormalLivePageState {
     // send timer command when PK starts (host sends)
     if (widget.liveStreamingManager.iamHost()) {
       final pkInfo = widget.liveStreamingManager.pkInfo;
-      final duration = pkInfo?.durationMinutes ?? 3;
+      final duration = pkInfo?.durationMinutes ?? 5;
       final startTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
       final command =
           jsonEncode({'startTime': startTime, 'duration': duration * 60});

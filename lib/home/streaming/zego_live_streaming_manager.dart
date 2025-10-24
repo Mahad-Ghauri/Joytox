@@ -277,7 +277,7 @@ class ZegoLiveStreamingManager implements ZegoLiveStreamingManagerInterface {
 
   @override
   Future<PKInviteSentResult> startPKBattleWith(List<String> anotherHostIDList,
-      [int durationMinutes = 3]) async {
+      [int durationMinutes = 5]) async {
     return await pkService?.invitePKBattle(
             anotherHostIDList, true, durationMinutes) ??
         PKInviteSentResult(requestID: '-1', errorUserList: []);

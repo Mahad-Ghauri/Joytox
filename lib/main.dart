@@ -48,7 +48,6 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:trace/models/UserModel.dart';
 import 'package:trace/utils/colors.dart';
 import 'package:trace/utils/theme.dart';
-import 'package:trace/services/call_services.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -368,19 +367,6 @@ class _AppState extends State<App> with WidgetsBindingObserver {
         // Initialize notification service
         _initializeFirebaseNotifications(currentUser!);
 
-        // Initialize ZegoUIKit call service for the current user
-        print(
-            "📞 [CALL SERVICE] Initializing call service for current user: ${currentUser!.getFullName}");
-        print("📞 [CALL SERVICE] User ID: ${currentUser!.objectId}");
-        print("📞 [CALL SERVICE] App ID: ${Setup.zegoLiveStreamAppID}");
-        try {
-          await onUserLogin(currentUser!);
-          print("📞 [CALL SERVICE] ✅ Call service initialized successfully");
-        } catch (e) {
-          print("📞 [CALL SERVICE] ❌ Failed to initialize call service: $e");
-          print("📞 [CALL SERVICE] ❌ Error details: ${e.toString()}");
-        }
-
         return currentUser;
       }
     } catch (e) {
@@ -431,7 +417,7 @@ class _AppState extends State<App> with WidgetsBindingObserver {
         print('❌ Failed to initialize Firebase notifications');
       }
     });
-  }
+    }
 
   RemoveOnline() async {
     currentUser = await ParseUser.currentUser();

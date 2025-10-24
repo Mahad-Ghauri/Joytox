@@ -137,7 +137,7 @@ class _BattleTimerState extends State<BattleTimer> {
   int _calculateRemainingTime() {
     final currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
     final elapsedTime = currentTime - _battleStartTime;
-    const battleDuration = 120;
+    const battleDuration = 300;
     return battleDuration - elapsedTime;
   }
 

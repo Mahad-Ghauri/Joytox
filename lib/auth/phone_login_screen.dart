@@ -15,7 +15,6 @@ import 'package:trace/helpers/quick_help.dart';
 import 'package:trace/app/setup.dart';
 import 'package:trace/ui/text_with_tap.dart';
 import 'package:trace/utils/colors.dart';
-import 'package:trace/services/call_services.dart';
 
 import '../app/config.dart';
 import '../models/UserModel.dart';
@@ -27,6 +26,7 @@ import '../widgets/CountDownTimer.dart';
 import 'dispache_screen.dart';
 
 class PhoneLoginScreen extends StatefulWidget {
+
   PhoneLoginScreen({Key? key}) : super(key: key);
 
   @override
@@ -43,9 +43,8 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
 
   String countryIsoCode = Config.initialCountry;
   String countryDialCode = QuickHelp.getCountryDialCode(Config.initialCountry);
-  List<String> languagesIso =
-      QuickHelp.getLanguageByCountryIso(code: Config.initialCountry);
-  bool isEmptyPhoneField = false;
+  List<String> languagesIso =  QuickHelp.getLanguageByCountryIso(code: Config.initialCountry);
+  bool isEmptyPhoneField =  false;
 
   TextEditingController phoneNumberEditingController = TextEditingController();
   TextEditingController pinCodeEditingController = TextEditingController();
@@ -149,11 +148,10 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
                       radiusTopLeft: 10,
                       radiusBottomLeft: 10,
                       borderWidth: isEmptyPhoneField ? 1 : 0,
-                      borderColor:
-                          isEmptyPhoneField ? kRedColor1 : kTransparentColor,
+                      borderColor: isEmptyPhoneField ? kRedColor1 : kTransparentColor,
                       errorTextField: TextStyle(fontSize: 0.0),
                       validator: (text) {
-                        if (text!.isEmpty) {
+                        if(text!.isEmpty) {
                           isEmptyPhoneField = true;
                           setState(() {});
                           return "";
@@ -163,10 +161,10 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
                         return null;
                       },
                       onChanged: (text) {
-                        if (text.isEmpty) {
+                        if(text.isEmpty) {
                           isEmptyPhoneField = true;
                           setState(() {});
-                        } else {
+                        }else{
                           isEmptyPhoneField = false;
                           setState(() {});
                         }
@@ -177,7 +175,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
                       onCountryChanged: (country) {
                         countryIsoCode = country.isoCode;
                         countryDialCode = country.dialCode;
-                        languagesIso = country.languagesIso;
+                        languagesIso =  country.languagesIso;
                       },
                     ),
                     ButtonWithIcon(
@@ -194,7 +192,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
                       text: "next".tr(),
                       fontWeight: FontWeight.normal,
                       onTap: () {
-                        if (firstFormKey.currentState!.validate()) {
+                        if(firstFormKey.currentState!.validate()) {
                           QuickHelp.removeFocusOnTextField(context);
                           if (position == _positionPhoneInput) {
                             _sendVerificationCode(false);
@@ -231,12 +229,10 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
                                       ..onTap = () {
                                         if (QuickHelp.isMobile()) {
                                           QuickHelp.goToWebPage(context,
-                                              pageType:
-                                                  QuickHelp.pageTypeTerms);
+                                              pageType: QuickHelp.pageTypeTerms);
                                         } else {
-                                          QuickHelp
-                                              .launchInWebViewWithJavaScript(
-                                                  Config.termsOfUseUrl);
+                                          QuickHelp.launchInWebViewWithJavaScript(
+                                              Config.termsOfUseUrl);
                                         }
                                       }),
                                 TextSpan(
@@ -260,11 +256,10 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
                                         if (QuickHelp.isMobile()) {
                                           QuickHelp.goToWebPage(context,
                                               pageType:
-                                                  QuickHelp.pageTypePrivacy);
+                                              QuickHelp.pageTypePrivacy);
                                         } else {
-                                          QuickHelp
-                                              .launchInWebViewWithJavaScript(
-                                                  Config.privacyPolicyUrl);
+                                          QuickHelp.launchInWebViewWithJavaScript(
+                                              Config.privacyPolicyUrl);
                                         }
                                       }),
                               ])),
@@ -364,7 +359,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
         //userCredential = await confirmationResult.confirm('123456');
 
         _webConfirmationResult = await _auth.signInWithPhoneNumber(
-            countryDialCode + phoneNumberEditingController.text,
+            countryDialCode+phoneNumberEditingController.text,
             RecaptchaVerifier(
               auth: FirebaseAuthPlatform.instance,
               size: RecaptchaVerifierSize.compact,
@@ -398,7 +393,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
             ));
       } else {
         await _auth.verifyPhoneNumber(
-            phoneNumber: countryDialCode + phoneNumberEditingController.text,
+            phoneNumber: countryDialCode+phoneNumberEditingController.text,
             timeout: const Duration(seconds: 5),
             verificationCompleted: verificationCompleted,
             verificationFailed: verificationFailed,
@@ -518,11 +513,8 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
   // Login button clicked
   Future<void> _checkUserAccount() async {
     QueryBuilder<UserModel> queryBuilder =
-        QueryBuilder<UserModel>(UserModel.forQuery());
-    queryBuilder.whereEqualTo(
-      UserModel.keyPhoneNumber,
-      phoneNumberEditingController.text,
-    );
+    QueryBuilder<UserModel>(UserModel.forQuery());
+    queryBuilder.whereEqualTo(UserModel.keyPhoneNumber, phoneNumberEditingController.text,);
     ParseResponse apiResponse = await queryBuilder.query();
 
     if (apiResponse.success && apiResponse.results != null) {
@@ -554,16 +546,6 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
 
     UserModel? currentUser = await ParseUser.currentUser();
     if (currentUser != null) {
-      // Initialize ZegoUIKit call service for the logged-in user
-      print(
-          "📞 [CALL SERVICE] Initializing call service for user: ${currentUser.getFullName}");
-      try {
-        await onUserLogin(currentUser);
-        print("📞 [CALL SERVICE] ✅ Call service initialized successfully");
-      } catch (e) {
-        print("📞 [CALL SERVICE] ❌ Failed to initialize call service: $e");
-      }
-
       QuickHelp.goToNavigatorScreen(
           context,
           DispacheScreen(
@@ -592,7 +574,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
               marginBottom: 5,
             ),
             TextWithTap(
-              countryDialCode + phoneNumberEditingController.text,
+              countryDialCode+phoneNumberEditingController.text,
               marginBottom: 18,
               fontSize: 12,
               color: isDarkMode ? Colors.white : Colors.black,
@@ -730,7 +712,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
                         fontWeight: FontWeight.normal,
                         fontSize: 14,
                         onTap: () =>
-                            _showResend ? _sendVerificationCode(true) : null,
+                        _showResend ? _sendVerificationCode(true) : null,
                       ),
                     ),
                     TextWithTap(
@@ -788,7 +770,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
               border: InputBorder.none,
               hintText: "login_screen.password_hint".tr(),
               hintStyle:
-                  TextStyle(color: kGrayColor.withOpacity(0.5), fontSize: 13),
+              TextStyle(color: kGrayColor.withOpacity(0.5), fontSize: 13),
               suffix: IconButton(
                   onPressed: () => togglePasswordVisibility(),
                   icon: Icon(isPasswordHidden
@@ -823,19 +805,19 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
     );
   }
 
-  static saveAgencyEarn(BuildContext context, UserModel user) {
+  static saveAgencyEarn(
+      BuildContext context, UserModel user) {
     debugPrint("dynamic links removed");
   }
 
-  static void getPhotoFromUrl(
-      BuildContext context, UserModel user, String url) async {
+  static void getPhotoFromUrl(BuildContext context, UserModel user, String url) async {
     File avatar = await QuickHelp.downloadFile(url, "avatar.jpeg") as File;
 
     ParseFileBase parseFile;
     if (QuickHelp.isWebPlatform()) {
       //Seems weird, but this lets you get the data from the selected file as an Uint8List very easily.
       ParseWebFile file =
-          ParseWebFile(null, name: "avatar.jpeg", url: avatar.path);
+      ParseWebFile(null, name: "avatar.jpeg", url: avatar.path);
       await file.download();
       parseFile = ParseWebFile(file.file, name: file.name);
     } else {
@@ -873,7 +855,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
     var faker = Faker();
 
     String imageUrl =
-        faker.image.image(width: 640, height: 640, keywords: ["nature"]);
+    faker.image.image(width: 640, height: 640, keywords: ["nature"]);
 
     String password = passwordTextController.text;
     String username = phoneNumberEditingController.text;
@@ -893,6 +875,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
     user.set("isVisible", true);
     user.set("status", "active");
 
+
     //user.setPhoneNumberFull = phoneNumber;
 
     //user.setCountry = country.name!;
@@ -901,8 +884,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
     user.setCountryLanguages = languagesIso;
     //user.setSchool = schoolEditingController.text;
     user.setPhoneNumber = username;
-    user.setPhoneNumberFull =
-        countryDialCode + phoneNumberEditingController.text;
+    user.setPhoneNumberFull = countryDialCode+phoneNumberEditingController.text;
     //user.setEmail = emailEditingController.text.trim();
     //user.setEmailPublic = emailEditingController.text.trim();
     //user.setGender = mySelectedGender;

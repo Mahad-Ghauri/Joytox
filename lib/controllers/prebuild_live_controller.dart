@@ -94,7 +94,7 @@ class PreBuildLiveController extends GetxController {
       if (newUpdatedLive.getRepeatBattleTimes! > 0 &&
           newUpdatedLive.getRepeatBattleTimes! > repeatPkTimes.value) {
         repeatPkTimes.value = newUpdatedLive.getRepeatBattleTimes!;
-        initiateBattleTimer(durationMinutes: 5);
+        initiateBattleTimer();
       }
     });
   }
@@ -150,10 +150,8 @@ class PreBuildLiveController extends GetxController {
     }
   }
 
-  void initiateBattleTimer({int durationMinutes = 5}) {
+  void initiateBattleTimer() {
     // Implementar lógica do timer de batalha
-    print(
-        "⏰ [PK BATTLE] Controller initiating battle timer with duration: $durationMinutes minutes");
   }
 
   Future<void> sendGift(GiftsModel gift, UserModel receiver) async {
@@ -171,6 +169,7 @@ class PreBuildLiveController extends GetxController {
 
     await giftsSentModel.save();
 
+    
     await QuickHelp.saveReceivedGifts(
       receiver: receiver,
       author: currentUser.value!,
@@ -183,6 +182,7 @@ class PreBuildLiveController extends GetxController {
       amountTransacted: gift.getCoins!,
     );
   }
+  
 
   @override
   void onClose() {
