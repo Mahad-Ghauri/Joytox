@@ -486,14 +486,14 @@ await user.save();
   static void goHome(
     BuildContext context,
     UserModel userModel,
-  ) {
+  ) async {
     QuickHelp.hideLoadingDialog(context);
 
     // Initialize ZegoUIKit call service for the logged-in user
     print(
         "📞 [CALL SERVICE] Initializing call service for user: ${userModel.getFullName}");
     try {
-      onUserLogin(userModel);
+      await onUserLogin(userModel);
       print("📞 [CALL SERVICE] ✅ Call service initialized successfully");
     } catch (e) {
       print("📞 [CALL SERVICE] ❌ Failed to initialize call service: $e");

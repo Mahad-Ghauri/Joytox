@@ -374,7 +374,7 @@ class _AppState extends State<App> with WidgetsBindingObserver {
         print("📞 [CALL SERVICE] User ID: ${currentUser!.objectId}");
         print("📞 [CALL SERVICE] App ID: ${Setup.zegoLiveStreamAppID}");
         try {
-          onUserLogin(currentUser!);
+          await onUserLogin(currentUser!);
           print("📞 [CALL SERVICE] ✅ Call service initialized successfully");
         } catch (e) {
           print("📞 [CALL SERVICE] ❌ Failed to initialize call service: $e");

@@ -31,10 +31,11 @@ import 'package:sticky_grouped_list/sticky_grouped_list.dart';
 // import 'package:wechat_assets_picker/wechat_assets_picker.dart';  // Temporarily disabled due to Flutter 3.35 compatibility
 // import 'package:wechat_camera_picker/wechat_camera_picker.dart';  // Temporarily disabled due to Flutter 3.35 compatibility
 import 'package:image_picker/image_picker.dart';
-import 'package:zego_uikit_prebuilt_call/zego_uikit_prebuilt_call.dart';
 
 import '../../app/setup.dart';
 import '../../helpers/send_notifications.dart';
+import '../streaming/zego_call_manager.dart';
+import '../streaming/pages/call/waiting_page.dart';
 import '../agency/agent_invitation_screen.dart.dart';
 import '../profile/user_profile_screen.dart';
 import '../report/report_screen.dart';
@@ -887,15 +888,59 @@ class _MessageScreenState extends State<MessageScreen> {
                                 color: Colors.white,
                               ),
                             ),
-                            ZegoSendCallInvitationButton(
-                              isVideoCall: isVideo,
-                              resourceID: Setup.zegoPushResourceID,
-                              invitees: [
-                                ZegoUIKitUser(
-                                  id: widget.mUser!.objectId!,
-                                  name: widget.mUser!.getFullName!,
-                                ),
-                              ],
+                            ContainerCorner(
+                              color: isVideo ? kPrimaryColor : kVioletColor,
+                              height: 60,
+                              width: 60,
+                              borderRadius: 50,
+                              onTap: () async {
+                                print(
+                                    "📞 [CALL BUTTON] ${isVideo ? 'Video' : 'Audio'} call button pressed");
+                                print(
+                                    "📞 [CALL BUTTON] Target user: ${widget.mUser!.getFullName} (${widget.mUser!.objectId})");
+                                print(
+                                    "📞 [CALL BUTTON] Current user: ${currentUser!.getFullName} (${currentUser!.objectId})");
+
+                                try {
+                                  if (isVideo) {
+                                    await ZegoCallManager()
+                                        .sendVideoCallInvitation(
+                                            widget.mUser!.objectId!);
+                                    print(
+                                        "📞 [CALL BUTTON] ✅ Video call invitation sent");
+                                  } else {
+                                    await ZegoCallManager()
+                                        .sendVoiceCallInvitation(
+                                            widget.mUser!.objectId!);
+                                    print(
+                                        "📞 [CALL BUTTON] ✅ Voice call invitation sent");
+                                  }
+
+                                  // Navigate to call waiting page
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      fullscreenDialog: true,
+                                      builder: (context) => CallWaitingPage(
+                                          callData: ZegoCallManager()
+                                              .currentCallData!),
+                                    ),
+                                  );
+                                } catch (e) {
+                                  print(
+                                      "📞 [CALL BUTTON] ❌ Error sending call invitation: $e");
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                        content: Text(
+                                            'Failed to send call invitation: $e')),
+                                  );
+                                }
+                              },
+                              child: Icon(
+                                isVideo ? Icons.videocam : Icons.call,
+                                color: Colors.white,
+                                size: 30,
+                              ),
                             ),
                           ],
                         ),

@@ -14,13 +14,15 @@ class BattleTimer extends StatefulWidget {
   @override
   _BattleTimerState createState() => _BattleTimerState();
 }
-Controller controller = Get.put(Controller());
-class _BattleTimerState extends State<BattleTimer> {
 
+Controller controller = Get.put(Controller());
+
+class _BattleTimerState extends State<BattleTimer> {
   @override
   void initState() {
     super.initState();
-    TimerController.initialize(roomID: widget.roomID, onTimerUpdate: _updateRemainingTime);
+    TimerController.initialize(
+        roomID: widget.roomID, onTimerUpdate: _updateRemainingTime);
   }
 
   @override
@@ -35,7 +37,7 @@ class _BattleTimerState extends State<BattleTimer> {
 
   @override
   Widget build(BuildContext context) {
-    return Obx((){
+    return Obx(() {
       return Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -61,8 +63,6 @@ class _BattleTimerState extends State<BattleTimer> {
     });
   }
 }
-
-
 
 /*
 import 'package:flutter/material.dart';

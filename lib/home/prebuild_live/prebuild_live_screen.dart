@@ -449,10 +449,22 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
               print("🏆 [PK BATTLE] Timer finished! Showing battle results...");
               showGiftSendersController.showBattleWinner.value = true;
 
+              // Send battle result command to opponent so they also see the result
+              if (widget.isHost) {
+                print(
+                    "🏆 [PK BATTLE] Host sending battle result to opponent...");
+                sendBattleResultCommand();
+              }
+
               // Ensure the result is visible for longer and add sound/notification
               Future.delayed(Duration(seconds: 15)).then((value) {
                 print("🏆 [PK BATTLE] Hiding battle results after 15 seconds");
                 showGiftSendersController.showBattleWinner.value = false;
+
+                // Send hide result command to opponent
+                if (widget.isHost) {
+                  sendHideBattleResultCommand();
+                }
               });
 
               if (widget.isHost) {
@@ -508,6 +520,54 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
       }
     } catch (e) {
       debugPrint('Error sending command: $e');
+    }
+  }
+
+  Future<void> sendBattleResultCommand() async {
+    final command = jsonEncode({
+      'type': 'battleResult',
+      'action': 'show',
+      'myPoints': showGiftSendersController.myBattlePoints.value,
+      'hisPoints': showGiftSendersController.hisBattlePoints.value,
+    });
+    try {
+      final commandSent =
+          await ZegoUIKitPrebuiltLiveStreamingController().room.sendCommand(
+                roomID: widget.liveID,
+                command: Uint8List.fromList(utf8.encode(command)),
+              );
+
+      if (commandSent) {
+        debugPrint(
+            '🏆 [PK BATTLE] Battle result command sent successfully: $command');
+      } else {
+        debugPrint('🏆 [PK BATTLE] Failed to send battle result command');
+      }
+    } catch (e) {
+      debugPrint('🏆 [PK BATTLE] Error sending battle result command: $e');
+    }
+  }
+
+  Future<void> sendHideBattleResultCommand() async {
+    final command = jsonEncode({
+      'type': 'battleResult',
+      'action': 'hide',
+    });
+    try {
+      final commandSent =
+          await ZegoUIKitPrebuiltLiveStreamingController().room.sendCommand(
+                roomID: widget.liveID,
+                command: Uint8List.fromList(utf8.encode(command)),
+              );
+
+      if (commandSent) {
+        debugPrint(
+            '🏆 [PK BATTLE] Hide battle result command sent successfully: $command');
+      } else {
+        debugPrint('🏆 [PK BATTLE] Failed to send hide battle result command');
+      }
+    } catch (e) {
+      debugPrint('🏆 [PK BATTLE] Error sending hide battle result command: $e');
     }
   }
 

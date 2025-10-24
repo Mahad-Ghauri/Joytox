@@ -558,7 +558,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
       print(
           "📞 [CALL SERVICE] Initializing call service for user: ${currentUser.getFullName}");
       try {
-        onUserLogin(currentUser);
+        await onUserLogin(currentUser);
         print("📞 [CALL SERVICE] ✅ Call service initialized successfully");
       } catch (e) {
         print("📞 [CALL SERVICE] ❌ Failed to initialize call service: $e");
