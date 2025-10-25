@@ -408,6 +408,8 @@ class ReelsController extends GetxController with WidgetsBindingObserver {
   /// Verificar e carregar autores dos posts se necessário
   Future<void> _verificarECarregarAutoresDosPosts() async {
     try {
+      // Debug: Print all videos and their authors
+
       // Verificar se algum vídeo não tem autor
       final videosComAutorNulo =
           videos.where((v) => v.getAuthor == null).toList();

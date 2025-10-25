@@ -620,7 +620,12 @@ class PostsService extends GetxService {
         // Atualizar no feed e nos vídeos se necessário
         updatePost(post);
 
-        print("PostsService: Autor carregado para post ${post.objectId}");
+        // Forçar atualização da UI
+        videoPosts.refresh();
+        allPosts.refresh();
+
+        print(
+            "PostsService: Autor ${author.getFullName} carregado para post ${post.objectId}");
       }
     } catch (e) {
       print("PostsService: Erro ao carregar autor para post: $e");

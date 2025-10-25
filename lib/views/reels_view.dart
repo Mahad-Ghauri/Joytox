@@ -830,28 +830,9 @@ class _VideoPlayerItemState extends State<VideoPlayerItem>
         }),
 
         // Interações (likes, comentários, etc)
-        Builder(
-          builder: (context) {
-            // Verificar se o autor do vídeo está nulo e tentar carregar se necessário
-            if (widget.video.getAuthor == null &&
-                Get.isRegistered<PostsService>()) {
-              final postsService = Get.find<PostsService>();
-              Future.microtask(
-                  () => postsService.fetchAuthorForPost(widget.video));
-
-              // Mostrar um placeholder enquanto carrega o autor
-              return Container(
-                padding: EdgeInsets.all(16),
-                alignment: Alignment.bottomLeft,
-                child: CircularProgressIndicator(color: Colors.white),
-              );
-            }
-
-            return ReelsInteractions(
-              postModel: widget.video,
-              currentUser: widget.currentUser ?? Get.find<UserModel>(),
-            );
-          },
+        ReelsInteractions(
+          postModel: widget.video,
+          currentUser: widget.currentUser ?? Get.find<UserModel>(),
         ),
       ],
     );

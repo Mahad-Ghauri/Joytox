@@ -129,109 +129,59 @@ class QuickActions {
     double? vipFrameWidth = 43,
     double? vipFrameHeight = 40,
   }) {
-    if (currentUser.getAvatar != null) {
-      return Stack(
-        alignment: AlignmentDirectional.center,
-        children: [
-          Container(
-            margin: margin,
-            width: width,
-            height: height,
+    // Always show avatar without checks
+    return Stack(
+      alignment: AlignmentDirectional.center,
+      children: [
+        Container(
+          margin: margin,
+          width: width,
+          height: height,
+          child: CachedNetworkImage(
+            imageUrl: currentUser.getAvatar?.url ?? imageUrl ?? "",
+            imageBuilder: (context, imageProvider) => Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                image: DecorationImage(image: imageProvider, fit: BoxFit.cover),
+              ),
+            ),
+            placeholder: (context, url) => _avatarInitials(currentUser),
+            errorWidget: (context, url, error) => _avatarInitials(currentUser),
+          ),
+        ),
+        // Show avatar frame if available
+        if (currentUser.getAvatarFrame != null && !hideAvatarFrame)
+          ContainerCorner(
+            borderWidth: 0,
+            width: frameWidth,
+            height: frameHeight,
             child: CachedNetworkImage(
-              imageUrl: currentUser.getAvatar!.url!,
+              imageUrl: currentUser.getAvatarFrame!.url!,
               imageBuilder: (context, imageProvider) => Container(
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  image:
-                      DecorationImage(image: imageProvider, fit: BoxFit.cover),
-                ),
-              ),
-              placeholder: (context, url) => _avatarInitials(currentUser),
-              errorWidget: (context, url, error) =>
-                  _avatarInitials(currentUser),
-            ),
-          ),
-          if (currentUser.getAvatarFrame != null &&
-              !hideAvatarFrame &&
-              currentUser.getCanUseAvatarFrame! &&
-              currentUser.getAvatarFrame!.url!.toLowerCase().endsWith('.png'))
-            ContainerCorner(
-              borderWidth: 0,
-              width: frameWidth,
-              height: frameHeight,
-              child: CachedNetworkImage(
-                imageUrl: currentUser.getAvatarFrame!.url!,
-                imageBuilder: (context, imageProvider) => Container(
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    image: DecorationImage(
-                      image: imageProvider,
-                      fit: BoxFit.fill,
-                    ),
+                  image: DecorationImage(
+                    image: imageProvider,
+                    fit: BoxFit.fill,
                   ),
                 ),
               ),
             ),
-          if (!hideAvatarFrame &&
-              currentUser.getIsUserVip! &&
-              !currentUser.getCanUseAvatarFrame!)
-            Container(
-              margin: margin,
-              child: Image.asset(
-                QuickHelp.levelVipFrame(
-                  currentCredit: currentUser.getCredits!.toDouble(),
-                ),
-                width: vipFrameWidth,
-                height: vipFrameHeight,
-              ),
-            ),
-        ],
-      );
-    } else if (imageUrl != null) {
-      return Stack(
-        alignment: AlignmentDirectional.center,
-        children: [
+          ),
+        // Show VIP frame if user is VIP
+        if (!hideAvatarFrame && currentUser.getIsUserVip == true)
           Container(
             margin: margin,
-            width: width,
-            height: height,
-            child: CachedNetworkImage(
-              imageUrl: imageUrl,
-              imageBuilder: (context, imageProvider) => Container(
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  image:
-                      DecorationImage(image: imageProvider, fit: BoxFit.cover),
-                ),
+            child: Image.asset(
+              QuickHelp.levelVipFrame(
+                currentCredit: currentUser.getCredits?.toDouble() ?? 0.0,
               ),
-              //placeholder: (context, url) => _avatarInitials(currentUser),
-              //errorWidget: (context, url, error) => _avatarInitials(currentUser),
+              width: vipFrameWidth,
+              height: vipFrameHeight,
             ),
           ),
-          if (currentUser.getAvatarFrame != null && !hideAvatarFrame)
-            Container(
-              margin: margin,
-              width: width! + 15,
-              height: height! + 15,
-              child: CachedNetworkImage(
-                imageUrl: currentUser.getAvatarFrame!.url!,
-                // MEMORY OPTIMIZATION: Limit avatar frame resolution - saves ~20MB
-                maxHeightDiskCache: 200,
-                maxWidthDiskCache: 200,
-                imageBuilder: (context, imageProvider) => Container(
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    image: DecorationImage(
-                        image: imageProvider, fit: BoxFit.cover),
-                  ),
-                ),
-              ),
-            ),
-        ],
-      );
-    } else {
-      return _avatarInitials(currentUser);
-    }
+      ],
+    );
   }
 
   static Widget _avatarInitials(UserModel currentUser) {

@@ -63,38 +63,12 @@ class ReelsInteractions extends GetView<VideoInteractionsController> {
       }
     });
 
-    if (postModel.getAuthor == null) {
+    // Try to fetch author if missing
+    if (postModel.getAuthor == null && postModel.getAuthorId != null) {
       if (Get.isRegistered<PostsService>()) {
         final postsService = Get.find<PostsService>();
         Future.microtask(() => postsService.fetchAuthorForPost(postModel));
       }
-
-      return Container(
-        padding: EdgeInsets.all(16),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.end,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.withOpacity(0.3),
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                SizedBox(width: 10),
-                Text(
-                  "Carregando...",
-                  style: TextStyle(color: Colors.white),
-                ),
-              ],
-            ),
-          ],
-        ),
-      );
     }
 
     return Column(
@@ -353,31 +327,57 @@ class ReelsInteractions extends GetView<VideoInteractionsController> {
   }
 
   Widget _userNameAndTimeUploadedWidget(BuildContext context) {
-    // Verificar se postModel.getAuthor é nulo
     final author = postModel.getAuthor;
+
     if (author == null) {
-      return SizedBox.shrink(); // Retorna um widget vazio se o autor for nulo
+      // Show a fallback with author ID or "Unknown User"
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Container(
+            width: 45,
+            height: 45,
+            decoration: BoxDecoration(
+              color: Colors.grey.withOpacity(0.3),
+              shape: BoxShape.circle,
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              TextWithTap(
+                postModel.getAuthorId != null
+                    ? "User ${postModel.getAuthorId!.substring(0, 8)}..."
+                    : "Unknown User",
+                fontWeight: FontWeight.bold,
+                color: Colors.white.withOpacity(1.0),
+                fontSize: 15,
+                marginLeft: 3,
+              ),
+            ],
+          ),
+        ],
+      );
     }
 
     return Row(
       mainAxisSize: MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        GestureDetector(
-          onTap: () => controller.goToProfile(context),
-          child: QuickActions.avatarWidget(
-            author,
-            width: 45,
-            height: 45,
-            margin: EdgeInsets.only(bottom: 0, top: 0, left: 0, right: 5),
-          ),
+        QuickActions.avatarWidget(
+          author,
+          width: 45,
+          height: 45,
+          margin: EdgeInsets.only(bottom: 0, top: 0, left: 0, right: 5),
         ),
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             TextWithTap(
-              author.getFullName ?? "", // Use null coalescing para evitar erro
+              author.getFullName ?? "",
               fontWeight: FontWeight.bold,
               color: Colors.white.withOpacity(1.0),
               fontSize: 15,
@@ -401,7 +401,7 @@ class ReelsInteractions extends GetView<VideoInteractionsController> {
                   height: 19,
                 ),
                 TextWithTap(
-                  "${author.getFollowers?.length.toString() ?? "0"}", // Use null coalescing para evitar erro
+                  "${author.getFollowers?.length.toString() ?? "0"}",
                   color: Colors.white,
                   fontSize: 13,
                 ),
