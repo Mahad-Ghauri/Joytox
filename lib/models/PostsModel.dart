@@ -76,6 +76,7 @@ class PostsModel extends ParseObject implements ParseCloneable {
       get<List<dynamic>>(keyComments)?.cast<ParseObject>() ?? [];
   set setComments(List<ParseObject> comments) =>
       set<List<ParseObject>>(keyComments, comments);
+  set addComment(ParseObject comment) => setAdd(keyComments, comment);
 
   int get getViews => get<int>(keyViews) ?? 0;
   set setViews(int views) => set<int>(keyViews, views);
@@ -207,7 +208,6 @@ class PostsModel extends ParseObject implements ParseCloneable {
 
   set setShares(String shareAuthorId) => setAddUnique(keyShare, shareAuthorId);
   set removeShares(String shareAuthorId) => setRemove(keyShare, shareAuthorId);
-
 
   int? get getDiamonds => get<int>(keyDiamonds);
 

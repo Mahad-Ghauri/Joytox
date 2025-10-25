@@ -11,6 +11,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:trace/helpers/quick_actions.dart';
 import 'package:trace/helpers/quick_cloud.dart';
 import 'package:trace/helpers/quick_help.dart';
+import 'package:trace/models/CommentsModel.dart';
 import 'package:trace/models/NotificationsModel.dart';
 import 'package:trace/models/PostsModel.dart';
 import 'package:trace/models/ReportModel.dart';
@@ -103,9 +104,11 @@ class VideoInteractionsController extends GetxController {
 
     likesCount.value = video.getLikes.length;
     savesCount.value = video.getSaves.length;
-    commentsCount.value = video.getComments.length;
     viewsCount.value = video.getViews;
     sharesCount.value = video.getShares.length;
+
+    // Initialize comments count with direct query
+    _updateCommentsCount();
 
     print('=== INITIALIZATION RESULTS ===');
     print("Likes count: ${likesCount.value}");
@@ -431,20 +434,26 @@ class VideoInteractionsController extends GetxController {
   // Method to refresh video data from server
   Future<void> refreshVideoData() async {
     try {
-      print('Refreshing video data from server...');
+      print('=== REFRESHING VIDEO DATA FROM SERVER ===');
+      print('Video ID: ${video.objectId}');
+      print(
+          'Before refresh - Likes: ${likesCount.value}, Comments: ${commentsCount.value}, Saves: ${savesCount.value}');
+
       await video.fetch();
 
       // Update all counts with fresh data
       likesCount.value = video.getLikes.length;
       savesCount.value = video.getSaves.length;
-      commentsCount.value = video.getComments.length;
       viewsCount.value = video.getViews;
       sharesCount.value = video.getShares.length;
 
-      print('Video data refreshed successfully');
-      print('New comments count: ${commentsCount.value}');
-      print('New likes count: ${likesCount.value}');
-      print('New saves count: ${savesCount.value}');
+      // Query comments directly from Comments table
+      await _updateCommentsCount();
+
+      print(
+          'After refresh - Likes: ${likesCount.value}, Comments: ${commentsCount.value}, Saves: ${savesCount.value}');
+      print('Video likes list: ${video.getLikes}');
+      print('Video saves list: ${video.getSaves}');
 
       // Force UI refresh for all counts
       likesCount.refresh();
@@ -455,8 +464,32 @@ class VideoInteractionsController extends GetxController {
 
       // Update the video in reels
       _updateVideoInReels();
+
+      print('=== VIDEO DATA REFRESH COMPLETE ===');
     } catch (e) {
       print('Error refreshing video data: $e');
+    }
+  }
+
+  // Method to query comments count directly from Comments table
+  Future<void> _updateCommentsCount() async {
+    try {
+      QueryBuilder<CommentsModel> queryBuilder =
+          QueryBuilder<CommentsModel>(CommentsModel());
+      queryBuilder.whereEqualTo(CommentsModel.keyPostId, video.objectId);
+
+      ParseResponse response = await queryBuilder.query();
+
+      if (response.success && response.results != null) {
+        commentsCount.value = response.results!.length;
+        print('Comments count updated from query: ${commentsCount.value}');
+      } else {
+        print('Failed to query comments: ${response.error?.message}');
+        commentsCount.value = 0;
+      }
+    } catch (e) {
+      print('Error querying comments: $e');
+      commentsCount.value = 0;
     }
   }
 
@@ -583,11 +616,9 @@ class VideoInteractionsController extends GetxController {
     print('=== COMMENT COUNT UPDATE DEBUG ===');
     print('Video ID: ${video.objectId}');
     print('Current comments count: ${commentsCount.value}');
-    print('Video comments list: ${video.getComments}');
-    print('Video comments length: ${video.getComments.length}');
 
-    // Force update the comments count from the video model
-    commentsCount.value = video.getComments.length;
+    // Update comments count with direct query
+    _updateCommentsCount();
 
     print('Comments count updated: ${commentsCount.value}');
 

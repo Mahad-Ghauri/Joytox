@@ -11,6 +11,7 @@ import 'package:trace/app/cloud_params.dart';
 import 'package:trace/app/setup.dart';
 import 'package:trace/helpers/quick_actions.dart';
 import 'package:trace/home/message/message_screen.dart';
+import 'package:trace/models/CommentsModel.dart';
 import 'package:trace/models/GiftsModel.dart';
 import 'package:trace/models/ReportModel.dart';
 import 'package:trace/models/UserModel.dart';
@@ -7151,6 +7152,27 @@ class QuickHelp {
 
   static String convertNumberToK(int number) {
     return NumberFormat.compact().format(number);
+  }
+
+  // Helper method to get comments count from Comments table
+  static Future<int> getCommentsCount(String postId) async {
+    try {
+      QueryBuilder<CommentsModel> queryBuilder =
+          QueryBuilder<CommentsModel>(CommentsModel());
+      queryBuilder.whereEqualTo(CommentsModel.keyPostId, postId);
+
+      ParseResponse response = await queryBuilder.query();
+
+      if (response.success && response.results != null) {
+        return response.results!.length;
+      } else {
+        print('Failed to query comments count: ${response.error?.message}');
+        return 0;
+      }
+    } catch (e) {
+      print('Error querying comments count: $e');
+      return 0;
+    }
   }
 
   static saveCurrentRoute({required String route}) async {

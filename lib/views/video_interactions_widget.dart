@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:trace/models/PostsModel.dart';
 import 'package:trace/models/UserModel.dart';
+import 'package:trace/helpers/quick_help.dart';
 
 class VideoInteractionsWidget extends StatelessWidget {
   final PostsModel video;
@@ -35,10 +36,16 @@ class VideoInteractionsWidget extends StatelessWidget {
           activeColor: Colors.red,
         ),
         const SizedBox(height: 20),
-        _buildInteractionButton(
-          icon: Icons.comment,
-          label: video.getComments.length.toString(),
-          onTap: onComment,
+        FutureBuilder<int>(
+          future: QuickHelp.getCommentsCount(video.objectId!),
+          builder: (context, snapshot) {
+            int commentsCount = snapshot.data ?? 0;
+            return _buildInteractionButton(
+              icon: Icons.comment,
+              label: commentsCount.toString(),
+              onTap: onComment,
+            );
+          },
         ),
         const SizedBox(height: 20),
         _buildInteractionButton(

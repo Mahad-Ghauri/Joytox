@@ -607,9 +607,15 @@ class FeedPostWidget extends StatelessWidget {
                         height: 20,
                         width: 20,
                       ),
-                      TextWithTap(
-                        post.getComments.length.toString(),
-                        marginLeft: 2,
+                      FutureBuilder<int>(
+                        future: QuickHelp.getCommentsCount(post.objectId!),
+                        builder: (context, snapshot) {
+                          int commentsCount = snapshot.data ?? 0;
+                          return TextWithTap(
+                            commentsCount.toString(),
+                            marginLeft: 2,
+                          );
+                        },
                       ),
                     ],
                   ),

@@ -56,12 +56,8 @@ class ReelsInteractions extends GetView<VideoInteractionsController> {
         print('Current comments count: ${controller.commentsCount.value}');
         print('Current saves count: ${controller.savesCount.value}');
 
-        // Force refresh all counts
-        controller.likesCount.refresh();
-        controller.commentsCount.refresh();
-        controller.savesCount.refresh();
-        controller.viewsCount.refresh();
-        controller.sharesCount.refresh();
+        // Force refresh video data from server
+        controller.refreshVideoData();
 
         print('=== REELS INTERACTIONS WIDGET BUILD END ===');
       }
@@ -193,10 +189,10 @@ class ReelsInteractions extends GetView<VideoInteractionsController> {
               )),
           SizedBox(height: 10),
           _buildInteractionButton(
-            icon: Icons.save_alt,
+            icon: Icons.download,
             color: Colors.white,
             iconSize: 24,
-            count: controller.savesCount.value,
+            count: null, // Download doesn't have a count
             onTap: () {
               HapticFeedback.mediumImpact();
               controller.downloadVideo(context);
@@ -204,29 +200,29 @@ class ReelsInteractions extends GetView<VideoInteractionsController> {
             showAnimation: false,
           ),
           SizedBox(height: 10),
-          _buildInteractionButton(
-            icon: Icons.remove_red_eye_sharp,
-            color: Colors.white,
-            iconSize: 24,
-            count: controller.viewsCount.value,
-            onTap: () {
-              HapticFeedback.mediumImpact();
-            },
-            showAnimation: false,
-          ),
+          Obx(() => _buildInteractionButton(
+                icon: Icons.remove_red_eye_sharp,
+                color: Colors.white,
+                iconSize: 24,
+                count: controller.viewsCount.value,
+                onTap: () {
+                  HapticFeedback.mediumImpact();
+                },
+                showAnimation: false,
+              )),
 
           SizedBox(height: 10),
-          _buildInteractionButton(
-            icon: Icons.share_outlined,
-            color: Colors.white,
-            iconSize: 24,
-            count: controller.sharesCount.value,
-            onTap: () {
-              HapticFeedback.mediumImpact();
-              controller.sharePost(context);
-            },
-            showAnimation: false,
-          ),
+          Obx(() => _buildInteractionButton(
+                icon: Icons.share_outlined,
+                color: Colors.white,
+                iconSize: 24,
+                count: controller.sharesCount.value,
+                onTap: () {
+                  HapticFeedback.mediumImpact();
+                  controller.sharePost(context);
+                },
+                showAnimation: false,
+              )),
 
           // More Options Button com feedback visual melhorado
           SizedBox(height: 15),
@@ -272,11 +268,18 @@ class ReelsInteractions extends GetView<VideoInteractionsController> {
               ),
               likeCount: count,
               countBuilder: (count, bool isLiked, String text) {
-                return count == 0
+                return count == null
                     ? const SizedBox.shrink()
-                    : Text(
-                        QuickHelp.convertNumberToK(count!),
-                        style: TextStyle(color: Colors.white),
+                    : Container(
+                        margin: EdgeInsets.only(top: 4),
+                        child: Text(
+                          QuickHelp.convertNumberToK(count),
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       );
               },
               onTap: (isLiked) async {
@@ -291,10 +294,17 @@ class ReelsInteractions extends GetView<VideoInteractionsController> {
                 child: Column(
                   children: [
                     Icon(icon, color: color, size: iconSize),
-                    if (count != null && count > 0)
-                      Text(
-                        QuickHelp.convertNumberToK(count),
-                        style: TextStyle(color: Colors.white),
+                    if (count != null)
+                      Container(
+                        margin: EdgeInsets.only(top: 4),
+                        child: Text(
+                          QuickHelp.convertNumberToK(count),
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
                   ],
                 ),

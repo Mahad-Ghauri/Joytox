@@ -2442,10 +2442,18 @@ class _UserProfileScreenState extends State<UserProfileScreen>
                                             height: 20,
                                             width: 20,
                                           ),
-                                          TextWithTap(
-                                            post.getComments.length.toString(),
-                                            color: kGrayColor,
-                                            marginLeft: 2,
+                                          FutureBuilder<int>(
+                                            future: QuickHelp.getCommentsCount(
+                                                post.objectId!),
+                                            builder: (context, snapshot) {
+                                              int commentsCount =
+                                                  snapshot.data ?? 0;
+                                              return TextWithTap(
+                                                commentsCount.toString(),
+                                                color: kGrayColor,
+                                                marginLeft: 2,
+                                              );
+                                            },
                                           ),
                                         ],
                                       ),
@@ -2692,14 +2700,20 @@ class _UserProfileScreenState extends State<UserProfileScreen>
                         backgroundColor: kTransparentColor,
                         automaticallyImplyLeading: false,
                         centerTitle: true,
-                        title: TextWithTap(
-                          "tab_feed.comments_".tr(namedArgs: {
-                            "amount": post.getComments.length.toString()
-                          }),
-                          color: QuickHelp.isDarkMode(context)
-                              ? Colors.white
-                              : kContentColorLightTheme,
-                          fontWeight: FontWeight.w700,
+                        title: FutureBuilder<int>(
+                          future: QuickHelp.getCommentsCount(post.objectId!),
+                          builder: (context, snapshot) {
+                            int commentsCount = snapshot.data ?? 0;
+                            return TextWithTap(
+                              "tab_feed.comments_".tr(namedArgs: {
+                                "amount": commentsCount.toString()
+                              }),
+                              color: QuickHelp.isDarkMode(context)
+                                  ? Colors.white
+                                  : kContentColorLightTheme,
+                              fontWeight: FontWeight.w700,
+                            );
+                          },
                         ),
                         actions: [
                           IconButton(

@@ -191,6 +191,9 @@ class _VideoReelsCommentScreenState extends State<VideoReelsCommentScreen> {
       if (commentResponse.success) {
         print('Comment saved successfully, updating post...');
 
+        // Add the comment to the post's comments list
+        post.addComment = comment;
+
         // Update the post to trigger live query updates
         ParseResponse postResponse = await post.save();
         print('Post update response:');

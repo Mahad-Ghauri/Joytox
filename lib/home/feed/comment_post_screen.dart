@@ -138,6 +138,9 @@ class _CommentPostScreenState extends State<CommentPostScreen> {
       ParseResponse commentResponse = await comment.save();
 
       if (commentResponse.success) {
+        // Add the comment to the post's comments list
+        post.addComment = comment;
+
         // Update post to trigger live query updates
         await post.save();
 
@@ -556,11 +559,19 @@ class _CommentPostScreenState extends State<CommentPostScreen> {
                                               height: 20,
                                               width: 20,
                                             ),
-                                            TextWithTap(
-                                              widget.post!.getComments.length
-                                                  .toString(),
-                                              color: kGrayColor,
-                                              marginLeft: 2,
+                                            FutureBuilder<int>(
+                                              future:
+                                                  QuickHelp.getCommentsCount(
+                                                      widget.post!.objectId!),
+                                              builder: (context, snapshot) {
+                                                int commentsCount =
+                                                    snapshot.data ?? 0;
+                                                return TextWithTap(
+                                                  commentsCount.toString(),
+                                                  color: kGrayColor,
+                                                  marginLeft: 2,
+                                                );
+                                              },
                                             ),
                                           ],
                                         ),
@@ -626,17 +637,23 @@ class _CommentPostScreenState extends State<CommentPostScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          TextWithTap(
-                            "comment_post.comment_amount".tr(
-                              namedArgs: {
-                                "amount":
-                                    widget.post!.getComments.length.toString()
-                              },
-                            ),
-                            marginLeft: 10,
-                            marginTop: 10,
-                            marginBottom: 25,
-                            fontWeight: FontWeight.bold,
+                          FutureBuilder<int>(
+                            future: QuickHelp.getCommentsCount(
+                                widget.post!.objectId!),
+                            builder: (context, snapshot) {
+                              int commentsCount = snapshot.data ?? 0;
+                              return TextWithTap(
+                                "comment_post.comment_amount".tr(
+                                  namedArgs: {
+                                    "amount": commentsCount.toString()
+                                  },
+                                ),
+                                marginLeft: 10,
+                                marginTop: 10,
+                                marginBottom: 25,
+                                fontWeight: FontWeight.bold,
+                              );
+                            },
                           ),
                           showAllComments(),
                         ],

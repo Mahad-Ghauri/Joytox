@@ -232,64 +232,70 @@ class DefaultVideoInfoWidget extends StatelessWidget {
           SizedBox(height: 10),
           Align(
             alignment: AlignmentDirectional.centerEnd,
-            child: LikeButton(
-              size: 37,
-              mainAxisAlignment: MainAxisAlignment.end,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              countPostion: CountPostion.top,
-              circleColor:
-                  CircleColor(start: kPrimaryColor, end: kPrimaryColor),
-              bubblesColor: BubblesColor(
-                dotPrimaryColor: kPrimaryColor,
-                dotSecondaryColor: kPrimaryColor,
-              ),
-              isLiked: false,
-              likeCountAnimationType: LikeCountAnimationType.none,
-              likeBuilder: (bool isLiked) {
-                return Icon(
-                  isLiked
-                      ? Icons.mode_comment_rounded
-                      : Icons.mode_comment_rounded,
-                  color: Colors.white,
-                  size: 30,
-                );
-              },
-              likeCount: postModel!.getComments.length,
-              countBuilder: (count, bool isLiked, String text) {
-                var color = isLiked ? Colors.white : Colors.white;
-                Widget result;
-                if (count == 0) {
-                  result = Text(
-                    "",
-                    style: TextStyle(color: color),
-                  );
-                } else
-                  result = Text(
-                    QuickHelp.convertNumberToK(count!),
-                    style: TextStyle(color: color),
-                  );
-                return result;
-              },
-              onTap: (isLiked) {
-                print("Liked: $isLiked");
-
-                //openComments(context, currentUser!, postModel!);
-                QuickHelp.goToNavigatorScreen(
-                  context,
-                  VideoReelsCommentScreen(
-                    currentUser: currentUser,
-                    post: postModel,
+            child: FutureBuilder<int>(
+              future: QuickHelp.getCommentsCount(postModel!.objectId!),
+              builder: (context, snapshot) {
+                int commentsCount = snapshot.data ?? 0;
+                return LikeButton(
+                  size: 37,
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  countPostion: CountPostion.top,
+                  circleColor:
+                      CircleColor(start: kPrimaryColor, end: kPrimaryColor),
+                  bubblesColor: BubblesColor(
+                    dotPrimaryColor: kPrimaryColor,
+                    dotSecondaryColor: kPrimaryColor,
                   ),
+                  isLiked: false,
+                  likeCountAnimationType: LikeCountAnimationType.none,
+                  likeBuilder: (bool isLiked) {
+                    return Icon(
+                      isLiked
+                          ? Icons.mode_comment_rounded
+                          : Icons.mode_comment_rounded,
+                      color: Colors.white,
+                      size: 30,
+                    );
+                  },
+                  likeCount: commentsCount,
+                  countBuilder: (count, bool isLiked, String text) {
+                    var color = isLiked ? Colors.white : Colors.white;
+                    Widget result;
+                    if (count == 0) {
+                      result = Text(
+                        "",
+                        style: TextStyle(color: color),
+                      );
+                    } else
+                      result = Text(
+                        QuickHelp.convertNumberToK(count!),
+                        style: TextStyle(color: color),
+                      );
+                    return result;
+                  },
+                  onTap: (isLiked) {
+                    print("Liked: $isLiked");
+
+                    //openComments(context, currentUser!, postModel!);
+                    QuickHelp.goToNavigatorScreen(
+                      context,
+                      VideoReelsCommentScreen(
+                        currentUser: currentUser,
+                        post: postModel,
+                      ),
+                    );
+
+                    return Future.value(false);
+                    /*if (isLiked) {
+
+                      return Future.value(false);
+                    } else {
+
+                      return Future.value(false);
+                    }*/
+                  },
                 );
-
-                return Future.value(false);
-                /*if (isLiked) {
-
-                  return Future.value(false);
-                } else {
-
-                  return Future.value(false);
-                }*/
               },
             ),
           ),
@@ -1279,7 +1285,8 @@ class DefaultVideoInfoWidget extends StatelessWidget {
 
     await comment.save();
 
-    //post.setComments = comment.objectId!;
+    // Add the comment to the post's comments list
+    post.addComment = comment;
     await post.save();
 
     QuickHelp.hideLoadingDialog(context);
