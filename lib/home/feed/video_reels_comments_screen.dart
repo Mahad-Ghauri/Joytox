@@ -1,4 +1,5 @@
 // ignore_for_file: must_be_immutable, deprecated_member_use
+// ignore_for_file: avoid_web_libraries_in_flutter
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:easy_localization/easy_localization.dart';
@@ -7,7 +8,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
+import 'package:get/get.dart' hide Trans;
 
+import '../../controllers/video_interactions_controller.dart';
 import '../../helpers/quick_actions.dart';
 import '../../helpers/quick_help.dart';
 import '../../models/CommentsModel.dart';
@@ -48,6 +51,15 @@ class _VideoReelsCommentScreenState extends State<VideoReelsCommentScreen> {
   void initState() {
     super.initState();
     commentTextFieldFocusNode = FocusNode();
+
+    // Debug: Check if post and user data are available
+    print('=== COMMENT SCREEN INITIALIZATION DEBUG ===');
+    print('Post ID: ${widget.post?.objectId}');
+    print('Post author: ${widget.post?.getAuthor?.getFullName}');
+    print('Current user: ${widget.currentUser?.getFullName}');
+    print('Current user ID: ${widget.currentUser?.objectId}');
+    print('Post comments count: ${widget.post?.getComments.length}');
+    print('=== COMMENT SCREEN INITIALIZATION DEBUG END ===');
   }
 
   @override
@@ -94,7 +106,12 @@ class _VideoReelsCommentScreenState extends State<VideoReelsCommentScreen> {
                 padding: const EdgeInsets.only(left: 10),
                 child: TextField(
                   keyboardType: TextInputType.multiline,
-                  onChanged: (text) {},
+                  onChanged: (text) {
+                    print('=== TEXT FIELD CHANGED DEBUG ===');
+                    print('Text: "$text"');
+                    print('Text length: ${text.length}');
+                    print('=== TEXT FIELD CHANGED DEBUG END ===');
+                  },
                   focusNode: commentTextFieldFocusNode,
                   maxLines: 1,
                   controller: commentController,
@@ -113,13 +130,23 @@ class _VideoReelsCommentScreenState extends State<VideoReelsCommentScreen> {
             marginRight: 10,
             borderRadius: 40,
             onTap: () {
+              print('=== COMMENT BUTTON TAPPED DEBUG ===');
+              print('Comment text: "${commentController.text}"');
+              print('Comment text length: ${commentController.text.length}');
+              print('Post ID: ${widget.post?.objectId}');
+              print('User ID: ${widget.currentUser?.objectId}');
+
               if (commentController.text.isNotEmpty) {
+                print('Comment text is not empty, creating comment...');
                 _createComment(widget.post!, commentController.text);
                 setState(() {
                   commentController.text = "";
                 });
                 QuickHelp.removeFocusOnTextField(context);
+              } else {
+                print('Comment text is empty, not creating comment');
               }
+              print('=== COMMENT BUTTON TAPPED DEBUG END ===');
             },
             child: TextWithTap(
               "comment_post.send_".tr(),
@@ -135,21 +162,93 @@ class _VideoReelsCommentScreenState extends State<VideoReelsCommentScreen> {
   }
 
   _createComment(PostsModel post, String text) async {
-    CommentsModel comment = CommentsModel();
-    comment.setAuthor = widget.currentUser!;
-    comment.setText = text;
-    comment.setAuthorId = widget.currentUser!.objectId!;
-    comment.setPostId = post.objectId!;
-    comment.setPost = post;
+    print('=== COMMENT CREATION DEBUG START ===');
+    print('Post ID: ${post.objectId}');
+    print('User ID: ${widget.currentUser?.objectId}');
+    print('Comment text: "$text"');
+    print('Post author: ${post.getAuthor?.getFullName}');
 
-    await comment.save();
+    try {
+      // Show loading indicator
+      QuickHelp.showLoadingDialog(context);
 
-    //post.setComments = comment.objectId!;
-    await post.save();
+      CommentsModel comment = CommentsModel();
+      comment.setAuthor = widget.currentUser!;
+      comment.setText = text;
+      comment.setAuthorId = widget.currentUser!.objectId!;
+      comment.setPostId = post.objectId!;
+      comment.setPost = post;
 
-    QuickActions.createOrDeleteNotification(widget.currentUser!,
-        post.getAuthor!, NotificationsModel.notificationTypeCommentPost,
-        post: post);
+      print('Comment model created, attempting to save...');
+      ParseResponse commentResponse = await comment.save();
+
+      print('Comment save response:');
+      print('- Success: ${commentResponse.success}');
+      print('- Error code: ${commentResponse.error?.code}');
+      print('- Error message: ${commentResponse.error?.message}');
+      print('- Comment objectId: ${comment.objectId}');
+
+      if (commentResponse.success) {
+        print('Comment saved successfully, updating post...');
+
+        // Update the post to trigger live query updates
+        ParseResponse postResponse = await post.save();
+        print('Post update response:');
+        print('- Success: ${postResponse.success}');
+        print('- Error: ${postResponse.error?.message}');
+
+        // Create notification
+        print('Creating notification...');
+        await QuickActions.createOrDeleteNotification(widget.currentUser!,
+            post.getAuthor!, NotificationsModel.notificationTypeCommentPost,
+            post: post);
+
+        print('Comment created successfully with ID: ${comment.objectId}');
+
+        // Update comment count in video interactions controller if available
+        try {
+          if (Get.isRegistered<VideoInteractionsController>(
+              tag: post.objectId)) {
+            final controller =
+                Get.find<VideoInteractionsController>(tag: post.objectId);
+            controller.updateCommentCount();
+            print('Updated comment count in controller');
+          }
+        } catch (e) {
+          print('Could not update comment count in controller: $e');
+        }
+
+        // Hide loading and show success
+        QuickHelp.hideLoadingDialog(context);
+        QuickHelp.showAppNotificationAdvanced(
+          context: context,
+          title: "Success",
+          message: "Comment added successfully!",
+          isError: false,
+        );
+      } else {
+        print('Comment save failed: ${commentResponse.error?.message}');
+        QuickHelp.hideLoadingDialog(context);
+        QuickHelp.showAppNotificationAdvanced(
+          context: context,
+          title: "Error",
+          message:
+              "Failed to create comment: ${commentResponse.error?.message}",
+          isError: true,
+        );
+      }
+    } catch (e, stackTrace) {
+      print('Comment creation error: $e');
+      print('Stack trace: $stackTrace');
+      QuickHelp.hideLoadingDialog(context);
+      QuickHelp.showAppNotificationAdvanced(
+        context: context,
+        title: "Error",
+        message: "Failed to create comment. Please try again.",
+        isError: true,
+      );
+    }
+    print('=== COMMENT CREATION DEBUG END ===');
   }
 
   Widget showAllComments() {
@@ -818,19 +917,44 @@ class _VideoReelsCommentScreenState extends State<VideoReelsCommentScreen> {
   }
 
   _replyComment({required CommentsModel comment}) async {
-    ReplyModel replyModel = ReplyModel();
+    try {
+      ReplyModel replyModel = ReplyModel();
 
-    replyModel.setComment = comment;
-    replyModel.setCommentId = comment.objectId!;
-    replyModel.setText = replyController.text;
-    replyModel.setAuthor = widget.currentUser!;
-    replyModel.setAuthorId = widget.currentUser!.objectId!;
+      replyModel.setComment = comment;
+      replyModel.setCommentId = comment.objectId!;
+      replyModel.setText = replyController.text;
+      replyModel.setAuthor = widget.currentUser!;
+      replyModel.setAuthorId = widget.currentUser!.objectId!;
 
-    await replyModel.save();
+      ParseResponse replyResponse = await replyModel.save();
 
-    QuickActions.createOrDeleteNotification(widget.currentUser!,
-        comment.getAuthor!, NotificationsModel.notificationTypeReplyCommentPost,
-        post: widget.post);
+      if (replyResponse.success) {
+        // Create notification
+        QuickActions.createOrDeleteNotification(
+            widget.currentUser!,
+            comment.getAuthor!,
+            NotificationsModel.notificationTypeReplyCommentPost,
+            post: widget.post);
+
+        print('Reply created successfully');
+      } else {
+        print('Reply save failed: ${replyResponse.error?.message}');
+        QuickHelp.showAppNotificationAdvanced(
+          context: context,
+          title: "Error",
+          message: "Failed to create reply. Please try again.",
+          isError: true,
+        );
+      }
+    } catch (e) {
+      print('Reply creation error: $e');
+      QuickHelp.showAppNotificationAdvanced(
+        context: context,
+        title: "Error",
+        message: "Failed to create reply. Please try again.",
+        isError: true,
+      );
+    }
   }
 
   _showReplyTextField(CommentsModel commentsModel) {

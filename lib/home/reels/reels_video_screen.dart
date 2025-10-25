@@ -24,7 +24,6 @@ import '../../ui/text_with_tap.dart';
 import '../feed/create_video_post_screen.dart';
 import '../message/message_screen.dart';
 
-
 // ignore: must_be_immutable
 class ReelsVideosScreen extends StatefulWidget {
   static String route = "/home/reels/videos";
@@ -91,12 +90,12 @@ class _ReelsVideosScreenState extends State<ReelsVideosScreen>
       title: "page_title.reels_videos_title"
           .tr(namedArgs: {"name": user!.getFullName!}),
       centerTitle: QuickHelp.isAndroidPlatform() ? true : false,
-      leftButtonIcon: QuickHelp.isAndroidPlatform() ? Icons.arrow_back_outlined : Icons.arrow_back_ios,
+      leftButtonIcon: QuickHelp.isAndroidPlatform()
+          ? Icons.arrow_back_outlined
+          : Icons.arrow_back_ios,
       rightButtonTwoPress:
           widget.mUser != null ? () => openSheet(widget.mUser!) : null,
-      rightButtonTwoIcon: widget.mUser != null
-          ? Icons.more_vert
-          : null,
+      rightButtonTwoIcon: widget.mUser != null ? Icons.more_vert : null,
       onLeftButtonTap: () => QuickHelp.goBackToPreviousPage(context),
       child: reelsScreen(),
       elevation: 1,
@@ -150,7 +149,12 @@ class _ReelsVideosScreenState extends State<ReelsVideosScreen>
                 mainAxisAlignment: MainAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  QuickActions.avatarWidget(user!, width: 60, height: 60),
+                  GestureDetector(
+                    onTap: () => QuickActions.showUserProfile(
+                        context, widget.currentUser!, user!),
+                    child:
+                        QuickActions.avatarWidget(user!, width: 60, height: 60),
+                  ),
                   Column(
                     mainAxisSize: MainAxisSize.min,
                     mainAxisAlignment: MainAxisAlignment.start,
@@ -191,7 +195,8 @@ class _ReelsVideosScreenState extends State<ReelsVideosScreen>
                               text: following
                                   ? "feed.reels_unfollow_user".tr()
                                   : "feed.reels_follow_user".tr(),
-                              color: following ? kPrimaryColor : kPrimacyGrayColor,
+                              color:
+                                  following ? kPrimaryColor : kPrimacyGrayColor,
                               svgName: 'ic_menu_followers',
                               borderRadius: 5,
                               fontSize: 16,
@@ -205,7 +210,8 @@ class _ReelsVideosScreenState extends State<ReelsVideosScreen>
                             ),
                           ),
                           Visibility(
-                            visible: widget.currentUser!.objectId != widget.mUser!.objectId,
+                            visible: widget.currentUser!.objectId !=
+                                widget.mUser!.objectId,
                             child: Flexible(
                               child: ButtonWithSvg(
                                 text: "feed.reels_send_message".tr(),
@@ -221,10 +227,11 @@ class _ReelsVideosScreenState extends State<ReelsVideosScreen>
                                 fontWeight: FontWeight.bold,
                                 press: () {
                                   QuickHelp.goToNavigatorScreen(
-                                      context, MessageScreen(
-                                    currentUser: widget.currentUser,
-                                    mUser: widget.mUser,
-                                  ));
+                                      context,
+                                      MessageScreen(
+                                        currentUser: widget.currentUser,
+                                        mUser: widget.mUser,
+                                      ));
                                 },
                               ),
                             ),
@@ -246,7 +253,11 @@ class _ReelsVideosScreenState extends State<ReelsVideosScreen>
                               fontSize: 16,
                               textColor: Colors.black,
                               fontWeight: FontWeight.bold,
-                              onTap: ()=> QuickHelp.goToNavigatorScreenForResult(context, ReelsSavedVideosScreen(currentUser: widget.currentUser)),
+                              onTap: () =>
+                                  QuickHelp.goToNavigatorScreenForResult(
+                                      context,
+                                      ReelsSavedVideosScreen(
+                                          currentUser: widget.currentUser)),
                             ),
                           ),
                           ButtonWithIcon(
@@ -298,8 +309,9 @@ class _ReelsVideosScreenState extends State<ReelsVideosScreen>
         PostsModel post = snapshot.loadedData as PostsModel;
 
         return GestureDetector(
-          onTap: (){
-            QuickHelp.goToNavigatorScreen(context, ReelsSingleScreen(currentUser: widget.currentUser, post: post,));
+          onTap: () {
+            QuickHelp.goToNavigatorScreen(context,
+                ReelsSingleScreen(currentUser: widget.currentUser, post: post));
           },
           child: Stack(
             children: [
@@ -671,8 +683,7 @@ class _ReelsVideosScreenState extends State<ReelsVideosScreen>
         .then((value) => widget.currentUser = value.result as UserModel);
 
     ParseResponse parseResponse = await QuickCloudCode.followUser(
-        author: widget.currentUser!,
-        receiver: widget.mUser!);
+        author: widget.currentUser!, receiver: widget.mUser!);
 
     if (parseResponse.success) {
       QuickActions.createOrDeleteNotification(widget.currentUser!,

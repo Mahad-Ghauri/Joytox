@@ -59,8 +59,28 @@ class VideoInteractionsController extends GetxController {
   }
 
   void _initializeValues() {
-    isLiked.value = video.getLikes.contains(currentUser?.objectId);
-    isSaved.value = video.getSaves.contains(currentUser?.objectId);
+    print('=== VIDEO INTERACTIONS INITIALIZATION DEBUG ===');
+    print('Video ID: ${video.objectId}');
+    print('Video author: ${video.getAuthor?.getFullName}');
+    print('Current user: ${currentUser?.getFullName}');
+    print('Current user ID: ${currentUser?.objectId}');
+
+    // Ensure we have valid user ID for comparison
+    String? currentUserId = currentUser?.objectId;
+
+    print('Video likes list: ${video.getLikes}');
+    print('Video saves list: ${video.getSaves}');
+    print('Video comments list: ${video.getComments}');
+
+    if (currentUserId != null) {
+      isLiked.value = video.getLikes.contains(currentUserId);
+      isSaved.value = video.getSaves.contains(currentUserId);
+      print('User ID found, checking likes/saves...');
+    } else {
+      isLiked.value = false;
+      isSaved.value = false;
+      print('No user ID found, setting likes/saves to false');
+    }
 
     // Verificar se o autor e o usuário atual são válidos antes de acessar following
     if (video.getAuthor != null &&
@@ -68,8 +88,10 @@ class VideoInteractionsController extends GetxController {
         currentUser!.getFollowing != null) {
       isFollowing.value =
           currentUser!.getFollowing!.contains(video.getAuthor!.objectId);
+      print('Following status: ${isFollowing.value}');
     } else {
       isFollowing.value = false;
+      print('Following status set to false (missing data)');
     }
 
     likesCount.value = video.getLikes.length;
@@ -78,8 +100,16 @@ class VideoInteractionsController extends GetxController {
     viewsCount.value = video.getViews;
     sharesCount.value = video.getShares.length;
 
-    print(
-        "VideoInteractionsController: Initialized counts - Likes: ${likesCount.value}, Comments: ${commentsCount.value}, Views: ${viewsCount.value}");
+    print('=== INITIALIZATION RESULTS ===');
+    print("Likes count: ${likesCount.value}");
+    print("Saves count: ${savesCount.value}");
+    print("Comments count: ${commentsCount.value}");
+    print("Views count: ${viewsCount.value}");
+    print("Shares count: ${sharesCount.value}");
+    print("User liked: ${isLiked.value}");
+    print("User saved: ${isSaved.value}");
+    print("User following: ${isFollowing.value}");
+    print('=== END INITIALIZATION DEBUG ===');
   }
 
   void updateVideoProgress(Duration position, Duration duration) {
@@ -192,32 +222,67 @@ class VideoInteractionsController extends GetxController {
   }
 
   Future<void> toggleLike() async {
+    print('=== LIKE TOGGLE DEBUG START ===');
+    print('Video ID: ${video.objectId}');
+    print('User ID: ${currentUser?.objectId}');
+    print('Current like state: ${isLiked.value}');
+    print('Current likes count: ${likesCount.value}');
+    print('Current likes list: ${video.getLikes}');
+
     try {
       if (isLiked.value) {
+        print('Removing like...');
         video.removeLike = currentUser!.objectId!;
         await _deleteLikeNotification();
         await _updateInteractionCache('cached_likes', video.objectId!, false);
+        print('Like removed from video model');
       } else {
+        print('Adding like...');
         video.setLikes = currentUser!.objectId!;
         video.setLastLikeAuthor = currentUser!;
         await _createLikeNotification();
         await _updateInteractionCache('cached_likes', video.objectId!, true);
+        print('Like added to video model');
       }
 
-      await video.save();
-      _updateVideoInReels();
+      print('Saving video to Parse...');
+      ParseResponse saveResponse = await video.save();
 
-      isLiked.value = !isLiked.value;
-      likesCount.value = video.getLikes.length;
+      print('Video save response:');
+      print('- Success: ${saveResponse.success}');
+      print('- Error code: ${saveResponse.error?.code}');
+      print('- Error message: ${saveResponse.error?.message}');
 
-      // Registrar interação para recomendações com peso
-      _recordLikeInteraction(weight: isLiked.value ? 1.0 : -0.5);
+      if (saveResponse.success) {
+        print('Video saved successfully, updating UI...');
+        _updateVideoInReels();
 
-      // Atualizar recomendações em tempo real
-      _updateRecommendations();
-    } catch (e) {
+        isLiked.value = !isLiked.value;
+        likesCount.value = video.getLikes.length;
+
+        // Registrar interação para recomendações com peso
+        _recordLikeInteraction(weight: isLiked.value ? 1.0 : -0.5);
+
+        // Atualizar recomendações em tempo real
+        _updateRecommendations();
+
+        print(
+            'Like toggled successfully. New like state: ${isLiked.value}, New like count: ${likesCount.value}');
+        print('Updated likes list: ${video.getLikes}');
+      } else {
+        print('Error saving like: ${saveResponse.error?.message}');
+        // Revert the like state if save failed
+        isLiked.value = !isLiked.value;
+        print('Reverted like state due to save failure');
+      }
+    } catch (e, stackTrace) {
       print('Error toggling like: $e');
+      print('Stack trace: $stackTrace');
+      // Revert the like state if error occurred
+      isLiked.value = !isLiked.value;
+      print('Reverted like state due to error');
     }
+    print('=== LIKE TOGGLE DEBUG END ===');
   }
 
   Future<void> toggleSave() async {
@@ -230,19 +295,30 @@ class VideoInteractionsController extends GetxController {
         await _updateInteractionCache('cached_saves', video.objectId!, true);
       }
 
-      await video.save();
-      _updateVideoInReels();
+      ParseResponse saveResponse = await video.save();
 
-      isSaved.value = !isSaved.value;
-      savesCount.value = video.getSaves.length;
+      if (saveResponse.success) {
+        _updateVideoInReels();
 
-      // Registrar interação para recomendações com peso maior
-      _recordSaveInteraction(weight: isSaved.value ? 2.0 : -1.0);
+        isSaved.value = !isSaved.value;
+        savesCount.value = video.getSaves.length;
 
-      // Atualizar recomendações em tempo real
-      _updateRecommendations();
+        // Registrar interação para recomendações com peso maior
+        _recordSaveInteraction(weight: isSaved.value ? 2.0 : -1.0);
+
+        // Atualizar recomendações em tempo real
+        _updateRecommendations();
+
+        print('Save toggled successfully. New save count: ${savesCount.value}');
+      } else {
+        print('Error saving save: ${saveResponse.error?.message}');
+        // Revert the save state if save failed
+        isSaved.value = !isSaved.value;
+      }
     } catch (e) {
       print('Error toggling save: $e');
+      // Revert the save state if error occurred
+      isSaved.value = !isSaved.value;
     }
   }
 
@@ -312,6 +388,17 @@ class VideoInteractionsController extends GetxController {
     commentsCount.refresh();
     viewsCount.refresh();
     sharesCount.refresh();
+  }
+
+  // Method to refresh video data from server
+  Future<void> refreshVideoData() async {
+    try {
+      await video.fetch();
+      _initializeValues();
+      print('Video data refreshed successfully');
+    } catch (e) {
+      print('Error refreshing video data: $e');
+    }
   }
 
   void _recordLikeInteraction({double weight = 1.0}) {
@@ -434,8 +521,17 @@ class VideoInteractionsController extends GetxController {
 
   // Método para atualizar contagem de comentários quando um novo comentário é criado
   void updateCommentCount() {
+    print('=== COMMENT COUNT UPDATE DEBUG ===');
+    print('Video ID: ${video.objectId}');
+    print('Current comments count: ${commentsCount.value}');
+    print('Video comments list: ${video.getComments}');
+    print('Video comments length: ${video.getComments.length}');
+
     commentsCount.value = video.getComments.length;
+    print('Updated comments count: ${commentsCount.value}');
+
     _updateVideoInReels();
+    print('=== COMMENT COUNT UPDATE DEBUG END ===');
   }
 
   void goToProfile(BuildContext context) {

@@ -53,7 +53,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:zego_uikit_prebuilt_call/zego_uikit_prebuilt_call.dart';
 import 'package:zego_uikit_prebuilt_live_streaming/zego_uikit_prebuilt_live_streaming.dart';
-import 'package:zego_uikit_signaling_plugin/zego_uikit_signaling_plugin.dart';
 import 'controllers/feed_controller.dart';
 import 'home/responsive_home_screen.dart';
 import 'home/feed/create_pictures_post_screen.dart';
@@ -99,6 +98,7 @@ import 'package:trace/models/VideoInteractionModel.dart';
 import 'package:trace/views/video_creation_page.dart';
 import 'package:trace/views/video_editor_screen.dart';
 import 'package:trace/services/posts_service.dart';
+import 'package:trace/services/call_services.dart';
 import 'package:trace/services/firebase_notification_service.dart';
 import 'package:trace/home/notifications/firebase_debug_screen.dart';
 
@@ -238,9 +238,8 @@ void main() async {
   // Controller will be lazy-loaded when needed
   //  Initialize the logs for zego kit user interface
   ZegoUIKit().initLog().then((value) {
-    ZegoUIKitPrebuiltCallInvitationService().useSystemCallingUI(
-      [ZegoUIKitSignalingPlugin()],
-    );
+    // Note: ZegoUIKitPrebuiltCallInvitationService initialization is now handled in call_services.dart
+    // when the user logs in, to ensure proper user context and connection
     //  Run the application
     runApp(
       EasyLocalization(
@@ -365,6 +364,9 @@ class _AppState extends State<App> with WidgetsBindingObserver {
         // Initialize notification service
         _initializeFirebaseNotifications(currentUser!);
 
+        // Initialize call service for audio/video calls
+        _initializeCallService(currentUser!);
+
         return currentUser;
       }
     } catch (e) {
@@ -415,6 +417,20 @@ class _AppState extends State<App> with WidgetsBindingObserver {
         print('❌ Failed to initialize Firebase notifications');
       }
     });
+  }
+
+  // Initialize call service for audio/video calls
+  void _initializeCallService(UserModel currentUser) {
+    print('🔧 _initializeCallService called for user: ${currentUser.objectId}');
+    try {
+      onUserLogin(currentUser).then((_) {
+        print('✅ Call service initialized successfully');
+      }).catchError((e) {
+        print('❌ Failed to initialize call service: $e');
+      });
+    } catch (e) {
+      print('❌ Failed to initialize call service: $e');
+    }
   }
 
   RemoveOnline() async {

@@ -14,6 +14,7 @@ import 'package:location/location.dart';
 import '../home/responsive_home_screen.dart';
 import '../home/profile/profile_edit_complete.dart';
 import '../services/push_service.dart';
+import '../services/call_services.dart';
 
 // ignore_for_file: must_be_immutable
 class DispacheScreen extends StatefulWidget {
@@ -55,6 +56,15 @@ class _DispacheScreenState extends State<DispacheScreen> {
       }
 
       loginUserPurchase(widget.currentUser!.objectId!);
+
+      // Initialize call service for audio/video calls
+      print(
+          '🔧 DispacheScreen: Initializing call service for user: ${widget.currentUser!.objectId}');
+      onUserLogin(widget.currentUser!).then((_) {
+        print('✅ Call service initialization completed');
+      }).catchError((e) {
+        print('❌ Call service initialization failed: $e');
+      });
 
       if (widget.currentUser!.getFirstName == null ||
           widget.currentUser!.getGender == null ||
