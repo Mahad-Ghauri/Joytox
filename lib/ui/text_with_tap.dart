@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_linkify/flutter_linkify.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher_string.dart';
+import '../utils/text_sanitizer.dart';
 
 class TextWithTap extends StatelessWidget {
   final Function? onTap;
@@ -47,13 +48,16 @@ class TextWithTap extends StatelessWidget {
     this.maxLines,
     this.textItalic = false,
     this.selectableText = false,
-        this.urlDetectable = false,
-        this.humanize = true,
-        this.removeWww = false,
-        this.looseUrl = true,
-        this.defaultToHttps = false,
-        this.excludeLastPeriod = true,
+    this.urlDetectable = false,
+    this.humanize = true,
+    this.removeWww = false,
+    this.looseUrl = true,
+    this.defaultToHttps = false,
+    this.excludeLastPeriod = true,
   }) : super(key: key);
+
+  /// Get sanitized text to prevent UTF-16 encoding errors
+  String get sanitizedText => TextSanitizer.sanitizeText(text);
 
   @override
   Widget build(BuildContext context) {
@@ -71,10 +75,8 @@ class TextWithTap extends StatelessWidget {
     );
   }
 
-  Widget getText(){
-
-    if(selectableText! && urlDetectable!){
-
+  Widget getText() {
+    if (selectableText! && urlDetectable!) {
       return SelectableLinkify(
         onOpen: _onOpen,
         //textScaleFactor: 2.0,
@@ -85,7 +87,7 @@ class TextWithTap extends StatelessWidget {
           paste: false,
           cut: false,
         ),*/
-        text: text,
+        text: sanitizedText,
         options: LinkifyOptions(
           humanize: humanize!,
           removeWww: removeWww!,
@@ -104,11 +106,9 @@ class TextWithTap extends StatelessWidget {
           decoration: decoration,
         ),
       );
-
-    } else if(selectableText! && !urlDetectable!){
-
+    } else if (selectableText! && !urlDetectable!) {
       return SelectableText(
-        text,
+        sanitizedText,
         maxLines: maxLines,
         textAlign: textAlign,
         selectionControls: MaterialTextSelectionControls(),
@@ -127,21 +127,19 @@ class TextWithTap extends StatelessWidget {
           decoration: decoration,
         ),
       );
-
-    } else if(!selectableText! && urlDetectable!){
-
+    } else if (!selectableText! && urlDetectable!) {
       return Linkify(
-        text: text,
+        text: sanitizedText,
         onOpen: _onOpen,
         maxLines: maxLines,
         textAlign: textAlign!,
         overflow: overflow!,
         options: LinkifyOptions(
-           humanize: humanize!,
-           removeWww: removeWww!,
-           looseUrl: looseUrl!,
-           defaultToHttps: defaultToHttps!,
-           excludeLastPeriod: excludeLastPeriod!,
+          humanize: humanize!,
+          removeWww: removeWww!,
+          looseUrl: looseUrl!,
+          defaultToHttps: defaultToHttps!,
+          excludeLastPeriod: excludeLastPeriod!,
         ),
         style: GoogleFonts.roboto(
           //overflow: overflow,
@@ -152,11 +150,9 @@ class TextWithTap extends StatelessWidget {
           decoration: decoration,
         ),
       );
-
-    } else if(!selectableText! && !urlDetectable!){
-
+    } else if (!selectableText! && !urlDetectable!) {
       return Text(
-        text,
+        sanitizedText,
         maxLines: maxLines,
         textAlign: textAlign,
         overflow: overflow,

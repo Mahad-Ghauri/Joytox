@@ -1,5 +1,6 @@
 // ignore_for_file: deprecated_member_use, unused_element
 
+import 'dart:async';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:expandable_text/expandable_text.dart';
 import 'package:flutter/material.dart';
@@ -17,6 +18,7 @@ import '../../../models/PostsModel.dart';
 import '../../../models/UserModel.dart';
 import '../../../ui/container_with_corner.dart';
 import '../../../utils/colors.dart';
+import '../../../utils/text_sanitizer.dart';
 import '../services/posts_service.dart';
 
 class ReelsInteractions extends GetView<VideoInteractionsController> {
@@ -39,8 +41,58 @@ class ReelsInteractions extends GetView<VideoInteractionsController> {
     }
   }
 
-  @override
-  String? get tag => postModel.objectId;
+  /// Enhanced method to ensure author is loaded with proper error handling and UI updates
+  void _ensureAuthorIsLoaded() {
+    // Check if author is already loaded and has valid data
+    if (postModel.getAuthor != null &&
+        postModel.getAuthor!.getFullName != null) {
+      print(
+          'ReelsInteractions: Author already loaded for post ${postModel.objectId}: ${postModel.getAuthor!.getFullName}');
+      return;
+    }
+
+    // Check if we have an author ID to fetch
+    if (postModel.getAuthorId == null) {
+      print('ReelsInteractions: No author ID for post ${postModel.objectId}');
+      return;
+    }
+
+    print('ReelsInteractions: Fetching author for post ${postModel.objectId}');
+
+    // Try to fetch author using PostsService
+    if (Get.isRegistered<PostsService>()) {
+      final postsService = Get.find<PostsService>();
+
+      // Use async method with proper error handling
+      postsService.fetchAuthorForPost(postModel).then((_) {
+        print(
+            'ReelsInteractions: Author fetch completed for post ${postModel.objectId}');
+
+        // Force UI refresh after author is loaded
+        if (postModel.getAuthor != null &&
+            postModel.getAuthor!.getFullName != null) {
+          print(
+              'ReelsInteractions: Author loaded successfully: ${postModel.getAuthor!.getFullName}');
+          // Trigger UI update by calling setState or using GetX reactive updates
+          if (Get.isRegistered<VideoInteractionsController>(
+              tag: postModel.objectId)) {
+            final controller =
+                Get.find<VideoInteractionsController>(tag: postModel.objectId);
+            controller.update(); // Force controller update
+            print(
+                'ReelsInteractions: Controller updated for post ${postModel.objectId}');
+          }
+        } else {
+          print(
+              'ReelsInteractions: Failed to load author for post ${postModel.objectId} - author is null or has no name');
+        }
+      }).catchError((error) {
+        print('ReelsInteractions: Error fetching author: $error');
+      });
+    } else {
+      print('ReelsInteractions: PostsService not registered');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -63,12 +115,17 @@ class ReelsInteractions extends GetView<VideoInteractionsController> {
       }
     });
 
-    // Try to fetch author if missing
-    if (postModel.getAuthor == null && postModel.getAuthorId != null) {
-      if (Get.isRegistered<PostsService>()) {
-        final postsService = Get.find<PostsService>();
-        Future.microtask(() => postsService.fetchAuthorForPost(postModel));
-      }
+    // Enhanced author fetching logic
+    _ensureAuthorIsLoaded();
+
+    // Force refresh author data if needed
+    if ((postModel.getAuthor == null ||
+            postModel.getAuthor!.getFullName == null) &&
+        postModel.getAuthorId != null) {
+      // Try to fetch author again after a short delay
+      Future.delayed(Duration(milliseconds: 500), () {
+        _ensureAuthorIsLoaded();
+      });
     }
 
     return Column(
@@ -99,6 +156,75 @@ class ReelsInteractions extends GetView<VideoInteractionsController> {
         ),
       ],
     );
+  }
+
+  /// Enhanced avatar widget with better error handling and fallbacks
+  Widget _buildAuthorAvatar(UserModel author) {
+    try {
+      // Check if author has valid avatar URL
+      final avatarUrl = author.getAvatar?.url;
+      final hasValidAvatar = avatarUrl != null && avatarUrl.isNotEmpty;
+
+      print('ReelsInteractions: Building avatar for ${author.getFullName}');
+      print('ReelsInteractions: Avatar URL: $avatarUrl');
+      print('ReelsInteractions: Has valid avatar: $hasValidAvatar');
+
+      if (hasValidAvatar) {
+        return QuickActions.avatarWidget(
+          author,
+          width: 45,
+          height: 45,
+          margin: EdgeInsets.only(bottom: 0, top: 0, left: 0, right: 5),
+        );
+      } else {
+        // Show initials as fallback
+        final displayName = author.getFullName ?? author.getFirstName ?? "U";
+        return Container(
+          width: 45,
+          height: 45,
+          margin: EdgeInsets.only(bottom: 0, top: 0, left: 0, right: 5),
+          child: CircleAvatar(
+            backgroundColor: Colors.grey.withOpacity(0.3),
+            child: Text(
+              _getInitials(displayName),
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      print('ReelsInteractions: Error building avatar: $e');
+      // Fallback to simple circle with initials
+      return Container(
+        width: 45,
+        height: 45,
+        margin: EdgeInsets.only(bottom: 0, top: 0, left: 0, right: 5),
+        child: CircleAvatar(
+          backgroundColor: Colors.grey.withOpacity(0.3),
+          child: Icon(
+            Icons.person,
+            color: Colors.white70,
+            size: 24,
+          ),
+        ),
+      );
+    }
+  }
+
+  /// Get initials from full name
+  String _getInitials(String name) {
+    if (name.isEmpty) return "U";
+
+    final words = name.trim().split(' ');
+    if (words.length >= 2) {
+      return (words[0][0] + words[1][0]).toUpperCase();
+    } else {
+      return words[0][0].toUpperCase();
+    }
   }
 
   Widget _interactionsWidget(BuildContext context) {
@@ -291,7 +417,7 @@ class ReelsInteractions extends GetView<VideoInteractionsController> {
     return Container(
       width: 220,
       child: ExpandableText(
-        postModel.getText!,
+        TextSanitizer.sanitizePostText(postModel.getText),
         expandText: tr('show_more'),
         collapseText: tr('show_less'),
         maxLines: 2,
@@ -327,10 +453,25 @@ class ReelsInteractions extends GetView<VideoInteractionsController> {
   }
 
   Widget _userNameAndTimeUploadedWidget(BuildContext context) {
+    // Debug logging
+    print(
+        'ReelsInteractions: Author for post ${postModel.objectId}: ${postModel.getAuthor?.getFullName}');
+    print('ReelsInteractions: Author ID: ${postModel.getAuthorId}');
+    print(
+        'ReelsInteractions: Author avatar: ${postModel.getAuthor?.getAvatar?.url}');
+
+    // Always try to fetch author if not loaded or if author has no name
+    if ((postModel.getAuthor == null ||
+            postModel.getAuthor!.getFullName == null) &&
+        postModel.getAuthorId != null) {
+      _ensureAuthorIsLoaded();
+    }
+
+    // Get the current author data
     final author = postModel.getAuthor;
 
+    // If author is null, show loading state
     if (author == null) {
-      // Show a fallback with author ID or "Unknown User"
       return Row(
         mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -342,15 +483,23 @@ class ReelsInteractions extends GetView<VideoInteractionsController> {
               color: Colors.grey.withOpacity(0.3),
               shape: BoxShape.circle,
             ),
+            child: postModel.getAuthorId != null
+                ? CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white70),
+                  )
+                : Icon(
+                    Icons.person,
+                    color: Colors.white70,
+                    size: 24,
+                  ),
           ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               TextWithTap(
-                postModel.getAuthorId != null
-                    ? "User ${postModel.getAuthorId!.substring(0, 8)}..."
-                    : "Unknown User",
+                postModel.getAuthorId != null ? "Loading..." : "Unknown User",
                 fontWeight: FontWeight.bold,
                 color: Colors.white.withOpacity(1.0),
                 fontSize: 15,
@@ -362,22 +511,19 @@ class ReelsInteractions extends GetView<VideoInteractionsController> {
       );
     }
 
+    // Author is loaded, show the actual data
     return Row(
       mainAxisSize: MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        QuickActions.avatarWidget(
-          author,
-          width: 45,
-          height: 45,
-          margin: EdgeInsets.only(bottom: 0, top: 0, left: 0, right: 5),
-        ),
+        // Enhanced avatar widget with better error handling
+        _buildAuthorAvatar(author),
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             TextWithTap(
-              author.getFullName ?? "",
+              author.getFullName ?? "Loading...",
               fontWeight: FontWeight.bold,
               color: Colors.white.withOpacity(1.0),
               fontSize: 15,

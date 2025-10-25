@@ -311,6 +311,15 @@ class ReelsController extends GetxController with WidgetsBindingObserver {
       // Garantir que os autores dos vídeos estejam carregados
       await _verificarECarregarAutoresDosPosts();
 
+      // Force refresh of author data for all videos
+      for (var video in _videos) {
+        if (video.getAuthor == null && video.getAuthorId != null) {
+          print(
+              'ReelsController: Force loading author for video ${video.objectId}');
+          await _postsService.fetchAuthorForPost(video);
+        }
+      }
+
       print(
           'ReelsController: ${_videos.length} vídeos carregados imediatamente');
 
@@ -409,6 +418,13 @@ class ReelsController extends GetxController with WidgetsBindingObserver {
   Future<void> _verificarECarregarAutoresDosPosts() async {
     try {
       // Debug: Print all videos and their authors
+      print(
+          'ReelsController: Verificando autores para ${videos.length} vídeos');
+      for (int i = 0; i < videos.length; i++) {
+        final video = videos[i];
+        print(
+            'ReelsController: Vídeo $i - ID: ${video.objectId}, Author: ${video.getAuthor?.getFullName}, AuthorID: ${video.getAuthorId}');
+      }
 
       // Verificar se algum vídeo não tem autor
       final videosComAutorNulo =
@@ -431,6 +447,14 @@ class ReelsController extends GetxController with WidgetsBindingObserver {
           // Verificar se podemos modificar o vídeo de forma segura
           try {
             await _postsService.fetchAuthorForPost(videoLocal);
+
+            // Force UI update after author is loaded
+            if (videoLocal.getAuthor != null) {
+              print(
+                  'ReelsController: Author loaded for video ${videoLocal.objectId}: ${videoLocal.getAuthor!.getFullName}');
+              // Force UI refresh
+              videos.refresh();
+            }
           } catch (e) {
             print(
                 'ReelsController: Erro ao carregar autor para vídeo ${videoLocal.objectId}: $e');

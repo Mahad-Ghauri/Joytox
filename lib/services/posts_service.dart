@@ -163,6 +163,8 @@ class PostsService extends GetxService {
         ..includeObject([PostsModel.keyAuthor])
         ..setLimit(20);
 
+      print('PostsService: Query includes author: ${query.includeObject}');
+
       print('PostsService: Executando consulta de vídeos...');
       final response = await query.query();
 
@@ -177,10 +179,12 @@ class PostsService extends GetxService {
           videoPosts.clear();
           videoPosts.addAll(videos);
 
-          // Debug - verificar URLs
+          // Debug - verificar URLs e autores
           for (var video in videos.take(3)) {
             print(
                 'PostsService: Video ${video.objectId}: URL=${video.getVideo?.url}, thumb=${video.getVideoThumbnail?.url}');
+            print(
+                'PostsService: Video ${video.objectId}: Author=${video.getAuthor?.getFullName}, AuthorID=${video.getAuthorId}');
           }
         }
 
@@ -603,19 +607,43 @@ class PostsService extends GetxService {
 
   /// Carregar autor para um post específico
   Future<void> fetchAuthorForPost(PostsModel post) async {
-    if (post.getAuthor != null || post.getAuthorId == null) return;
+    print(
+        "PostsService: fetchAuthorForPost chamado para post ${post.objectId}");
+    print("PostsService: Post já tem autor? ${post.getAuthor != null}");
+    print("PostsService: Post AuthorID: ${post.getAuthorId}");
+
+    if ((post.getAuthor != null && post.getAuthor!.getFullName != null) ||
+        post.getAuthorId == null) return;
 
     try {
       QueryBuilder<UserModel> query =
           QueryBuilder<UserModel>(UserModel.forQuery())
-            ..whereEqualTo(UserModel.keyObjectId, post.getAuthorId);
+            ..whereEqualTo(UserModel.keyObjectId, post.getAuthorId)
+            ..includeObject([
+              UserModel.keyAvatar,
+              UserModel.keyAvatarFrame
+            ]); // Include avatar data
 
+      print(
+          "PostsService: Executando query para buscar autor ${post.getAuthorId}");
       final response = await query.query();
+
+      print(
+          "PostsService: Query response - success: ${response.success}, results: ${response.results?.length}");
+
       if (response.success &&
           response.results != null &&
           response.results!.isNotEmpty) {
         UserModel author = response.results!.first as UserModel;
+
+        // Verify author data
+        print(
+            "PostsService: Author loaded - Name: ${author.getFullName}, Avatar: ${author.getAvatar?.url}");
+
         post.setAuthor = author;
+
+        print(
+            "PostsService: Author set for post ${post.objectId}: ${post.getAuthor?.getFullName}");
 
         // Atualizar no feed e nos vídeos se necessário
         updatePost(post);
@@ -626,6 +654,11 @@ class PostsService extends GetxService {
 
         print(
             "PostsService: Autor ${author.getFullName} carregado para post ${post.objectId}");
+        print(
+            "PostsService: Author details - Name: ${author.getFullName}, Avatar: ${author.getAvatar?.url}");
+      } else {
+        print(
+            "PostsService: Nenhum autor encontrado para post ${post.objectId}");
       }
     } catch (e) {
       print("PostsService: Erro ao carregar autor para post: $e");

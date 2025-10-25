@@ -129,6 +129,12 @@ class QuickActions {
     double? vipFrameWidth = 43,
     double? vipFrameHeight = 40,
   }) {
+    // Debug logging
+    print('QuickActions.avatarWidget: User: ${currentUser.getFullName}');
+    print(
+        'QuickActions.avatarWidget: Avatar URL: ${currentUser.getAvatar?.url}');
+    print('QuickActions.avatarWidget: Image URL: $imageUrl');
+
     // Always show avatar without checks
     return Stack(
       alignment: AlignmentDirectional.center,
@@ -137,17 +143,25 @@ class QuickActions {
           margin: margin,
           width: width,
           height: height,
-          child: CachedNetworkImage(
-            imageUrl: currentUser.getAvatar?.url ?? imageUrl ?? "",
-            imageBuilder: (context, imageProvider) => Container(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                image: DecorationImage(image: imageProvider, fit: BoxFit.cover),
-              ),
-            ),
-            placeholder: (context, url) => _avatarInitials(currentUser),
-            errorWidget: (context, url, error) => _avatarInitials(currentUser),
-          ),
+          child: (currentUser.getAvatar?.url?.isNotEmpty == true ||
+                  (imageUrl?.isNotEmpty == true))
+              ? CachedNetworkImage(
+                  imageUrl: currentUser.getAvatar?.url ?? imageUrl ?? "",
+                  imageBuilder: (context, imageProvider) => Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      image: DecorationImage(
+                          image: imageProvider, fit: BoxFit.cover),
+                    ),
+                  ),
+                  placeholder: (context, url) => _avatarInitials(currentUser),
+                  errorWidget: (context, url, error) {
+                    print(
+                        'QuickActions.avatarWidget: Error loading image: $error');
+                    return _avatarInitials(currentUser);
+                  },
+                )
+              : _avatarInitials(currentUser),
         ),
         // Show avatar frame if available
         if (currentUser.getAvatarFrame != null && !hideAvatarFrame)
