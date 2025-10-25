@@ -22,7 +22,6 @@ class LiveStreamingModel extends ParseObject implements ParseCloneable {
   static final String liveTypeLive = "live";
   static final String liveTypeBattle = "battle";
 
-  static final String livePrefixAudioRoom = "audio_room";
   static final String livePrefixLive = "single_live";
   static final String livePrefixParty = "party_live";
 
@@ -108,12 +107,9 @@ class LiveStreamingModel extends ParseObject implements ParseCloneable {
   static final String keyInvitedPartyLive = "invitedPartyLive";
   static final String keyInvitedPartyLiveAuthor = "invitedPartyLive.Author";
 
-  static final String liveAudio = "audio";
   static final String liveVideo = "video";
 
   static final String keyLiveType = "liveType";
-
-  static final String keyAudioHostsList = "audioHostsList";
 
   static final String keyRemovedUserIds = "removed_users_id";
 
@@ -121,7 +117,6 @@ class LiveStreamingModel extends ParseObject implements ParseCloneable {
   static final String keyUnMutedUserIds = "un_muted_users_id";
   static final String keyUserSelfMutedAudioIds = "user_self_muted_audio";
 
-  static final String keyAudioRoomTitle = "audio_room_title";
   static final String keyLiveSubType = "live_sub_type";
 
   static final String keyFollowers = "new_followers";
@@ -327,9 +322,8 @@ class LiveStreamingModel extends ParseObject implements ParseCloneable {
   set setLiveSubType(String audioRoomTitle) =>
       set<String>(keyLiveSubType, audioRoomTitle);
 
-  String? get getLiveTitle => get<String>(keyAudioRoomTitle);
-  set setLiveTitle(String audioRoomTitle) =>
-      set<String>(keyAudioRoomTitle, audioRoomTitle);
+  String? get getLiveTitle => get<String>(keyLiveSubType);
+  set setLiveTitle(String liveTitle) => set<String>(keyLiveSubType, liveTitle);
 
   List<dynamic>? get getUserSelfMutedAudioIds {
     List<dynamic>? users = get<List<dynamic>>(keyUserSelfMutedAudioIds);
@@ -384,20 +378,6 @@ class LiveStreamingModel extends ParseObject implements ParseCloneable {
       setAddUnique(keyRemovedUserIds, userId);
   set removeRemovedUserIds(String userId) =>
       setRemove(keyRemovedUserIds, userId);
-
-  List<dynamic>? get getAudioHostsList {
-    List<dynamic>? users = get<List<dynamic>>(keyAudioHostsList);
-    if (users != null && users.length > 0) {
-      return users;
-    } else {
-      return [];
-    }
-  }
-
-  set addAudioHostToList(UserModel user) =>
-      setAddUnique(keyAudioHostsList, user);
-  set removeAudioHostToList(UserModel user) =>
-      setRemove(keyAudioHostsList, user);
 
   String? get getLiveType => get<String>(keyLiveType);
   set setLiveType(String liveType) => set<String>(keyLiveType, liveType);

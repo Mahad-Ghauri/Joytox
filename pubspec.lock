@@ -2834,14 +2834,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "4.16.28"
-  zego_uikit_prebuilt_live_audio_room:
-    dependency: "direct main"
-    description:
-      name: zego_uikit_prebuilt_live_audio_room
-      sha256: f359c57b4cceb1767b77c0445244d89fd290c7ffb25660b5901392fd47f614f2
-      url: "https://pub.dev"
-    source: hosted
-    version: "3.15.9"
   zego_uikit_prebuilt_live_streaming:
     dependency: "direct main"
     description:

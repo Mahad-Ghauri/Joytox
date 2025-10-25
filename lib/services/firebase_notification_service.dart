@@ -8,7 +8,6 @@ import '../helpers/send_notifications.dart';
 import '../home/feed/comment_post_screen.dart';
 import '../home/message/message_screen.dart';
 import '../home/prebuild_live/multi_users_live_screen.dart';
-import '../home/prebuild_live/prebuild_audio_room_screen.dart';
 import '../home/prebuild_live/prebuild_live_screen.dart';
 import '../home/profile/user_profile_screen.dart';
 import '../home/reels/reels_single_screen.dart';
@@ -305,15 +304,6 @@ class FirebaseNotificationService {
           liveStreaming: liveStreaming,
           liveID: liveStreaming.getStreamingChannel!,
           localUserID: currentUser.objectId!,
-        ),
-      );
-    } else if (liveStreaming.getLiveType == LiveStreamingModel.liveAudio) {
-      QuickHelp.goToNavigatorScreen(
-        context,
-        PrebuildAudioRoomScreen(
-          currentUser: currentUser,
-          isHost: false,
-          liveStreaming: liveStreaming,
         ),
       );
     } else if (liveStreaming.getLiveType == LiveStreamingModel.liveTypeParty) {

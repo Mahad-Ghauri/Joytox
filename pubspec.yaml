@@ -103,7 +103,6 @@ dependencies:
   zego_uikit: ^2.28.11
   zego_uikit_prebuilt_live_streaming: ^3.13.15
   zego_uikit_signaling_plugin: ^2.8.11
-  zego_uikit_prebuilt_live_audio_room: ^3.15.9
   zego_uikit_prebuilt_call: ^4.16.27
 
   #Geo data and phone helper

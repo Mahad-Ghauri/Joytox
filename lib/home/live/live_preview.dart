@@ -21,7 +21,6 @@ import '../../helpers/quick_actions.dart';
 import '../../models/GiftsModel.dart';
 import '../prebuild_live/global_private_live_price_sheet.dart';
 import '../prebuild_live/multi_users_live_screen.dart';
-import '../prebuild_live/prebuild_audio_room_screen.dart';
 import '../prebuild_live/prebuild_live_screen.dart';
 import '../upload_live_photo/upload_live_photo_screen.dart';
 import 'package:flutter/cupertino.dart' as cupertino;
@@ -85,9 +84,6 @@ class _LivePreviewScreenState extends State<LivePreviewScreen>
     "assets/images/ic_party_person_9_select.png",
   ];
 
-  //var audioRoomSeatsNumber = [8,12,16,20,24];
-  var audioRoomSeatsNumber = [8, 12, 16];
-
   var unselectedPartyChair = [
     "assets/images/ic_party_person_4_unselect.png",
     "assets/images/ic_party_person_6_unselect.png",
@@ -95,7 +91,6 @@ class _LivePreviewScreenState extends State<LivePreviewScreen>
   ];
 
   var selectedPartyChairsNumber = [0];
-  var selectedAudioRoomSeatNumber = [0];
 
   var liveTitle = [
     "random_live_title.live_chat".tr(),
@@ -112,7 +107,6 @@ class _LivePreviewScreenState extends State<LivePreviewScreen>
   var liveTypeOptionTitle = [
     "go_live_options.video_stream".tr(),
     "go_live_options.live_party".tr(),
-    "go_live_options.audio_stream".tr(),
   ];
 
   @override
@@ -703,192 +697,37 @@ class _LivePreviewScreenState extends State<LivePreviewScreen>
         ),
       );
     } else {
-      return Column(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: List.generate(audioRoomSeatsNumber.length, (index) {
-              bool isSelected = selectedAudioRoomSeatNumber.contains(index);
-              return ContainerCorner(
-                onTap: () {
-                  selectedAudioRoomSeatNumber.clear();
-                  setState(() {
-                    selectedAudioRoomSeatNumber.add(index);
-                  });
-                },
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  isSelected ? kRedColor1 : kTransparentColor,
-                  isSelected ? kGoogleColor : kTransparentColor
-                ],
-                borderRadius: 4,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextWithTap(
-                      "${audioRoomSeatsNumber[index]}",
-                      color: isSelected ? Colors.white : Colors.white54,
-                      fontWeight: FontWeight.w900,
-                      marginRight: 5,
-                      marginLeft: 3,
-                    ),
-                    SvgPicture.asset(
-                      "assets/svg/audio_room_seats.svg",
-                      width: 25,
-                      colorFilter: ColorFilter.mode(
-                        isSelected ? Colors.white : Colors.white54,
-                        BlendMode.srcIn,
-                      ),
-                    ),
-                    SizedBox(
-                      width: 3,
-                    ),
-                  ],
-                ),
+      return ContainerCorner(
+        color: kVioletColor,
+        borderWidth: 0,
+        height: 45,
+        marginBottom: 45,
+        borderRadius: 50,
+        width: size.width / 1.8,
+        onTap: () {
+          if (ZegoUIKitPrebuiltLiveStreamingController()
+              .minimize
+              .isMinimizing) {
+            return;
+          }
+          if (formKey.currentState!.validate()) {
+            if (widget.currentUser!.getLiveCover != null) {
+              startLive();
+            } else {
+              QuickHelp.showAppNotificationAdvanced(
+                title: "live_starter_screen.select_live_cover_tittle".tr(),
+                message: "live_starter_screen.select_live_cover_explain".tr(),
+                context: context,
               );
-            }),
-          ),
-          ContainerCorner(
-            color: kVioletColor,
-            borderWidth: 0,
-            height: 45,
-            marginBottom: 45,
-            marginTop: 30,
-            borderRadius: 50,
-            width: size.width / 1.8,
-            onTap: () {
-              if (ZegoUIKitPrebuiltLiveStreamingController()
-                  .minimize
-                  .isMinimizing) {
-                return;
-              }
-              if (formKey.currentState!.validate()) {
-                if (widget.currentUser!.getLiveCover != null) {
-                  createAudioRoom();
-                } else {
-                  QuickHelp.showAppNotificationAdvanced(
-                    title: "live_starter_screen.select_live_cover_tittle".tr(),
-                    message:
-                        "live_starter_screen.select_live_cover_explain".tr(),
-                    context: context,
-                  );
-                }
-              }
-            },
-            child: TextWithTap(
-              "start_audio_room".tr(),
-              color: Colors.white,
-              alignment: Alignment.center,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
-      );
-    }
-  }
-
-  void createAudioRoom() async {
-    QuickHelp.showLoadingDialog(context, isDismissible: false);
-
-    QueryBuilder<LiveStreamingModel> queryBuilder =
-        QueryBuilder(LiveStreamingModel());
-    queryBuilder.whereEqualTo(
-        LiveStreamingModel.keyAuthorId, widget.currentUser!.objectId);
-    queryBuilder.whereEqualTo(LiveStreamingModel.keyStreaming, true);
-
-    ParseResponse parseResponse = await queryBuilder.query();
-    if (parseResponse.success) {
-      if (parseResponse.results != null) {
-        LiveStreamingModel live =
-            parseResponse.results!.first! as LiveStreamingModel;
-
-        live.setStreaming = false;
-        await live.save();
-
-        startNewAudioRoom();
-      } else {
-        startNewAudioRoom();
-      }
-    } else {
-      QuickHelp.showErrorResult(context, parseResponse.error!.code);
-      QuickHelp.hideLoadingDialog(context);
-    }
-  }
-
-  startNewAudioRoom() async {
-    LiveStreamingModel streamingModel = LiveStreamingModel();
-    streamingModel.setStreamingChannel = widget.currentUser!.objectId! +
-        widget.currentUser!.getUid!.toString() +
-        LiveStreamingModel.livePrefixAudioRoom;
-
-    streamingModel.setAuthor = widget.currentUser!;
-    streamingModel.setAuthorId = widget.currentUser!.objectId!;
-    streamingModel.setAuthorUid = widget.currentUser!.getUid!;
-    streamingModel.addAuthorTotalDiamonds =
-        widget.currentUser!.getDiamondsTotal!;
-    streamingModel.setFirstLive = widget.currentUser!.isFirstLive!;
-    streamingModel.setAuthorUserName = widget.currentUser!.getUsername!;
-    streamingModel.setHashtags = liveTagsSelected;
-
-    if (privateLive && privateLiveGiftPrice != null) {
-      streamingModel.setPrivate = true;
-      streamingModel.setPrivateLivePrice = privateLiveGiftPrice!;
-    }
-
-    if (selectedAudioRoomSeatNumber[0] == 0) {
-      streamingModel.setNumberOfChairs = audioRoomSeatsNumber[0];
-    } else if (selectedAudioRoomSeatNumber[0] == 1) {
-      streamingModel.setNumberOfChairs = audioRoomSeatsNumber[1];
-    } else if (selectedAudioRoomSeatNumber[0] == 2) {
-      streamingModel.setNumberOfChairs = audioRoomSeatsNumber[2];
-    } else if (selectedAudioRoomSeatNumber[0] == 3) {
-      streamingModel.setNumberOfChairs = audioRoomSeatsNumber[3];
-    } else if (selectedAudioRoomSeatNumber[0] == 4) {
-      streamingModel.setNumberOfChairs = audioRoomSeatsNumber[4];
-    }
-
-    streamingModel.setLiveTitle = liveTitleTextController.text;
-    if (widget.currentUser!.getLiveCover != null) {
-      streamingModel.setImage = widget.currentUser!.getLiveCover!;
-    } else {
-      streamingModel.setImage = widget.currentUser!.getAvatar!;
-    }
-
-    if (widget.currentUser!.getPartyTheme != null) {
-      streamingModel.setPartyTheme = widget.currentUser!.getPartyTheme!;
-    }
-    streamingModel.setPartyType = LiveStreamingModel.liveAudio;
-    streamingModel.setLiveType = LiveStreamingModel.liveAudio;
-
-    if (widget.currentUser!.getGeoPoint != null) {
-      streamingModel.setStreamingGeoPoint = widget.currentUser!.getGeoPoint!;
-    }
-
-    streamingModel.setStreaming = true;
-    streamingModel.addViewersCount = 0;
-    streamingModel.addDiamonds = 0;
-
-    ParseResponse parseResponse = await streamingModel.save();
-
-    if (parseResponse.success && parseResponse.results != null) {
-      QuickHelp.hideLoadingDialog(context);
-      LiveStreamingModel liveStreaming = parseResponse.results!.first!;
-      QuickHelp.goToNavigatorScreen(
-        context,
-        PrebuildAudioRoomScreen(
-          currentUser: widget.currentUser,
-          isHost: true,
-          liveStreaming: liveStreaming,
+            }
+          }
+        },
+        child: TextWithTap(
+          "live_streaming.go_live_btn".tr(),
+          color: Colors.white,
+          alignment: Alignment.center,
+          fontWeight: FontWeight.bold,
         ),
-      );
-    } else {
-      QuickHelp.hideLoadingDialog(context);
-      QuickHelp.showAppNotificationAdvanced(
-        title: "error".tr(),
-        context: context,
-        message: "report_screen.report_failed_explain".tr(),
       );
     }
   }
@@ -906,16 +745,9 @@ class _LivePreviewScreenState extends State<LivePreviewScreen>
       } else {
         return CameraPreview(cameraController!);
       }
-    } else if (pagesIndex == 1) {
-      return Image.asset(
-        "assets/images/live_bg.png",
-        height: size.height,
-        width: size.width,
-        fit: BoxFit.fill,
-      );
     } else {
       return Image.asset(
-        "assets/images/audio_bg_start.png",
+        "assets/images/live_bg.png",
         height: size.height,
         width: size.width,
         fit: BoxFit.fill,

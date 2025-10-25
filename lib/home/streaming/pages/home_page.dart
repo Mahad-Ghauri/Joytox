@@ -15,12 +15,10 @@ import '../../../models/LiveStreamingModel.dart';
 import '../../../models/UserModel.dart';
 import '../../../ui/text_with_tap.dart';
 import '../../../utils/colors.dart';
-import 'audio_room/audio_room.dart';
 import 'call/call.dart';
 import 'live_streaming/live_page.dart';
 import 'live_streaming/swiping/defines.dart';
 
-part 'entry_audio_room.dart';
 part 'entry_call.dart';
 part 'entry_live_streaming.dart';
 
@@ -40,7 +38,7 @@ class HomePage extends StatelessWidget {
             const SizedBox(width: 10),
           ],
         ),
-        body:  Padding(
+        body: Padding(
           padding: EdgeInsets.fromLTRB(20, 0, 20, 20),
           child: CustomScrollView(slivers: [
             SliverFillRemaining(
@@ -51,8 +49,6 @@ class HomePage extends StatelessWidget {
                   CallEntry(),
                   Divider(),
                   LiveStreamingEntry(),
-                  Divider(),
-                  AudioRoomEntry(),
                   Divider(),
                 ],
               ),
@@ -71,7 +67,8 @@ class HomePage extends StatelessWidget {
             ? CachedNetworkImage(
                 imageUrl: avatarUrl!,
                 fit: BoxFit.cover,
-                progressIndicatorBuilder: (context, url, _) => const CupertinoActivityIndicator(),
+                progressIndicatorBuilder: (context, url, _) =>
+                    const CupertinoActivityIndicator(),
                 errorWidget: (context, url, error) => const SizedBox.shrink(),
               )
             : const SizedBox.shrink();

@@ -9,7 +9,6 @@ import '../helpers/send_notifications.dart';
 import '../home/feed/comment_post_screen.dart';
 import '../home/message/message_screen.dart';
 import '../home/prebuild_live/multi_users_live_screen.dart';
-import '../home/prebuild_live/prebuild_audio_room_screen.dart';
 import '../home/prebuild_live/prebuild_live_screen.dart';
 import '../home/profile/user_profile_screen.dart';
 import '../home/reels/reels_single_screen.dart';
@@ -29,7 +28,6 @@ class PushService {
   });
 
   Future initialise() async {
-
     //Remove this method to stop OneSignal Debugging
     OneSignal.Debug.setLogLevel(OSLogLevel.verbose);
     OneSignal.initialize(Config.oneSignalAppId);
@@ -60,16 +58,15 @@ class PushService {
 
     int clicked = 0;
     // When you click in push
-    OneSignal.Notifications.addClickListener((event){
+    OneSignal.Notifications.addClickListener((event) {
       //debugPrint("Clicked notification: \n${event.notification.jsonRepresentation().replaceAll("\\n", "\n")}");
-      if(clicked == 0) {
+      if (clicked == 0) {
         clicked = 1;
         _decodePushMessage(event.notification.additionalData!, context!);
-        Future.delayed(Duration(seconds: 5)).then((value){
+        Future.delayed(Duration(seconds: 5)).then((value) {
           clicked = 0;
         });
       }
-
     });
 
     OneSignal.Notifications.clearAll();
@@ -94,10 +91,9 @@ class PushService {
 
       /// notification.display() to display after preventing default
       event.notification.display();
-      debugPrint("Clicked notification: \n${event.notification.jsonRepresentation().replaceAll("\\n", "\n")}");
-
+      debugPrint(
+          "Clicked notification: \n${event.notification.jsonRepresentation().replaceAll("\\n", "\n")}");
     });
-
   }
 
   _decodePushMessage(Map<String, dynamic> message, BuildContext context) async {
@@ -146,10 +142,9 @@ class PushService {
         type == SendNotifications.typeMissedCall ||
         type == SendNotifications.typeProfileVisit ||
         type == SendNotifications.typeLike) {
-
       QuickHelp.showLoadingDialog(context);
       QueryBuilder<UserModel> queryUser =
-      QueryBuilder<UserModel>(UserModel.forQuery());
+          QueryBuilder<UserModel>(UserModel.forQuery());
       queryUser.whereEqualTo(UserModel.keyObjectId, senderId);
       queryUser.setLimit(1);
 
@@ -157,7 +152,7 @@ class PushService {
       if (parseResponse.success && parseResponse.results != null) {
         QuickHelp.hideLoadingDialog(context);
         mUser = parseResponse.results!.first! as UserModel;
-      }else{
+      } else {
         QuickHelp.hideLoadingDialog(context);
       }
 
@@ -172,7 +167,8 @@ class PushService {
         );
       }
     } else if (type == SendNotifications.typeLike ||
-        type == SendNotifications.typeComment || type == SendNotifications.typeReplyComment) {
+        type == SendNotifications.typeComment ||
+        type == SendNotifications.typeReplyComment) {
       QueryBuilder<PostsModel> queryPost =
           QueryBuilder<PostsModel>(PostsModel());
       queryPost.whereEqualTo(PostsModel.keyObjectId, objectId);
@@ -184,13 +180,12 @@ class PushService {
       }
 
       if (currentUser != null && mPost != null) {
-       if(mPost.isVideo!){
-         _goToReels(currentUser!, mPost, context);
-       } else {
-         _goToPost(currentUser!, mPost, context);
-       }
+        if (mPost.isVideo!) {
+          _goToReels(currentUser!, mPost, context);
+        } else {
+          _goToPost(currentUser!, mPost, context);
+        }
       }
-
     } else if (type == SendNotifications.typeFollow ||
         type == SendNotifications.typeMissedCall) {
       QueryBuilder<UserModel> queryUser =
@@ -203,10 +198,7 @@ class PushService {
       }
 
       if (currentUser != null && mUser != null) {
-        QuickActions.showUserProfile(
-            context,
-            currentUser!,
-            mUser);
+        QuickActions.showUserProfile(context, currentUser!, mUser);
       }
     }
 
@@ -234,47 +226,38 @@ class PushService {
   }
 
   _goToReels(UserModel currentUser, PostsModel mPost, BuildContext context) {
-    QuickHelp.goToNavigatorScreen(context, ReelsSingleScreen(currentUser: currentUser, post: mPost,));
+    QuickHelp.goToNavigatorScreen(
+        context,
+        ReelsSingleScreen(
+          currentUser: currentUser,
+          post: mPost,
+        ));
   }
 
-  _goToLive(UserModel currentUser, LiveStreamingModel liveStreaming, BuildContext context) {
-    if (ZegoUIKitPrebuiltLiveStreamingController()
-        .minimize
-        .isMinimizing) {
+  _goToLive(UserModel currentUser, LiveStreamingModel liveStreaming,
+      BuildContext context) {
+    if (ZegoUIKitPrebuiltLiveStreamingController().minimize.isMinimizing) {
       return;
     }
-    if (liveStreaming.getLiveType ==
-        LiveStreamingModel.liveVideo) {
+    if (liveStreaming.getLiveType == LiveStreamingModel.liveVideo) {
       QuickHelp.goToNavigatorScreen(
         context,
         PreBuildLiveScreen(
           isHost: false,
           currentUser: currentUser,
           liveStreaming: liveStreaming,
-          liveID:
-          liveStreaming.getStreamingChannel!,
+          liveID: liveStreaming.getStreamingChannel!,
           localUserID: currentUser.objectId!,
         ),
       );
-    } else if (liveStreaming.getLiveType ==
-        LiveStreamingModel.liveAudio) {
-      QuickHelp.goToNavigatorScreen(
-          context,
-          PrebuildAudioRoomScreen(
-            currentUser: currentUser,
-            isHost: false,
-            liveStreaming: liveStreaming,
-          ));
-    } else if (liveStreaming.getLiveType ==
-        LiveStreamingModel.liveTypeParty) {
+    } else if (liveStreaming.getLiveType == LiveStreamingModel.liveTypeParty) {
       QuickHelp.goToNavigatorScreen(
         context,
         MultiUsersLiveScreen(
           isHost: false,
           currentUser: currentUser,
           liveStreaming: liveStreaming,
-          liveID:
-          liveStreaming.getStreamingChannel!,
+          liveID: liveStreaming.getStreamingChannel!,
           localUserID: currentUser.objectId!,
         ),
       );

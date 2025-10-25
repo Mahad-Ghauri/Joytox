@@ -1128,7 +1128,7 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
             //Add your UI component here
             ..foreground = customUiComponents()
             ..background = Image.asset(
-              "assets/images/audio_room_background.png",
+              "assets/images/live_bg.png",
               fit: BoxFit.fill,
             )
 

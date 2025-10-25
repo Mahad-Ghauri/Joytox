@@ -21,11 +21,10 @@ import '../../ui/container_with_corner.dart';
 import '../../ui/text_with_tap.dart';
 import '../../utils/colors.dart';
 import '../prebuild_live/multi_users_live_screen.dart';
-import '../prebuild_live/prebuild_audio_room_screen.dart';
 import '../prebuild_live/prebuild_live_screen.dart';
 import '../profile/user_profile_screen.dart';
 import 'package:zego_uikit_prebuilt_live_streaming/zego_uikit_prebuilt_live_streaming.dart'
-as zego;
+    as zego;
 
 TextEditingController searchTextController = TextEditingController();
 
@@ -53,13 +52,14 @@ showGlobalSearch({
     barrierColor: kTransparentColor,
     builder: (BuildContext context) {
       return StatefulBuilder(builder: (context, newState) {
-
         searchLives() async {
-          QueryBuilder<UserModel> queryUsers = QueryBuilder(UserModel.forQuery());
+          QueryBuilder<UserModel> queryUsers =
+              QueryBuilder(UserModel.forQuery());
           queryUsers.whereValueExists(UserModel.keyUserStatus, true);
           queryUsers.whereEqualTo(UserModel.keyUserStatus, true);
 
-          QueryBuilder<LiveStreamingModel> queryBuilder = QueryBuilder<LiveStreamingModel>(LiveStreamingModel());
+          QueryBuilder<LiveStreamingModel> queryBuilder =
+              QueryBuilder<LiveStreamingModel>(LiveStreamingModel());
 
           queryBuilder.whereEqualTo(LiveStreamingModel.keyStreaming, true);
           queryBuilder.whereNotEqualTo(
@@ -69,7 +69,8 @@ showGlobalSearch({
           queryBuilder.whereValueExists(LiveStreamingModel.keyAuthor, true);
           queryBuilder.whereDoesNotMatchQuery(
               LiveStreamingModel.keyAuthor, queryUsers);
-          queryBuilder.whereContains(LiveStreamingModel.keyAudioRoomTitle, searchTextController.text);
+          queryBuilder.whereContains(
+              LiveStreamingModel.keyLiveSubType, searchTextController.text);
           queryBuilder.includeObject([
             LiveStreamingModel.keyAuthor,
             LiveStreamingModel.keyAuthorInvited,
@@ -82,7 +83,7 @@ showGlobalSearch({
               searching = false;
               if (response.results != null) {
                 for (LiveStreamingModel live in response.results!) {
-                  if(!livesIdsList.contains(live.objectId)) {
+                  if (!livesIdsList.contains(live.objectId)) {
                     livesList.add(live);
                     livesIdsList.add(live.objectId);
                   }
@@ -148,10 +149,10 @@ showGlobalSearch({
           QueryBuilder<UserModel> query =
               QueryBuilder<UserModel>(UserModel.forQuery());
 
-          if(QuickHelp.isNumericString(searchTextController.text)) {
+          if (QuickHelp.isNumericString(searchTextController.text)) {
             query.whereEqualTo(
                 UserModel.keyUid, int.parse(searchTextController.text));
-          }else{
+          } else {
             query.whereContains(
                 UserModel.keyFullName, searchTextController.text);
           }
@@ -165,14 +166,12 @@ showGlobalSearch({
             if (response.success) {
               searching = false;
               if (response.results != null) {
-
                 for (UserModel user in response.results!) {
-                  if(!usersIdsList.contains(user.objectId)) {
+                  if (!usersIdsList.contains(user.objectId)) {
                     usersList.add(user);
                     usersIdsList.add(user.objectId);
                   }
                 }
-
               } else {
                 noResult = true;
               }
@@ -196,14 +195,18 @@ showGlobalSearch({
             content: Stack(
               children: [
                 Padding(
-                  padding: const EdgeInsets.only(left: 10, right: 10,top: 50),
+                  padding: const EdgeInsets.only(left: 10, right: 10, top: 50),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(4),
                     child: BackdropFilter(
                       filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
                       child: SizedBox(
                         width: double.infinity,
-                        height: onlyLives ? livesIdsList.length*85 : onlyUsers ? usersIdsList.length*70 :double.infinity,
+                        height: onlyLives
+                            ? livesIdsList.length * 85
+                            : onlyUsers
+                                ? usersIdsList.length * 70
+                                : double.infinity,
                       ),
                     ),
                   ),
@@ -224,7 +227,8 @@ showGlobalSearch({
                           borderWidth: 0,
                           width: size.width,
                           child: Padding(
-                            padding: const EdgeInsets.only(bottom: 10, left: 15),
+                            padding:
+                                const EdgeInsets.only(bottom: 10, left: 15),
                             child: TextFormField(
                               controller: searchTextController,
                               autocorrect: false,
@@ -244,7 +248,11 @@ showGlobalSearch({
                                   ),
                                 ),*/
                                 border: InputBorder.none,
-                                hintText: onlyLives ? "search_live_by_title".tr() : onlyUsers ? "search_users".tr() : "search...",
+                                hintText: onlyLives
+                                    ? "search_live_by_title".tr()
+                                    : onlyUsers
+                                        ? "search_users".tr()
+                                        : "search...",
                                 hintStyle: TextStyle(
                                   fontWeight: FontWeight.w100,
                                   color: Colors.white.withOpacity(0.8),
@@ -252,7 +260,7 @@ showGlobalSearch({
                                 ),
                                 suffixIcon: GestureDetector(
                                   onTap: () {
-                                    if(searchTextController.text.isNotEmpty) {
+                                    if (searchTextController.text.isNotEmpty) {
                                       newState(() {
                                         searching = true;
                                         noResult = false;
@@ -264,16 +272,18 @@ showGlobalSearch({
                                         searchedChallie = null;
                                       });
                                       QuickHelp.removeFocusOnTextField(context);
-                                      if(onlyLives) {
+                                      if (onlyLives) {
                                         searchLives();
-                                      }else if (onlyEvent) {
+                                      } else if (onlyEvent) {
                                         searchEvent();
-                                      }else if(onlyUsers){
+                                      } else if (onlyUsers) {
                                         searchUser();
                                       } else {
-                                        if (searchTextController.text.length == 5) {
+                                        if (searchTextController.text.length ==
+                                            5) {
                                           searchEvent();
-                                        } else if (searchTextController.text.length ==
+                                        } else if (searchTextController
+                                                .text.length ==
                                             10) {
                                           searchUser();
                                         } else {
@@ -288,7 +298,8 @@ showGlobalSearch({
                                       "assets/svg/ic_search_for_light_mode.svg",
                                       height: 15,
                                       width: 15,
-                                      colorFilter: ColorFilter.mode(Colors.white, BlendMode.srcIn),
+                                      colorFilter: ColorFilter.mode(
+                                          Colors.white, BlendMode.srcIn),
                                     ),
                                   ),
                                 ),
@@ -312,7 +323,7 @@ showGlobalSearch({
                           visible: searching,
                           child: QuickHelp.appLoading(),
                         ),
-                        if(livesList.isNotEmpty)
+                        if (livesList.isNotEmpty)
                           ContainerCorner(
                             borderWidth: 0,
                             height: 170,
@@ -320,190 +331,189 @@ showGlobalSearch({
                             marginLeft: 10,
                             child: ListView(
                               scrollDirection: Axis.horizontal,
-                              children: List.generate(
-                                  livesIdsList.length, (index){
-                                    LiveStreamingModel liveStreaming = livesList[index];
-                                    return ContainerCorner(
-                                      marginRight: 15,
-                                      width: size.width / 2.3,
-                                      height: 150,
-                                      marginBottom: 10,
-                                      onTap: () {
-                                        if (zego.ZegoUIKitPrebuiltLiveStreamingController()
-                                            .minimize
-                                            .isMinimizing) {
-                                          return;
-                                        }
-                                        if (liveStreaming.getLiveType ==
-                                            LiveStreamingModel.liveVideo) {
-                                          QuickHelp.goToNavigatorScreen(
-                                            context,
-                                            PreBuildLiveScreen(
-                                              isHost: false,
-                                              currentUser: currentUser,
-                                              liveStreaming: liveStreaming,
-                                              liveID:
-                                              liveStreaming.getStreamingChannel!,
-                                              localUserID: currentUser.objectId!,
-                                            ),
-                                          );
-                                        } else if (liveStreaming.getLiveType ==
-                                            LiveStreamingModel.liveAudio) {
-                                          QuickHelp.goToNavigatorScreen(
-                                              context,
-                                              PrebuildAudioRoomScreen(
-                                                currentUser: currentUser,
-                                                isHost: false,
-                                                liveStreaming: liveStreaming,
-                                              ));
-                                        } else if (liveStreaming.getLiveType ==
-                                            LiveStreamingModel.liveTypeParty) {
-                                          QuickHelp.goToNavigatorScreen(
-                                            context,
-                                            MultiUsersLiveScreen(
-                                              isHost: false,
-                                              currentUser: currentUser,
-                                              liveStreaming: liveStreaming,
-                                              liveID:
-                                              liveStreaming.getStreamingChannel!,
-                                              localUserID: currentUser.objectId!,
-                                            ),
-                                          );
-                                        }
-                                      },
-                                      child: Stack(
-                                          alignment: AlignmentDirectional.center,
-                                          children: [
-                                            ContainerCorner(
-                                              width: double.infinity,
-                                              height: double.infinity,
-                                              color: kTransparentColor,
-                                              borderRadius: 3,
-                                              borderWidth: 0,
-                                              child: QuickActions.photosWidget(
-                                                liveStreaming.getImage!.url!,
-                                                borderRadius: 5,
-                                                width: double.infinity,
-                                                height: double.infinity,
-                                              ),
-                                            ),
-                                            ContainerCorner(
-                                              width: double.infinity,
-                                              height: double.infinity,
-                                              color: Colors.black.withOpacity(0.4),
-                                              borderRadius: 5,
-                                              borderWidth: 0,
-                                              child: Column(
-                                                mainAxisAlignment:
+                              children:
+                                  List.generate(livesIdsList.length, (index) {
+                                LiveStreamingModel liveStreaming =
+                                    livesList[index];
+                                return ContainerCorner(
+                                  marginRight: 15,
+                                  width: size.width / 2.3,
+                                  height: 150,
+                                  marginBottom: 10,
+                                  onTap: () {
+                                    if (zego.ZegoUIKitPrebuiltLiveStreamingController()
+                                        .minimize
+                                        .isMinimizing) {
+                                      return;
+                                    }
+                                    if (liveStreaming.getLiveType ==
+                                        LiveStreamingModel.liveVideo) {
+                                      QuickHelp.goToNavigatorScreen(
+                                        context,
+                                        PreBuildLiveScreen(
+                                          isHost: false,
+                                          currentUser: currentUser,
+                                          liveStreaming: liveStreaming,
+                                          liveID: liveStreaming
+                                              .getStreamingChannel!,
+                                          localUserID: currentUser.objectId!,
+                                        ),
+                                      );
+                                    } else if (liveStreaming.getLiveType ==
+                                        LiveStreamingModel.liveTypeParty) {
+                                      QuickHelp.goToNavigatorScreen(
+                                        context,
+                                        MultiUsersLiveScreen(
+                                          isHost: false,
+                                          currentUser: currentUser,
+                                          liveStreaming: liveStreaming,
+                                          liveID: liveStreaming
+                                              .getStreamingChannel!,
+                                          localUserID: currentUser.objectId!,
+                                        ),
+                                      );
+                                    }
+                                  },
+                                  child: Stack(
+                                      alignment: AlignmentDirectional.center,
+                                      children: [
+                                        ContainerCorner(
+                                          width: double.infinity,
+                                          height: double.infinity,
+                                          color: kTransparentColor,
+                                          borderRadius: 3,
+                                          borderWidth: 0,
+                                          child: QuickActions.photosWidget(
+                                            liveStreaming.getImage!.url!,
+                                            borderRadius: 5,
+                                            width: double.infinity,
+                                            height: double.infinity,
+                                          ),
+                                        ),
+                                        ContainerCorner(
+                                          width: double.infinity,
+                                          height: double.infinity,
+                                          color: Colors.black.withOpacity(0.4),
+                                          borderRadius: 5,
+                                          borderWidth: 0,
+                                          child: Column(
+                                            mainAxisAlignment:
                                                 MainAxisAlignment.spaceBetween,
-                                                children: [
-                                                  Padding(
-                                                    padding: const EdgeInsets.only(
-                                                        left: 15, top: 10),
-                                                    child: Row(
-                                                      mainAxisAlignment:
+                                            children: [
+                                              Padding(
+                                                padding: const EdgeInsets.only(
+                                                    left: 15, top: 10),
+                                                child: Row(
+                                                  mainAxisAlignment:
                                                       MainAxisAlignment
                                                           .spaceBetween,
-                                                      children: [
-                                                        Row(
-                                                          mainAxisSize:
+                                                  children: [
+                                                    Row(
+                                                      mainAxisSize:
                                                           MainAxisSize.min,
-                                                          children: [
-                                                            SvgPicture.asset(
-                                                              "assets/svg/ic_small_viewers.svg",
-                                                              height: 13,
-                                                            ),
-                                                            TextWithTap(
-                                                              liveStreaming
-                                                                  .getViewersCount
-                                                                  .toString(),
-                                                              color: Colors.white,
-                                                              fontSize: 14,
-                                                              marginRight: 15,
-                                                              marginLeft: 5,
-                                                            ),
-                                                          ],
+                                                      children: [
+                                                        SvgPicture.asset(
+                                                          "assets/svg/ic_small_viewers.svg",
+                                                          height: 13,
+                                                        ),
+                                                        TextWithTap(
+                                                          liveStreaming
+                                                              .getViewersCount
+                                                              .toString(),
+                                                          color: Colors.white,
+                                                          fontSize: 14,
+                                                          marginRight: 15,
+                                                          marginLeft: 5,
+                                                        ),
+                                                      ],
+                                                    ),
+                                                    Padding(
+                                                      padding:
+                                                          const EdgeInsets.only(
+                                                              right: 10),
+                                                      child: Lottie.asset(
+                                                        "assets/lotties/ic_live_animation.json",
+                                                        height: 15,
+                                                        width: 15,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                              Padding(
+                                                padding: const EdgeInsets.only(
+                                                    bottom: 10, left: 5),
+                                                child: Row(
+                                                  children: [
+                                                    QuickActions.avatarWidget(
+                                                        liveStreaming
+                                                            .getAuthor!,
+                                                        height: 20,
+                                                        width: 20,
+                                                        margin: EdgeInsets.only(
+                                                            left: 5,
+                                                            bottom: 5)),
+                                                    Column(
+                                                      crossAxisAlignment:
+                                                          CrossAxisAlignment
+                                                              .start,
+                                                      children: [
+                                                        ContainerCorner(
+                                                          width:
+                                                              size.width / 3.2,
+                                                          child: TextWithTap(
+                                                            liveStreaming
+                                                                .getAuthor!
+                                                                .getFullName!,
+                                                            color: Colors.white,
+                                                            overflow:
+                                                                TextOverflow
+                                                                    .ellipsis,
+                                                            marginLeft: 5,
+                                                            fontSize: 10,
+                                                          ),
                                                         ),
                                                         Padding(
-                                                          padding: const EdgeInsets.only(right: 10),
-                                                          child: Lottie.asset(
-                                                              "assets/lotties/ic_live_animation.json",
-                                                            height: 15,
-                                                            width: 15,
+                                                          padding:
+                                                              const EdgeInsets
+                                                                  .only(
+                                                                  left: 10),
+                                                          child: Row(
+                                                            mainAxisSize:
+                                                                MainAxisSize
+                                                                    .min,
+                                                            children: [
+                                                              Image.asset(
+                                                                "assets/images/pop_silver_icon.png",
+                                                                height: 9,
+                                                                width: 9,
+                                                              ),
+                                                              TextWithTap(
+                                                                liveStreaming
+                                                                    .getAuthor!
+                                                                    .getDiamondsTotal!
+                                                                    .toString(),
+                                                                color: Colors
+                                                                    .white
+                                                                    .withOpacity(
+                                                                        0.5),
+                                                                fontSize: 10,
+                                                                marginLeft: 3,
+                                                              ),
+                                                            ],
                                                           ),
                                                         ),
                                                       ],
                                                     ),
-                                                  ),
-                                                  Padding(
-                                                    padding: const EdgeInsets.only(
-                                                        bottom: 10, left: 5),
-                                                    child: Row(
-                                                      children: [
-                                                        QuickActions.avatarWidget(
-                                                            liveStreaming.getAuthor!,
-                                                            height: 20,
-                                                            width: 20,
-                                                            margin: EdgeInsets.only(
-                                                                left: 5, bottom: 5)),
-                                                        Column(
-                                                          crossAxisAlignment:
-                                                          CrossAxisAlignment
-                                                              .start,
-                                                          children: [
-                                                            ContainerCorner(
-                                                              width: size.width / 3.2,
-                                                              child: TextWithTap(
-                                                                liveStreaming
-                                                                    .getAuthor!
-                                                                    .getFullName!,
-                                                                color: Colors.white,
-                                                                overflow: TextOverflow
-                                                                    .ellipsis,
-                                                                marginLeft: 5,
-                                                                fontSize: 10,
-                                                              ),
-                                                            ),
-                                                            Padding(
-                                                              padding:
-                                                              const EdgeInsets
-                                                                  .only(left: 10),
-                                                              child: Row(
-                                                                mainAxisSize:
-                                                                MainAxisSize.min,
-                                                                children: [
-                                                                  Image.asset(
-                                                                    "assets/images/pop_silver_icon.png",
-                                                                    height: 9,
-                                                                    width: 9,
-                                                                  ),
-                                                                  TextWithTap(
-                                                                    liveStreaming
-                                                                        .getAuthor!
-                                                                        .getDiamondsTotal!
-                                                                        .toString(),
-                                                                    color: Colors
-                                                                        .white
-                                                                        .withOpacity(
-                                                                        0.5),
-                                                                    fontSize: 10,
-                                                                    marginLeft: 3,
-                                                                  ),
-                                                                ],
-                                                              ),
-                                                            ),
-                                                          ],
-                                                        ),
-                                                      ],
-                                                    ),
-                                                  )
-                                                ],
-                                              ),
-                                            ),
-                                          ]),
-                                    );
-                              }
-                              ),
+                                                  ],
+                                                ),
+                                              )
+                                            ],
+                                          ),
+                                        ),
+                                      ]),
+                                );
+                              }),
                             ),
                           ),
                         if (usersList.isNotEmpty)
@@ -515,60 +525,66 @@ showGlobalSearch({
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                               children: List.generate(
-                                  usersIdsList.length,
-                                  (index) {
-                                    UserModel? searchedUser = usersList[index];
-                                    return ContainerCorner(
-                                      marginLeft: 10,
-                                      onTap: () => QuickHelp.goToNavigatorScreen(
-                                        context,
-                                        UserProfileScreen(
-                                          currentUser: currentUser,
-                                          mUser: searchedUser,
-                                          isFollowing: currentUser.getFollowing!.contains(searchedUser.objectId),
+                                usersIdsList.length,
+                                (index) {
+                                  UserModel? searchedUser = usersList[index];
+                                  return ContainerCorner(
+                                    marginLeft: 10,
+                                    onTap: () => QuickHelp.goToNavigatorScreen(
+                                      context,
+                                      UserProfileScreen(
+                                        currentUser: currentUser,
+                                        mUser: searchedUser,
+                                        isFollowing: currentUser.getFollowing!
+                                            .contains(searchedUser.objectId),
+                                      ),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        QuickActions.avatarBorder(
+                                          searchedUser,
+                                          height: 60,
+                                          width: 60,
+                                          borderColor: Colors.white,
+                                          borderWidth: 2,
                                         ),
-                                      ),
-                                      child: Row(
-                                        children: [
-                                          QuickActions.avatarBorder(
-                                            searchedUser,
-                                            height: 60,
-                                            width: 60,
-                                            borderColor: Colors.white,
-                                            borderWidth: 2,
+                                        Padding(
+                                          padding:
+                                              const EdgeInsets.only(left: 10),
+                                          child: Column(
+                                            mainAxisSize: MainAxisSize.min,
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              TextWithTap(
+                                                searchedUser.getUsername!,
+                                                fontWeight: FontWeight.w600,
+                                                fontSize: 16,
+                                                color: Colors.white,
+                                                marginRight: 4,
+                                              ),
+                                              QuickHelp.usersMoreInfo(
+                                                  context, searchedUser),
+                                              TextWithTap(
+                                                "face_authentication_screen.id_"
+                                                    .tr(
+                                                  namedArgs: {
+                                                    "id":
+                                                        "${searchedUser.getUid!}"
+                                                  },
+                                                ).toUpperCase(),
+                                                fontSize: 13,
+                                                color: Colors.white
+                                                    .withOpacity(0.7),
+                                                marginBottom: 3,
+                                              ),
+                                            ],
                                           ),
-                                          Padding(
-                                            padding: const EdgeInsets.only(left: 10),
-                                            child: Column(
-                                              mainAxisSize: MainAxisSize.min,
-                                              crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                              children: [
-                                                TextWithTap(
-                                                  searchedUser.getUsername!,
-                                                  fontWeight: FontWeight.w600,
-                                                  fontSize: 16,
-                                                  color: Colors.white,
-                                                  marginRight: 4,
-                                                ),
-                                                QuickHelp.usersMoreInfo(context, searchedUser),
-                                                TextWithTap(
-                                                  "face_authentication_screen.id_".tr(
-                                                    namedArgs: {
-                                                      "id": "${searchedUser.getUid!}"
-                                                    },
-                                                  ).toUpperCase(),
-                                                  fontSize: 13,
-                                                  color: Colors.white.withOpacity(0.7),
-                                                  marginBottom: 3,
-                                                ),
-                                              ],
-                                            ),
-                                          )
-                                        ],
-                                      ),
-                                    );
-                                    },
+                                        )
+                                      ],
+                                    ),
+                                  );
+                                },
                               ),
                             ),
                           ),
@@ -609,7 +625,8 @@ showGlobalSearch({
                                     child: Padding(
                                       padding: const EdgeInsets.only(left: 15),
                                       child: Column(
-                                        mainAxisAlignment: MainAxisAlignment.end,
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.end,
                                         children: [
                                           TextWithTap(
                                             searchedEvent!.getName!,

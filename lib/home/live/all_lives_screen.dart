@@ -32,7 +32,6 @@ import '../../utils/colors.dart';
 import '../coins_and_points/coins_and_points_screen.dart';
 import '../message/message_screen.dart';
 import '../prebuild_live/multi_users_live_screen.dart';
-import '../prebuild_live/prebuild_audio_room_screen.dart';
 import '../prebuild_live/prebuild_live_screen.dart';
 import '../rank/rank_screen.dart';
 import '../search/global_search_widget.dart';
@@ -71,7 +70,7 @@ class _AllLivesScreenState extends State<AllLivesScreen>
   late TabController tagsTabControl;
 
   late TabController generalTabControl;
-  int generalTabsLength = 5;
+  int generalTabsLength = 4;
   int generalTabsIndex = 0;
 
   var generalTabTitles = [
@@ -79,7 +78,6 @@ class _AllLivesScreenState extends State<AllLivesScreen>
     "coins_and_points_screen.live_streaming".tr(),
     "go_live_options.live_party".tr(),
     "go_live_menu.pk_title".tr(),
-    "audio_chat.audio_room".tr(),
   ];
 
   SharedPreferences? preference;
@@ -364,11 +362,6 @@ class _AllLivesScreenState extends State<AllLivesScreen>
     } else if (generalTabsIndex == 3) {
       queryBuilder.whereEqualTo(
           LiveStreamingModel.keyBattleStatus, LiveStreamingModel.battleAlive);
-    } else if (generalTabsIndex == 4) {
-      queryBuilder.whereEqualTo(
-          LiveStreamingModel.keyPartyType, LiveStreamingModel.liveAudio);
-      queryBuilder.whereEqualTo(
-          LiveStreamingModel.keyLiveType, LiveStreamingModel.liveAudio);
     }
 
     queryBuilder.includeObject([
@@ -1021,14 +1014,6 @@ class _AllLivesScreenState extends State<AllLivesScreen>
           localUserID: widget.currentUser!.objectId!,
         ),
       );
-    } else if (liveStreaming.getLiveType == LiveStreamingModel.liveAudio) {
-      QuickHelp.goToNavigatorScreen(
-          context,
-          PrebuildAudioRoomScreen(
-            currentUser: widget.currentUser,
-            isHost: false,
-            liveStreaming: liveStreaming,
-          ));
     } else if (liveStreaming.getLiveType == LiveStreamingModel.liveTypeParty) {
       QuickHelp.goToNavigatorScreen(
         context,

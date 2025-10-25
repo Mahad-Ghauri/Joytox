@@ -689,7 +689,7 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen>
               ZegoLiveStreamingMenuBarButtonName.minimizingButton,
             ]
             ..background = Image.asset(
-              "assets/images/audio_room_background.png",
+              "assets/images/live_bg.png",
               fit: BoxFit.fill,
             )
 

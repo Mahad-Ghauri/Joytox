@@ -136,7 +136,6 @@ class DeepLinksService {
             LiveStreamingModel.keyAuthor,
             LiveStreamingModel.keyAuthorInvited,
             LiveStreamingModel.keyPrivateLiveGift,
-            LiveStreamingModel.keyAudioHostsList,
           ]);
 
           queryBuilder.whereNotEqualTo(
