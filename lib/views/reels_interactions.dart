@@ -20,6 +20,7 @@ import '../../../ui/container_with_corner.dart';
 import '../../../utils/colors.dart';
 import '../../../utils/text_sanitizer.dart';
 import '../services/posts_service.dart';
+import '../../home/profile/profile_screen.dart';
 
 class ReelsInteractions extends GetView<VideoInteractionsController> {
   final PostsModel postModel;
@@ -476,23 +477,29 @@ class ReelsInteractions extends GetView<VideoInteractionsController> {
         mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Container(
-            width: 45,
-            height: 45,
-            decoration: BoxDecoration(
-              color: Colors.grey.withOpacity(0.3),
-              shape: BoxShape.circle,
+          GestureDetector(
+            onTap: () {
+              // Show loading message or do nothing when author is not loaded
+              print('Author not loaded yet, cannot navigate to profile');
+            },
+            child: Container(
+              width: 45,
+              height: 45,
+              decoration: BoxDecoration(
+                color: Colors.grey.withOpacity(0.3),
+                shape: BoxShape.circle,
+              ),
+              child: postModel.getAuthorId != null
+                  ? CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white70),
+                    )
+                  : Icon(
+                      Icons.person,
+                      color: Colors.white70,
+                      size: 24,
+                    ),
             ),
-            child: postModel.getAuthorId != null
-                ? CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white70),
-                  )
-                : Icon(
-                    Icons.person,
-                    color: Colors.white70,
-                    size: 24,
-                  ),
           ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -516,8 +523,28 @@ class ReelsInteractions extends GetView<VideoInteractionsController> {
       mainAxisSize: MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        // Enhanced avatar widget with better error handling
-        _buildAuthorAvatar(author),
+        // Enhanced avatar widget with better error handling and navigation
+        GestureDetector(
+          onTap: () {
+            if (author.objectId == currentUser?.objectId) {
+              // Navigate to current user's profile
+              QuickHelp.goToNavigatorScreen(
+                context,
+                ProfileScreen(
+                  currentUser: currentUser,
+                ),
+              );
+            } else {
+              // Navigate to other user's profile
+              QuickActions.showUserProfile(
+                context,
+                currentUser!,
+                author,
+              );
+            }
+          },
+          child: _buildAuthorAvatar(author),
+        ),
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.center,
