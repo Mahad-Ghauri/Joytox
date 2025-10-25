@@ -16,12 +16,14 @@ class RoomThemeSelector extends StatefulWidget {
   final UserModel currentUser;
   final LiveStreamingModel liveStreaming;
   final Function(String) onThemeSelected;
+  final Controller controller;
 
   const RoomThemeSelector({
     Key? key,
     required this.currentUser,
     required this.liveStreaming,
     required this.onThemeSelected,
+    required this.controller,
   }) : super(key: key);
 
   @override
@@ -29,11 +31,13 @@ class RoomThemeSelector extends StatefulWidget {
 }
 
 class _RoomThemeSelectorState extends State<RoomThemeSelector> {
-  final Controller controller = Get.find<Controller>();
+  late final Controller controller;
 
   @override
   void initState() {
     super.initState();
+    // Use the controller passed from parent
+    controller = widget.controller;
     // Initialize current theme from live streaming model
     controller.selectedRoomTheme.value =
         widget.liveStreaming.getRoomTheme ?? 'theme_default';

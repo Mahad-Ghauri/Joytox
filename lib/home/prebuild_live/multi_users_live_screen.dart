@@ -47,6 +47,7 @@ import 'gift/gift_manager/defines.dart';
 import 'gift/gift_manager/gift_manager.dart';
 import 'global_private_live_price_sheet.dart';
 import 'global_user_profil_sheet.dart';
+import 'room_theme_selector.dart';
 
 class MultiUsersLiveScreen extends StatefulWidget {
   UserModel? currentUser;
@@ -133,6 +134,16 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen>
     showGiftSendersController.shareMediaFiles.value =
         widget.liveStreaming!.getSharingMedia!;
 
+    // Initialize theme from database
+    if (widget.liveStreaming!.getRoomTheme != null && 
+        widget.liveStreaming!.getRoomTheme!.isNotEmpty) {
+      showGiftSendersController.selectedRoomTheme.value =
+          widget.liveStreaming!.getRoomTheme!;
+    } else {
+      // Set to empty to use default background
+      showGiftSendersController.selectedRoomTheme.value = '';
+    }
+
     // Initialize battle points from database
     showGiftSendersController.myBattlePoints.value =
         widget.liveStreaming!.getMyBattlePoints!;
@@ -204,7 +215,7 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen>
     )
       ..audioVideoView.foregroundBuilder = hostAudioVideoViewForegroundBuilder
       ..preview.showPreviewForHost = false
-      ..bottomMenuBar.hostExtendButtons = [shareMediaButton]
+      ..bottomMenuBar.hostExtendButtons = [themeButton, shareMediaButton]
       ..avatarBuilder = (BuildContext context, Size size, ZegoUIKitUser? user,
           Map extraInfo) {
         return user != null
@@ -504,14 +515,34 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen>
             ..mediaPlayer.supportTransparent = true
             ..audioVideoView.backgroundBuilder = (BuildContext context,
                 Size size, ZegoUIKitUser? user, Map extraInfo) {
-              return user != null
-                  ? Image.asset(
+              if (user == null) return const SizedBox();
+              
+              // Use Obx for reactive updates
+              return Obx(() {
+                final themeName = showGiftSendersController.selectedRoomTheme.value;
+                // Get the full path from the theme name
+                final imagePath = themeName == 'theme_default' || themeName.isEmpty
+                    ? "assets/images/audio_bg_start.png" 
+                    : showGiftSendersController.getThemePath(themeName);
+                
+                debugPrint('🎨 Background builder - themeName: $themeName, imagePath: $imagePath');
+                    
+                return Image.asset(
+                  imagePath,
+                  height: size.height,
+                  width: size.width,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    debugPrint('🎨 Background image error: $error');
+                    return Image.asset(
                       "assets/images/audio_bg_start.png",
                       height: size.height,
                       width: size.width,
-                      fit: BoxFit.fill,
-                    )
-                  : const SizedBox();
+                      fit: BoxFit.cover,
+                    );
+                  },
+                );
+              });
             }
             ..topMenuBar.hostAvatarBuilder = (ZegoUIKitUser? user) {
               return user != null
@@ -1176,6 +1207,46 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen>
     }
   }
 
+  ZegoLiveStreamingMenuBarExtendButton get themeButton =>
+      ZegoLiveStreamingMenuBarExtendButton(
+        index: 1,
+        child: ContainerCorner(
+          color: Colors.white,
+          borderRadius: 50,
+          height: 38,
+          width: 38,
+          onTap: () {
+            debugPrint('🎨 Theme button tapped - current theme: ${showGiftSendersController.selectedRoomTheme.value}');
+            showModalBottomSheet(
+              context: context,
+              backgroundColor: Colors.transparent,
+              isScrollControlled: true,
+              builder: (context) => RoomThemeSelector(
+                currentUser: widget.currentUser!,
+                liveStreaming: widget.liveStreaming!,
+                controller: showGiftSendersController,
+                onThemeSelected: (theme) {
+                  debugPrint('🎨 Theme selected callback: $theme');
+                  // Theme is already set in the controller by RoomThemeSelector
+                  // Just update the local state if needed
+                  if (mounted) {
+                    setState(() {});
+                  }
+                },
+              ),
+            );
+          },
+          child: const Padding(
+            padding: EdgeInsets.all(8.0),
+            child: Icon(
+              Icons.palette,
+              color: Colors.black,
+              size: 22,
+            ),
+          ),
+        ),
+      );
+
   sendGift(GiftsModel giftsModel, UserModel mUser) async {
     GiftsSentModel giftsSentModel = new GiftsSentModel();
     giftsSentModel.setAuthor = widget.currentUser!;
@@ -1360,6 +1431,14 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen>
       showGiftSendersController.diamondsCounter.value =
           newUpdatedLive.getDiamonds.toString();
 
+      // Update theme if changed
+      if (newUpdatedLive.getRoomTheme != null &&
+          newUpdatedLive.getRoomTheme != showGiftSendersController.selectedRoomTheme.value) {
+        debugPrint('🎨 LiveQuery UPDATE - Theme changed from ${showGiftSendersController.selectedRoomTheme.value} to ${newUpdatedLive.getRoomTheme}');
+        showGiftSendersController.selectedRoomTheme.value =
+            newUpdatedLive.getRoomTheme!;
+      }
+
       if (newUpdatedLive.getSharingMedia !=
           showGiftSendersController.shareMediaFiles.value) {
         showGiftSendersController.shareMediaFiles.value =
@@ -1412,6 +1491,12 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen>
       if (!mounted) return;
       showGiftSendersController.diamondsCounter.value =
           widget.liveStreaming!.getDiamonds.toString();
+      
+      // Update theme if available
+      if (widget.liveStreaming!.getRoomTheme != null) {
+        showGiftSendersController.selectedRoomTheme.value =
+            widget.liveStreaming!.getRoomTheme!;
+      }
     });
   }
 
