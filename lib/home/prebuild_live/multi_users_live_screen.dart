@@ -135,7 +135,7 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen>
         widget.liveStreaming!.getSharingMedia!;
 
     // Initialize theme from database
-    if (widget.liveStreaming!.getRoomTheme != null && 
+    if (widget.liveStreaming!.getRoomTheme != null &&
         widget.liveStreaming!.getRoomTheme!.isNotEmpty) {
       showGiftSendersController.selectedRoomTheme.value =
           widget.liveStreaming!.getRoomTheme!;
@@ -516,17 +516,20 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen>
             ..audioVideoView.backgroundBuilder = (BuildContext context,
                 Size size, ZegoUIKitUser? user, Map extraInfo) {
               if (user == null) return const SizedBox();
-              
+
               // Use Obx for reactive updates
               return Obx(() {
-                final themeName = showGiftSendersController.selectedRoomTheme.value;
+                final themeName =
+                    showGiftSendersController.selectedRoomTheme.value;
                 // Get the full path from the theme name
-                final imagePath = themeName == 'theme_default' || themeName.isEmpty
-                    ? "assets/images/audio_bg_start.png" 
-                    : showGiftSendersController.getThemePath(themeName);
-                
-                debugPrint('🎨 Background builder - themeName: $themeName, imagePath: $imagePath');
-                    
+                final imagePath =
+                    themeName == 'theme_default' || themeName.isEmpty
+                        ? "assets/images/audio_bg_start.png"
+                        : showGiftSendersController.getThemePath(themeName);
+
+                debugPrint(
+                    '🎨 Background builder - themeName: $themeName, imagePath: $imagePath');
+
                 return Image.asset(
                   imagePath,
                   height: size.height,
@@ -1216,7 +1219,8 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen>
           height: 38,
           width: 38,
           onTap: () {
-            debugPrint('🎨 Theme button tapped - current theme: ${showGiftSendersController.selectedRoomTheme.value}');
+            debugPrint(
+                '🎨 Theme button tapped - current theme: ${showGiftSendersController.selectedRoomTheme.value}');
             showModalBottomSheet(
               context: context,
               backgroundColor: Colors.transparent,
@@ -1331,15 +1335,30 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen>
           // Update local controller for real-time display
           showGiftSendersController.myBattlePoints.value += battlePoints;
 
-          // Send real-time battle points update to opponent via room commands
+          // Send real-time battle points update to opponent via cross-room commands
           try {
-            PointsController.sendPointsUpdate(
-              roomID: widget.liveID,
-              myPoints: battlePoints, // Add points to my side
-              senderId: widget.currentUser!.objectId!,
-              currentUserId: widget.currentUser!.objectId!,
-            );
-            debugPrint("🎯 Battle points sent via room command: $battlePoints");
+            final opponentRoomID = widget.liveStreaming!.getBattleLiveId!;
+            if (opponentRoomID.isNotEmpty && opponentRoomID != widget.liveID) {
+              // Use cross-room signaling for PK battles
+              PointsController.sendPointsUpdateCrossRoom(
+                currentRoomID: widget.liveID,
+                opponentRoomID: opponentRoomID,
+                myPoints: battlePoints, // Add points to my side
+                senderId: widget.currentUser!.objectId!,
+                currentUserId: widget.currentUser!.objectId!,
+              );
+              debugPrint(
+                  "🎯 Cross-room battle points sent: $battlePoints to opponent room: $opponentRoomID");
+            } else {
+              // Fallback to single room if no opponent room ID
+              PointsController.sendPointsUpdate(
+                roomID: widget.liveID,
+                myPoints: battlePoints,
+                senderId: widget.currentUser!.objectId!,
+                currentUserId: widget.currentUser!.objectId!,
+              );
+              debugPrint("🎯 Single room battle points sent: $battlePoints");
+            }
           } catch (e) {
             debugPrint("⚠️ Failed to send battle points via room command: $e");
           }
@@ -1364,17 +1383,32 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen>
           // Update local controller for real-time display (opponent's points)
           showGiftSendersController.hisBattlePoints.value += battlePoints;
 
-          // Send real-time battle points update to opponent via room commands
+          // Send real-time battle points update to opponent via cross-room commands
           try {
-            PointsController.sendPointsUpdate(
-              roomID: widget.liveID,
-              myPoints:
-                  battlePoints, // Add points to my side (opponent will receive as their opponent's points)
-              senderId: widget.currentUser!.objectId!,
-              currentUserId: widget.currentUser!.objectId!,
-            );
-            debugPrint(
-                "🎯 Battle points sent to opponent via room command: $battlePoints");
+            final opponentRoomID = widget.liveStreaming!.getBattleLiveId!;
+            if (opponentRoomID.isNotEmpty && opponentRoomID != widget.liveID) {
+              // Use cross-room signaling for PK battles
+              PointsController.sendPointsUpdateCrossRoom(
+                currentRoomID: widget.liveID,
+                opponentRoomID: opponentRoomID,
+                myPoints:
+                    battlePoints, // Add points to my side (opponent will receive as their opponent's points)
+                senderId: widget.currentUser!.objectId!,
+                currentUserId: widget.currentUser!.objectId!,
+              );
+              debugPrint(
+                  "🎯 Cross-room battle points sent to opponent: $battlePoints to room: $opponentRoomID");
+            } else {
+              // Fallback to single room if no opponent room ID
+              PointsController.sendPointsUpdate(
+                roomID: widget.liveID,
+                myPoints: battlePoints,
+                senderId: widget.currentUser!.objectId!,
+                currentUserId: widget.currentUser!.objectId!,
+              );
+              debugPrint(
+                  "🎯 Single room battle points sent to opponent: $battlePoints");
+            }
           } catch (e) {
             debugPrint(
                 "⚠️ Failed to send battle points to opponent via room command: $e");
@@ -1433,8 +1467,10 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen>
 
       // Update theme if changed
       if (newUpdatedLive.getRoomTheme != null &&
-          newUpdatedLive.getRoomTheme != showGiftSendersController.selectedRoomTheme.value) {
-        debugPrint('🎨 LiveQuery UPDATE - Theme changed from ${showGiftSendersController.selectedRoomTheme.value} to ${newUpdatedLive.getRoomTheme}');
+          newUpdatedLive.getRoomTheme !=
+              showGiftSendersController.selectedRoomTheme.value) {
+        debugPrint(
+            '🎨 LiveQuery UPDATE - Theme changed from ${showGiftSendersController.selectedRoomTheme.value} to ${newUpdatedLive.getRoomTheme}');
         showGiftSendersController.selectedRoomTheme.value =
             newUpdatedLive.getRoomTheme!;
       }
@@ -1491,7 +1527,7 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen>
       if (!mounted) return;
       showGiftSendersController.diamondsCounter.value =
           widget.liveStreaming!.getDiamonds.toString();
-      
+
       // Update theme if available
       if (widget.liveStreaming!.getRoomTheme != null) {
         showGiftSendersController.selectedRoomTheme.value =

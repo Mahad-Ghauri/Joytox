@@ -44,6 +44,7 @@ class PointsController {
             // Get the sender's user ID from the command payload
             final senderUserId = command['senderId'] ?? '';
             final currentUserId = command['currentUserId'] ?? '';
+            final isCrossRoom = command['isCrossRoom'] ?? false;
 
             // Skip processing if this command is from ourselves
             if (senderUserId == currentUserId) {
@@ -51,10 +52,18 @@ class PointsController {
               continue;
             }
 
+            // Log cross-room messages for debugging
+            if (isCrossRoom) {
+              print(
+                  '🎯 Cross-room PK battle points received from $senderUserId');
+            }
+
             // Handle hisBattlePoints (opponent's points) - this should be the sender's points
             if (command.containsKey('hisBattlePoints')) {
               final hisPoints = command['hisBattlePoints'];
               if (hisPoints > 0) {
+                print(
+                    '📊 Updating opponent points from hisBattlePoints: $hisPoints');
                 _updateHisPoints(hisPoints, onPointsUpdate);
               }
             }
@@ -64,6 +73,8 @@ class PointsController {
               final myPoints = command['myPoints'];
               if (myPoints > 0) {
                 // The sender's "myPoints" becomes our "hisBattlePoints"
+                print(
+                    '📊 Updating opponent points from myPoints: $myPoints (cross-room: $isCrossRoom)');
                 _updateHisPoints(myPoints, onPointsUpdate);
               }
             }
@@ -104,6 +115,42 @@ class PointsController {
       debugPrint('Points update sent: $command');
     } else {
       debugPrint('Failed to send points update');
+    }
+  }
+
+  /// Send points update to both current room and opponent room for PK battles
+  static void sendPointsUpdateCrossRoom(
+      {required String currentRoomID,
+      required String opponentRoomID,
+      required int myPoints,
+      required String senderId,
+      required String currentUserId}) async {
+    final command = jsonEncode({
+      'myPoints': myPoints,
+      'senderId': senderId,
+      'currentUserId': currentUserId,
+      'isCrossRoom': true // Flag to identify cross-room messages
+    });
+
+    // Send to current room
+    final currentRoomSent =
+        await ZegoUIKitPrebuiltLiveStreamingController().room.sendCommand(
+              roomID: currentRoomID,
+              command: Uint8List.fromList(utf8.encode(command)),
+            );
+
+    // Send to opponent room
+    final opponentRoomSent =
+        await ZegoUIKitPrebuiltLiveStreamingController().room.sendCommand(
+              roomID: opponentRoomID,
+              command: Uint8List.fromList(utf8.encode(command)),
+            );
+
+    if (currentRoomSent && opponentRoomSent) {
+      debugPrint('🎯 Cross-room points update sent successfully: $command');
+    } else {
+      debugPrint(
+          '⚠️ Cross-room points update failed - Current: $currentRoomSent, Opponent: $opponentRoomSent');
     }
   }
 

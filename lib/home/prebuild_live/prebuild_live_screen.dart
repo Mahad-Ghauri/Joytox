@@ -1921,15 +1921,30 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
           // Update local controller for real-time display
           showGiftSendersController.myBattlePoints.value += battlePoints;
 
-          // Send real-time battle points update to opponent via room commands
+          // Send real-time battle points update to opponent via cross-room commands
           try {
-            PointsController.sendPointsUpdate(
-              roomID: widget.liveID,
-              myPoints: battlePoints, // Add points to my side
-              senderId: widget.currentUser!.objectId!,
-              currentUserId: widget.currentUser!.objectId!,
-            );
-            debugPrint("🎯 Battle points sent via room command: $battlePoints");
+            final opponentRoomID = widget.liveStreaming!.getBattleLiveId!;
+            if (opponentRoomID.isNotEmpty && opponentRoomID != widget.liveID) {
+              // Use cross-room signaling for PK battles
+              PointsController.sendPointsUpdateCrossRoom(
+                currentRoomID: widget.liveID,
+                opponentRoomID: opponentRoomID,
+                myPoints: battlePoints, // Add points to my side
+                senderId: widget.currentUser!.objectId!,
+                currentUserId: widget.currentUser!.objectId!,
+              );
+              debugPrint(
+                  "🎯 Cross-room battle points sent: $battlePoints to opponent room: $opponentRoomID");
+            } else {
+              // Fallback to single room if no opponent room ID
+              PointsController.sendPointsUpdate(
+                roomID: widget.liveID,
+                myPoints: battlePoints,
+                senderId: widget.currentUser!.objectId!,
+                currentUserId: widget.currentUser!.objectId!,
+              );
+              debugPrint("🎯 Single room battle points sent: $battlePoints");
+            }
           } catch (e) {
             debugPrint("⚠️ Failed to send battle points via room command: $e");
           }
@@ -1954,17 +1969,32 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
           // Update local controller for real-time display (opponent's points)
           showGiftSendersController.hisBattlePoints.value += battlePoints;
 
-          // Send real-time battle points update to opponent via room commands
+          // Send real-time battle points update to opponent via cross-room commands
           try {
-            PointsController.sendPointsUpdate(
-              roomID: widget.liveID,
-              myPoints:
-                  battlePoints, // Add points to my side (opponent will receive as their opponent's points)
-              senderId: widget.currentUser!.objectId!,
-              currentUserId: widget.currentUser!.objectId!,
-            );
-            debugPrint(
-                "🎯 Battle points sent to opponent via room command: $battlePoints");
+            final opponentRoomID = widget.liveStreaming!.getBattleLiveId!;
+            if (opponentRoomID.isNotEmpty && opponentRoomID != widget.liveID) {
+              // Use cross-room signaling for PK battles
+              PointsController.sendPointsUpdateCrossRoom(
+                currentRoomID: widget.liveID,
+                opponentRoomID: opponentRoomID,
+                myPoints:
+                    battlePoints, // Add points to my side (opponent will receive as their opponent's points)
+                senderId: widget.currentUser!.objectId!,
+                currentUserId: widget.currentUser!.objectId!,
+              );
+              debugPrint(
+                  "🎯 Cross-room battle points sent to opponent: $battlePoints to room: $opponentRoomID");
+            } else {
+              // Fallback to single room if no opponent room ID
+              PointsController.sendPointsUpdate(
+                roomID: widget.liveID,
+                myPoints: battlePoints,
+                senderId: widget.currentUser!.objectId!,
+                currentUserId: widget.currentUser!.objectId!,
+              );
+              debugPrint(
+                  "🎯 Single room battle points sent to opponent: $battlePoints");
+            }
           } catch (e) {
             debugPrint(
                 "⚠️ Failed to send battle points to opponent via room command: $e");
