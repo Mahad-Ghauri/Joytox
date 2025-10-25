@@ -116,6 +116,14 @@ class VideoInteractionsController extends GetxController {
     print("User liked: ${isLiked.value}");
     print("User saved: ${isSaved.value}");
     print("User following: ${isFollowing.value}");
+
+    // Force UI refresh for all counts
+    likesCount.refresh();
+    savesCount.refresh();
+    commentsCount.refresh();
+    viewsCount.refresh();
+    sharesCount.refresh();
+
     print('=== END INITIALIZATION DEBUG ===');
   }
 
@@ -262,10 +270,22 @@ class VideoInteractionsController extends GetxController {
 
       if (saveResponse.success) {
         print('Video saved successfully, updating UI...');
-        _updateVideoInReels();
 
+        // Update the like state first
         isLiked.value = !isLiked.value;
+
+        // Force update the likes count from the video model
         likesCount.value = video.getLikes.length;
+
+        print('Like state updated: ${isLiked.value}');
+        print('Likes count updated: ${likesCount.value}');
+        print('Video likes list: ${video.getLikes}');
+
+        // Force UI refresh
+        likesCount.refresh();
+
+        // Update the video in reels
+        _updateVideoInReels();
 
         // Registrar interação para recomendações com peso
         _recordLikeInteraction(weight: isLiked.value ? 1.0 : -0.5);
@@ -305,10 +325,21 @@ class VideoInteractionsController extends GetxController {
       ParseResponse saveResponse = await video.save();
 
       if (saveResponse.success) {
-        _updateVideoInReels();
-
+        // Update the save state first
         isSaved.value = !isSaved.value;
+
+        // Force update the saves count from the video model
         savesCount.value = video.getSaves.length;
+
+        print('Save state updated: ${isSaved.value}');
+        print('Saves count updated: ${savesCount.value}');
+        print('Video saves list: ${video.getSaves}');
+
+        // Force UI refresh
+        savesCount.refresh();
+
+        // Update the video in reels
+        _updateVideoInReels();
 
         // Registrar interação para recomendações com peso maior
         _recordSaveInteraction(weight: isSaved.value ? 2.0 : -1.0);
@@ -414,6 +445,13 @@ class VideoInteractionsController extends GetxController {
       print('New comments count: ${commentsCount.value}');
       print('New likes count: ${likesCount.value}');
       print('New saves count: ${savesCount.value}');
+
+      // Force UI refresh for all counts
+      likesCount.refresh();
+      savesCount.refresh();
+      commentsCount.refresh();
+      viewsCount.refresh();
+      sharesCount.refresh();
 
       // Update the video in reels
       _updateVideoInReels();
@@ -548,8 +586,16 @@ class VideoInteractionsController extends GetxController {
     print('Video comments list: ${video.getComments}');
     print('Video comments length: ${video.getComments.length}');
 
-    // Refresh video data from server to get latest comment count
-    refreshVideoData();
+    // Force update the comments count from the video model
+    commentsCount.value = video.getComments.length;
+
+    print('Comments count updated: ${commentsCount.value}');
+
+    // Force UI refresh
+    commentsCount.refresh();
+
+    // Update the video in reels
+    _updateVideoInReels();
 
     print('=== COMMENT COUNT UPDATE DEBUG END ===');
   }

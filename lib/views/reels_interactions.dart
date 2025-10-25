@@ -50,7 +50,20 @@ class ReelsInteractions extends GetView<VideoInteractionsController> {
           tag: postModel.objectId)) {
         final controller =
             Get.find<VideoInteractionsController>(tag: postModel.objectId);
-        controller.refreshVideoData();
+        print('=== REELS INTERACTIONS WIDGET BUILD ===');
+        print('Post ID: ${postModel.objectId}');
+        print('Current likes count: ${controller.likesCount.value}');
+        print('Current comments count: ${controller.commentsCount.value}');
+        print('Current saves count: ${controller.savesCount.value}');
+
+        // Force refresh all counts
+        controller.likesCount.refresh();
+        controller.commentsCount.refresh();
+        controller.savesCount.refresh();
+        controller.viewsCount.refresh();
+        controller.sharesCount.refresh();
+
+        print('=== REELS INTERACTIONS WIDGET BUILD END ===');
       }
     });
 
