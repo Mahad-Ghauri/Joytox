@@ -1925,8 +1925,9 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
           try {
             PointsController.sendPointsUpdate(
               roomID: widget.liveID,
-              hisPoints: 0, // No change to opponent's points from this gift
               myPoints: battlePoints, // Add points to my side
+              senderId: widget.currentUser!.objectId!,
+              currentUserId: widget.currentUser!.objectId!,
             );
             debugPrint("🎯 Battle points sent via room command: $battlePoints");
           } catch (e) {
@@ -1957,8 +1958,10 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
           try {
             PointsController.sendPointsUpdate(
               roomID: widget.liveID,
-              hisPoints: battlePoints, // Add points to opponent's side
-              myPoints: 0, // No change to my points from this gift
+              myPoints:
+                  battlePoints, // Add points to my side (opponent will receive as their opponent's points)
+              senderId: widget.currentUser!.objectId!,
+              currentUserId: widget.currentUser!.objectId!,
             );
             debugPrint(
                 "🎯 Battle points sent to opponent via room command: $battlePoints");

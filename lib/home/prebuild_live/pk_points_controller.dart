@@ -41,7 +41,17 @@ class PointsController {
           if (command is Map<String, dynamic>) {
             print('Command received: $commandString');
 
-            // Handle hisBattlePoints (opponent's points)
+            // Get the sender's user ID from the command payload
+            final senderUserId = command['senderId'] ?? '';
+            final currentUserId = command['currentUserId'] ?? '';
+
+            // Skip processing if this command is from ourselves
+            if (senderUserId == currentUserId) {
+              print('Skipping own command from $senderUserId');
+              continue;
+            }
+
+            // Handle hisBattlePoints (opponent's points) - this should be the sender's points
             if (command.containsKey('hisBattlePoints')) {
               final hisPoints = command['hisBattlePoints'];
               if (hisPoints > 0) {
@@ -49,11 +59,12 @@ class PointsController {
               }
             }
 
-            // Handle myPoints (my points)
+            // Handle myPoints (my points) - this should be the sender's points, so update hisBattlePoints
             if (command.containsKey('myPoints')) {
               final myPoints = command['myPoints'];
               if (myPoints > 0) {
-                _updateMyPoints(myPoints, onPointsUpdate);
+                // The sender's "myPoints" becomes our "hisBattlePoints"
+                _updateHisPoints(myPoints, onPointsUpdate);
               }
             }
           } else {
@@ -72,18 +83,17 @@ class PointsController {
         controller.myBattlePoints.value, controller.hisBattlePoints.value);
   }
 
-  static void _updateMyPoints(int points, Function(int, int) onPointsUpdate) {
-    controller.myBattlePoints.value += points;
-    onPointsUpdate(
-        controller.myBattlePoints.value, controller.hisBattlePoints.value);
-  }
-
   static void sendPointsUpdate(
       {required String roomID,
-      required int hisPoints,
-      required int myPoints}) async {
-    final command =
-        jsonEncode({'hisBattlePoints': hisPoints, 'myPoints': myPoints});
+      required int myPoints,
+      required String senderId,
+      required String currentUserId}) async {
+    // Only send our own points - the receiver will treat this as their opponent's points
+    final command = jsonEncode({
+      'myPoints': myPoints,
+      'senderId': senderId,
+      'currentUserId': currentUserId
+    });
     final commandSent =
         await ZegoUIKitPrebuiltLiveStreamingController().room.sendCommand(
               roomID: roomID,

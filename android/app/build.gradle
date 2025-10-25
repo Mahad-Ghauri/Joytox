@@ -29,7 +29,7 @@ android {
 
     // ✅ API 35 = Android 15
     compileSdkVersion 36
-    ndkVersion "29.0.14033849"
+    ndkVersion flutter.ndkVersion
 
     defaultConfig {
         applicationId "com.nazcloak.joytox"
