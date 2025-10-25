@@ -974,7 +974,7 @@
     "screen_title": "App Settings",
     "send_read_receipts": "Send read receipts",
     "enable_one_click": "Enable one-click gifting",
-    "do_not_invite_me": "Don't invite me to Live Party",
+    "do_not_invite_me": "Don't invite me to Live Room",
     "do_not_use_pictures": "Don't use Picture-in-Picture screen mode",
     "allow_viewers": "Allow viewers to enter Premium stream Incognito",
     "": ""
@@ -1037,7 +1037,7 @@
     "live_follow": "Follow",
     "live_unfollow": "Unfollow",
     "settings_": "Settings",
-    "party_btn": "Party",
+    "party_btn": "Room",
     "go_live_btn": "Go live",
     "battle_btn": "Battle",
     "to_get_more_viewers": "To get more viewers",
@@ -1119,8 +1119,8 @@
     "report_done": "Great!",
     "report_done_explain": "You reported this Live Streaming, it's now in review. Thank you",
     "start_battle": "Start battle",
-    "start_party_title": "Live party",
-    "start_party": "Invite to live party",
+    "start_party_title": "Live room",
+    "start_party": "Invite to live room",
     "live_viewers": "Viewers",
     "live_viewers_gift": "Gifters & Viewers",
     "live_statistics": "Statistics",
@@ -1154,7 +1154,7 @@
     "live_set_cover_error": "Live can't start",
     "explore_": "Explore",
     "new_": "New",
-    "party_": "Party",
+    "party_": "Room",
     "popular_": "Popular",
     "audio_live": "Audio live",
     "enter_title": "Enter title"
@@ -1519,7 +1519,7 @@
   "user_state_in_app": {
     "online_": "Online",
     "offline_": "Offline",
-    "party_": "Party",
+    "party_": "Room",
     "viewing_": "Viewing",
     "living_": "Living"
   },
@@ -1972,7 +1972,7 @@
     "remaining_points": "Remaining points",
     "income": "Income",
     "live_streaming": "Live streaming",
-    "party_": "Party",
+    "party_": "Room",
     "platform_rewards": "Platform rewards",
     "withdraw_now": "Withdraw now",
     "exchange_point_for_coins": "Exchange points for coins",
@@ -2071,7 +2071,7 @@
     "vip_": "VIP",
     "reward_rule": "Reward rule",
     "reward_rule_explain": "Reward cycle is 24 hours: refreshing at UTC+8 time zone 00:00:00 everyday",
-    "party_reward": "On the mic for 15 min in party."
+    "party_reward": "On the mic for 15 min in room."
   },
 
   "auth_screen": {
@@ -2180,7 +2180,7 @@
    "sending_": "Sending",
    "purchase_": "Purchase",
    "avatar_frame": "Avatar frame",
-   "party_theme": "Party theme",
+    "party_theme": "Room theme",
    "entrance_effect": "Entrance effect",
    "select_specification": "Select specification",
    "select_object": "Select gift object",
@@ -2368,7 +2368,7 @@
     "i_agree": "I read and agree",
     "hosting_contract": "hosting contract",
     "live_": "Live",
-    "party_": "Party",
+    "party_": "Room",
     "video_": "Video",
     "voice": "Voice",
     "choose_live_sub_type": "Choose live sub type",
@@ -2382,7 +2382,7 @@
     "new_followers": "New followers",
     "hours_of_live": "Hours of live streaming",
     "target": "Target Audience",
-    "today_party_duration": "Today's party duration",
+    "today_party_duration": "Today's room duration",
     "today_live_duration": "Today's Live Duration"
   },
 
@@ -2732,7 +2732,7 @@
     "join_more_group": "You can join more true love group",
     "stream_bio": "Exclusive stream MINI bio background",
     "mvp_badge": "MVP badge",
-    "party_room_wallpaper": "Party room exclusive wallpaper",
+    "party_room_wallpaper": "Room exclusive wallpaper",
     "claim_daily_diamonds": "Can claim 10 uDiamonds daily"
   },
 
@@ -2795,7 +2795,7 @@
 
   "go_live_options": {
     "video_stream": "Video Stream",
-    "live_party": "Live Party",
+    "live_party": "Live Room",
     "audio_stream": "Audio Stream",
     "music_": "Music",
     "dancing_": "dancing",

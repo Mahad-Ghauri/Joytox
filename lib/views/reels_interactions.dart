@@ -44,6 +44,16 @@ class ReelsInteractions extends GetView<VideoInteractionsController> {
 
   @override
   Widget build(BuildContext context) {
+    // Refresh video data when widget is built
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (Get.isRegistered<VideoInteractionsController>(
+          tag: postModel.objectId)) {
+        final controller =
+            Get.find<VideoInteractionsController>(tag: postModel.objectId);
+        controller.refreshVideoData();
+      }
+    });
+
     if (postModel.getAuthor == null) {
       if (Get.isRegistered<PostsService>()) {
         final postsService = Get.find<PostsService>();

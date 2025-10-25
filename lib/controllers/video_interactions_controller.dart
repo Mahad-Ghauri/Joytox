@@ -58,6 +58,13 @@ class VideoInteractionsController extends GetxController {
     _loadCachedInteractions();
   }
 
+  @override
+  void onReady() {
+    super.onReady();
+    // Refresh video data when controller is ready
+    refreshVideoData();
+  }
+
   void _initializeValues() {
     print('=== VIDEO INTERACTIONS INITIALIZATION DEBUG ===');
     print('Video ID: ${video.objectId}');
@@ -393,9 +400,23 @@ class VideoInteractionsController extends GetxController {
   // Method to refresh video data from server
   Future<void> refreshVideoData() async {
     try {
+      print('Refreshing video data from server...');
       await video.fetch();
-      _initializeValues();
+
+      // Update all counts with fresh data
+      likesCount.value = video.getLikes.length;
+      savesCount.value = video.getSaves.length;
+      commentsCount.value = video.getComments.length;
+      viewsCount.value = video.getViews;
+      sharesCount.value = video.getShares.length;
+
       print('Video data refreshed successfully');
+      print('New comments count: ${commentsCount.value}');
+      print('New likes count: ${likesCount.value}');
+      print('New saves count: ${savesCount.value}');
+
+      // Update the video in reels
+      _updateVideoInReels();
     } catch (e) {
       print('Error refreshing video data: $e');
     }
@@ -527,10 +548,9 @@ class VideoInteractionsController extends GetxController {
     print('Video comments list: ${video.getComments}');
     print('Video comments length: ${video.getComments.length}');
 
-    commentsCount.value = video.getComments.length;
-    print('Updated comments count: ${commentsCount.value}');
+    // Refresh video data from server to get latest comment count
+    refreshVideoData();
 
-    _updateVideoInReels();
     print('=== COMMENT COUNT UPDATE DEBUG END ===');
   }
 

@@ -343,7 +343,7 @@ class UserModel extends ParseUser implements ParseCloneable {
 
   static const String userOnline = "Online";
   static const String userOffline = "Offline";
-  static const String userParty = "Party";
+  static const String userParty = "Room";
   static const String userViewing = "Viewing";
   static const String userLiving = "Living";
 
@@ -426,55 +426,63 @@ class UserModel extends ParseUser implements ParseCloneable {
 
   String? get getPushId {
     String? pushId = get<String>(keyPushId);
-    if(pushId != null) {
+    if (pushId != null) {
       return pushId;
-    }else{
+    } else {
       return "";
     }
   }
+
   set setPushId(String pushId) => set<String>(keyPushId, pushId);
 
   List<dynamic>? get getTradingCoinsReceivers {
-
     List<dynamic>? receiverIDs = get<List<dynamic>>(keyTradingCoinsReceivers);
-    if(receiverIDs != null && receiverIDs.length > 0){
+    if (receiverIDs != null && receiverIDs.length > 0) {
       return receiverIDs;
     } else {
       return [];
     }
   }
-  set setTradingCoinsReceivers (String receiverID) => setAddUnique(keyTradingCoinsReceivers, receiverID);
-  set removeTradingCoinsReceivers (String receiverID) => setRemove(keyTradingCoinsReceivers, receiverID);
+
+  set setTradingCoinsReceivers(String receiverID) =>
+      setAddUnique(keyTradingCoinsReceivers, receiverID);
+  set removeTradingCoinsReceivers(String receiverID) =>
+      setRemove(keyTradingCoinsReceivers, receiverID);
 
   int? get getBattleLost {
     int? battlePoints = get<int>(keyBattleLost);
-    if(battlePoints != null) {
+    if (battlePoints != null) {
       return battlePoints;
-    }else{
+    } else {
       return 0;
     }
   }
+
   set addBattleLost(int userPoints) => setIncrement(keyBattleLost, userPoints);
 
   int? get getBattleVictories {
     int? battlePoints = get<int>(keyBattleVictories);
-    if(battlePoints != null) {
+    if (battlePoints != null) {
       return battlePoints;
-    }else{
+    } else {
       return 0;
     }
   }
-  set addBattleVictories(int userPoints) => setIncrement(keyBattleVictories, userPoints);
+
+  set addBattleVictories(int userPoints) =>
+      setIncrement(keyBattleVictories, userPoints);
 
   int? get getBattlePoints {
     int? battlePoints = get<int>(keyBattlePoints);
-    if(battlePoints != null) {
+    if (battlePoints != null) {
       return battlePoints;
-    }else{
+    } else {
       return 0;
     }
   }
-  set addBattlePoints(int userPoints) => setIncrement(keyBattlePoints, userPoints);
+
+  set addBattlePoints(int userPoints) =>
+      setIncrement(keyBattlePoints, userPoints);
 
   List? get getCountryLanguages {
     List? languages = get<List<dynamic>>(keyCountryLanguages);
@@ -484,23 +492,26 @@ class UserModel extends ParseUser implements ParseCloneable {
       return [];
     }
   }
-  set setCountryLanguages(List<String> languages) => setAddAllUnique(keyCountryLanguages, languages);
-  set setRemoveCountryLanguages(String language) => setRemove(keyCountryLanguages, language);
+
+  set setCountryLanguages(List<String> languages) =>
+      setAddAllUnique(keyCountryLanguages, languages);
+  set setRemoveCountryLanguages(String language) =>
+      setRemove(keyCountryLanguages, language);
 
   bool? get getIsUserVip {
     int? getCredit = get<int>(keyCoins);
-    if(getCredit != null && getCredit > 0){
+    if (getCredit != null && getCredit > 0) {
       return true;
-    }else {
+    } else {
       return false;
     }
   }
 
   int? get getLevelUserVip {
     int? getCredit = get<int>(keyCoins);
-    if(getCredit != null){
+    if (getCredit != null) {
       return QuickHelp.levelUserPage(getCredit.toDouble());
-    }else {
+    } else {
       return 0;
     }
   }
@@ -513,14 +524,14 @@ class UserModel extends ParseUser implements ParseCloneable {
       return true;
     }
   }
-  set setIsFirstLive(bool isFirstLive) => set<bool>(keyFirstLive, isFirstLive);
 
+  set setIsFirstLive(bool isFirstLive) => set<bool>(keyFirstLive, isFirstLive);
 
   int? get getUserPoints {
     int? userPoints = get<int>(keyUserPoints);
-    if(userPoints != null) {
+    if (userPoints != null) {
       return userPoints;
-    }else{
+    } else {
       return 0;
     }
   }
@@ -1004,7 +1015,8 @@ class UserModel extends ParseUser implements ParseCloneable {
     }
   }
 
-  set setProfileCoverFrame(bool hideCoverFrame) => set<bool>(keyProfileCoverFrame, hideCoverFrame);
+  set setProfileCoverFrame(bool hideCoverFrame) =>
+      set<bool>(keyProfileCoverFrame, hideCoverFrame);
 
   String? get getAppLanguage {
     List? languages = get<List<dynamic>>(keyAppLanguage);
@@ -1146,9 +1158,9 @@ class UserModel extends ParseUser implements ParseCloneable {
 
   int? get getUid {
     int? uID = get<int>(keyUid);
-    if(uID != null) {
+    if (uID != null) {
       return uID;
-    }else{
+    } else {
       return 00000000;
     }
   }
@@ -1228,9 +1240,9 @@ class UserModel extends ParseUser implements ParseCloneable {
 
   String? get getBio {
     String? bio = get<String>(keyBio);
-    if(bio != null) {
+    if (bio != null) {
       return bio;
-    }else{
+    } else {
       return "";
     }
   }
@@ -1475,9 +1487,9 @@ class UserModel extends ParseUser implements ParseCloneable {
 
   int? get getCredits {
     int? credit = get<int>(keyCoins);
-    if(credit != null) {
+    if (credit != null) {
       return credit;
-    }else{
+    } else {
       return 0;
     }
   }
@@ -1895,7 +1907,7 @@ class UserModel extends ParseUser implements ParseCloneable {
     List<dynamic> sexualZero = [SEXUALITY_ASK_ME];
 
     List<dynamic>? sexualOrientation =
-    get<List<dynamic>>(keySexualOrientations);
+        get<List<dynamic>>(keySexualOrientations);
     if (sexualOrientation != null && sexualOrientation.length > 0) {
       return sexualOrientation;
     } else {
@@ -2014,7 +2026,7 @@ class UserModel extends ParseUser implements ParseCloneable {
 
   List? get getFollowing {
     List? following =
-    get<List<dynamic>>(keyFollowing); //get<List<dynamic>>(keyFollowing);
+        get<List<dynamic>>(keyFollowing); //get<List<dynamic>>(keyFollowing);
     if (following != null && following.length > 0) {
       return following;
     } else {
@@ -2176,7 +2188,7 @@ class UserModel extends ParseUser implements ParseCloneable {
 
   bool? get getAllowViewersToPremiumStream {
     bool? allowViewersToPremiumStream =
-    get<bool>(keyAllowViewersToPremiumStream);
+        get<bool>(keyAllowViewersToPremiumStream);
     if (allowViewersToPremiumStream != null) {
       return allowViewersToPremiumStream;
     } else {

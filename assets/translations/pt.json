@@ -974,7 +974,7 @@
     "screen_title": "Configurações do aplicativo",
     "send_read_receipts": "Enviar confirmações de leitura",
     "enable_one_click": "Habilitar presente em um clique",
-    "do_not_invite_me": "Não me convidar para Live Party",
+    "do_not_invite_me": "Não me convidar para Sala ao Vivo",
     "do_not_use_pictures": "Não usar modo de tela Picture-in-Picture",
     "allow_viewers": "Permitir que os espectadores entrem no stream Premium de forma anônima"
   },
@@ -1036,7 +1036,7 @@
     "live_follow": "Seguir",
     "live_unfollow": "Deixar de seguir",
     "settings_": "Configurações",
-    "party_btn": "Festa",
+    "party_btn": "Sala",
     "go_live_btn": "Ir ao vivo",
     "battle_btn": "Batalha",
     "to_get_more_viewers": "Para obter mais espectadores",
@@ -1153,7 +1153,7 @@
     "live_set_cover_error": "Não é possível iniciar a transmissão ao vivo",
     "explore_": "Explorar",
     "new_": "Novo",
-    "party_": "Festa",
+    "party_": "Sala",
     "popular_": "Popular",
     "audio_live": "Transmissão de Áudio",
     "enter_title": "Digite o título"
@@ -1513,7 +1513,7 @@
   "user_state_in_app": {
     "online_": "Online",
     "offline_": "Offline",
-    "party_": "Festa",
+    "party_": "Sala",
     "viewing_": "Visualizando",
     "living_": "Ao vivo"
   },
@@ -1951,7 +1951,7 @@
     "remaining_points": "Pontos restantes",
     "income": "Renda",
     "live_streaming": "Transmissão ao vivo",
-    "party_": "Festa",
+    "party_": "Sala",
     "platform_rewards": "Recompensas da plataforma",
     "withdraw_now": "Sacar agora",
     "exchange_point_for_coins": "Trocar pontos por moedas",
@@ -2042,7 +2042,7 @@
     "vip_": "VIP",
     "reward_rule": "Regra da Recompensa",
     "reward_rule_explain": "O ciclo de recompensa é de 24 horas: atualizando no fuso horário UTC+8 às 00:00:00 todos os dias",
-    "party_reward": "No microfone por 15 minutos na festa."
+    "party_reward": "No microfone por 15 minutos na sala."
   },
   "auth_screen": {
     "auth_": "Autenticação",
@@ -2143,7 +2143,7 @@
     "sending_": "Enviando",
     "purchase_": "Compra",
     "avatar_frame": "Moldura do avatar",
-    "party_theme": "Tema da festa",
+    "party_theme": "Tema da sala",
     "entrance_effect": "Efeito de entrada",
     "select_specification": "Selecionar especificação",
     "select_object": "Selecionar objeto de presente",
@@ -2322,7 +2322,7 @@
     "i_agree": "Eu li e concordo",
     "hosting_contract": "contrato de hospedagem",
     "live_": "Ao Vivo",
-    "party_": "Festa",
+    "party_": "Sala",
     "video_": "Vídeo",
     "voice": "Voz",
     "choose_live_sub_type": "Escolha o subtipo de transmissão ao vivo",
@@ -2335,7 +2335,7 @@
     "new_followers": "Novos seguidores",
     "hours_of_live": "Horas de transmissão ao vivo",
     "target": "Público-alvo",
-    "today_party_duration": "Duração da festa de hoje",
+    "today_party_duration": "Duração da sala de hoje",
     "today_live_duration": "Duração da transmissão ao vivo de hoje"
   },
   "my_agent_screen": {
@@ -2645,7 +2645,7 @@
     "join_more_group": "Você pode entrar em mais grupos de amor verdadeiro",
     "stream_bio": "Fundo de mini biografia exclusiva na transmissão",
     "mvp_badge": "Distintivo de MVP",
-    "party_room_wallpaper": "Papel de parede exclusivo da sala de festas",
+    "party_room_wallpaper": "Papel de parede exclusivo da sala",
     "claim_daily_diamonds": "Pode reivindicar 10 uDiamantes diariamente"
   },
   "video_editor_sdk_options": {
@@ -2702,7 +2702,7 @@
   },
   "go_live_options": {
     "video_stream": "Transmissão de Vídeo",
-    "live_party": "Festa ao Vivo",
+    "live_party": "Sala ao Vivo",
     "audio_stream": "Transmissão de Áudio",
     "music_": "Música",
     "dancing_": "Dançando",

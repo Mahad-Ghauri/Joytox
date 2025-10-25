@@ -18,12 +18,12 @@ class LiveStreamingModel extends ParseObject implements ParseCloneable {
   static final String privacyTypeFriends = "friends";
   static final String privacyTypeNoOne = "none";
 
-  static final String liveTypeParty = "party";
+  static final String liveTypeParty = "room";
   static final String liveTypeLive = "live";
   static final String liveTypeBattle = "battle";
 
   static final String livePrefixLive = "single_live";
-  static final String livePrefixParty = "party_live";
+  static final String livePrefixParty = "room_live";
 
   static const String liveSubAll = "All";
   static const String liveSubTalking = "talk";

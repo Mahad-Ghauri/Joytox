@@ -211,8 +211,11 @@ class _VideoReelsCommentScreenState extends State<VideoReelsCommentScreen> {
               tag: post.objectId)) {
             final controller =
                 Get.find<VideoInteractionsController>(tag: post.objectId);
+            print('Found controller, updating comment count...');
             controller.updateCommentCount();
             print('Updated comment count in controller');
+          } else {
+            print('Controller not found for post: ${post.objectId}');
           }
         } catch (e) {
           print('Could not update comment count in controller: $e');
@@ -405,7 +408,16 @@ class _VideoReelsCommentScreenState extends State<VideoReelsCommentScreen> {
                       TextWithTap(
                         "reply_".tr(),
                         color: kGrayColor,
-                        onTap: () => _showReplyTextField(commentsModel),
+                        onTap: () {
+                          print('=== REPLY BUTTON TAPPED DEBUG ===');
+                          print('Comment ID: ${commentsModel.objectId}');
+                          print(
+                              'Comment author: ${commentsModel.getAuthor?.getFullName}');
+                          print(
+                              'Current user: ${widget.currentUser?.getFullName}');
+                          _showReplyTextField(commentsModel);
+                          print('=== REPLY BUTTON TAPPED DEBUG END ===');
+                        },
                         fontWeight: FontWeight.w900,
                         marginLeft: 7,
                       ),
@@ -639,6 +651,12 @@ class _VideoReelsCommentScreenState extends State<VideoReelsCommentScreen> {
   Widget showAllReplies(CommentsModel commentsModel) {
     var size = MediaQuery.of(context).size;
 
+    print('=== REPLIES DISPLAY DEBUG START ===');
+    print('Comment ID: ${commentsModel.objectId}');
+    print('Comment author: ${commentsModel.getAuthor?.getFullName}');
+    print(
+        'Current user reported replies: ${widget.currentUser!.getReportedReplyID}');
+
     QueryBuilder<ReplyModel> queryBuilder =
         QueryBuilder<ReplyModel>(ReplyModel());
 
@@ -653,6 +671,9 @@ class _VideoReelsCommentScreenState extends State<VideoReelsCommentScreen> {
       CommentsModel.keyPost,
     ]);
 
+    print('Query built for replies to comment: ${commentsModel.objectId}');
+    print('=== REPLIES DISPLAY DEBUG END ===');
+
     return ParseLiveListWidget<ReplyModel>(
       query: queryBuilder,
       reverse: false,
@@ -664,8 +685,15 @@ class _VideoReelsCommentScreenState extends State<VideoReelsCommentScreen> {
       duration: const Duration(milliseconds: 200),
       childBuilder: (BuildContext context,
           ParseLiveListElementSnapshot<ReplyModel> snapshot) {
+        print('=== REPLY SNAPSHOT DEBUG ===');
+        print('Snapshot hasData: ${snapshot.hasData}');
+
         if (snapshot.hasData) {
           ReplyModel replyModel = snapshot.loadedData! as dynamic;
+          print('Reply loaded: ${replyModel.objectId}');
+          print('Reply text: ${replyModel.getText}');
+          print('Reply author: ${replyModel.getAuthor?.getFullName}');
+          print('Reply created at: ${replyModel.createdAt}');
 
           return Padding(
             padding: EdgeInsets.only(left: size.width / 8, top: 2),
@@ -812,6 +840,7 @@ class _VideoReelsCommentScreenState extends State<VideoReelsCommentScreen> {
             ),
           );
         } else {
+          print('No reply data available');
           return const SizedBox();
         }
       },
@@ -872,6 +901,12 @@ class _VideoReelsCommentScreenState extends State<VideoReelsCommentScreen> {
                   maxLines: 2,
                   minLines: 1,
                   controller: replyController,
+                  onChanged: (text) {
+                    print('=== REPLY TEXT FIELD CHANGED DEBUG ===');
+                    print('Text: "$text"');
+                    print('Text length: ${text.length}');
+                    print('=== REPLY TEXT FIELD CHANGED DEBUG END ===');
+                  },
                   style: GoogleFonts.nunito(color: kGrayColor),
                   decoration: InputDecoration(
                     hintText: "reply_".tr(),
@@ -902,13 +937,24 @@ class _VideoReelsCommentScreenState extends State<VideoReelsCommentScreen> {
             height: 45,
             width: 45,
             onTap: () {
+              print('=== REPLY SEND BUTTON TAPPED DEBUG ===');
+              print('Reply text: "${replyController.text}"');
+              print('Reply text length: ${replyController.text.length}');
+              print('Comment ID: ${commentModel.objectId}');
+              print('Comment author: ${commentModel.getAuthor?.getFullName}');
+
               if (replyController.text.isNotEmpty) {
+                print('Reply text is not empty, creating reply...');
                 _replyComment(comment: commentModel);
                 setState(() {
                   replyController.text = "";
                   commentToReply.clear();
                 });
+                print('Reply text cleared and reply field hidden');
+              } else {
+                print('Reply text is empty, not creating reply');
               }
+              print('=== REPLY SEND BUTTON TAPPED DEBUG END ===');
             },
           ),
         ],
@@ -917,6 +963,13 @@ class _VideoReelsCommentScreenState extends State<VideoReelsCommentScreen> {
   }
 
   _replyComment({required CommentsModel comment}) async {
+    print('=== REPLY CREATION DEBUG START ===');
+    print('Comment ID: ${comment.objectId}');
+    print('Comment author: ${comment.getAuthor?.getFullName}');
+    print('Reply text: "${replyController.text}"');
+    print('Current user: ${widget.currentUser?.getFullName}');
+    print('Current user ID: ${widget.currentUser?.objectId}');
+
     try {
       ReplyModel replyModel = ReplyModel();
 
@@ -926,9 +979,18 @@ class _VideoReelsCommentScreenState extends State<VideoReelsCommentScreen> {
       replyModel.setAuthor = widget.currentUser!;
       replyModel.setAuthorId = widget.currentUser!.objectId!;
 
+      print('Reply model created, attempting to save...');
       ParseResponse replyResponse = await replyModel.save();
 
+      print('Reply save response:');
+      print('- Success: ${replyResponse.success}');
+      print('- Error code: ${replyResponse.error?.code}');
+      print('- Error message: ${replyResponse.error?.message}');
+      print('- Reply objectId: ${replyModel.objectId}');
+
       if (replyResponse.success) {
+        print('Reply saved successfully, creating notification...');
+
         // Create notification
         QuickActions.createOrDeleteNotification(
             widget.currentUser!,
@@ -936,7 +998,30 @@ class _VideoReelsCommentScreenState extends State<VideoReelsCommentScreen> {
             NotificationsModel.notificationTypeReplyCommentPost,
             post: widget.post);
 
-        print('Reply created successfully');
+        print('Reply created successfully with ID: ${replyModel.objectId}');
+
+        // Update reply count in video interactions controller if available
+        try {
+          if (Get.isRegistered<VideoInteractionsController>(
+              tag: widget.post?.objectId)) {
+            final controller = Get.find<VideoInteractionsController>(
+                tag: widget.post?.objectId);
+            print('Found controller, updating comment count...');
+            controller.updateCommentCount();
+            print('Updated comment count in controller');
+          } else {
+            print('Controller not found for post: ${widget.post?.objectId}');
+          }
+        } catch (e) {
+          print('Could not update comment count in controller: $e');
+        }
+
+        // Refresh the replies list
+        setState(() {
+          keyToRefreshRepliesList =
+              DateTime.now().millisecondsSinceEpoch.toString();
+        });
+        print('Replies list refresh key updated: $keyToRefreshRepliesList');
       } else {
         print('Reply save failed: ${replyResponse.error?.message}');
         QuickHelp.showAppNotificationAdvanced(
@@ -946,8 +1031,9 @@ class _VideoReelsCommentScreenState extends State<VideoReelsCommentScreen> {
           isError: true,
         );
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
       print('Reply creation error: $e');
+      print('Stack trace: $stackTrace');
       QuickHelp.showAppNotificationAdvanced(
         context: context,
         title: "Error",
@@ -955,6 +1041,7 @@ class _VideoReelsCommentScreenState extends State<VideoReelsCommentScreen> {
         isError: true,
       );
     }
+    print('=== REPLY CREATION DEBUG END ===');
   }
 
   _showReplyTextField(CommentsModel commentsModel) {

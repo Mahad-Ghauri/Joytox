@@ -973,7 +973,7 @@
     "screen_title": "Paramètres de l'application",
     "send_read_receipts": "Envoyer des accusés de lecture",
     "enable_one_click": "Activer le cadeau en un clic",
-    "do_not_invite_me": "Ne pas m'inviter à la Live Party",
+    "do_not_invite_me": "Ne pas m'inviter à la Salle en Direct",
     "do_not_use_pictures": "Ne pas utiliser le mode d'écran image dans l'image",
     "allow_viewers": "Autoriser les spectateurs à accéder à la diffusion Premium de manière incognito",
     "": ""
@@ -1036,7 +1036,7 @@
     "live_follow": "Suivre",
     "live_unfollow": "Ne plus suivre",
     "settings_": "Paramètres",
-    "party_btn": "Soirée",
+    "party_btn": "Salle",
     "go_live_btn": "Aller en direct",
     "battle_btn": "Bataille",
     "to_get_more_viewers": "Pour obtenir plus de spectateurs",
@@ -1153,7 +1153,7 @@
     "live_set_cover_error": "La diffusion en direct ne peut pas commencer",
     "explore_": "Explorer",
     "new_": "Nouveauté",
-    "party_": "Fête",
+    "party_": "Salle",
     "popular_": "Populaire",
     "audio_live": "Diffusion audio",
     "enter_title": "Entrez le titre"
@@ -1951,7 +1951,7 @@
     "remaining_points": "Points restants",
     "income": "Revenu",
     "live_streaming": "Diffusion en direct",
-    "party_": "Fête",
+    "party_": "Salle",
     "platform_rewards": "Récompenses de la plateforme",
     "withdraw_now": "Retirer maintenant",
     "exchange_point_for_coins": "Échanger des points contre des pièces",
@@ -2042,7 +2042,7 @@
     "vip_": "VIP",
     "reward_rule": "Règle de récompense",
     "reward_rule_explain": "Le cycle de récompense est de 24 heures : rafraîchissement à l'heure UTC+8 à 00:00:00 tous les jours",
-    "party_reward": "Au micro pendant 15 minutes en soirée."
+    "party_reward": "Au micro pendant 15 minutes en salle."
   },
   "auth_screen": {
     "auth_": "Authentification",
@@ -2143,7 +2143,7 @@
     "sending_": "Envoi en cours",
     "purchase_": "Achat",
     "avatar_frame": "Cadre d'avatar",
-    "party_theme": "Thème de fête",
+    "party_theme": "Thème de salle",
     "entrance_effect": "Effet d'entrée",
     "select_specification": "Sélectionner une spécification",
     "select_object": "Sélectionner un objet de cadeau",
@@ -2321,7 +2321,7 @@
     "i_agree": "Je lis et j'accepte",
     "hosting_contract": "contrat d'hébergement",
     "live_": "En direct",
-    "party_": "Fête",
+    "party_": "Salle",
     "video_": "Vidéo",
     "voice": "Voix",
     "choose_live_sub_type": "Choisissez le sous-type de diffusion en direct",
@@ -2334,7 +2334,7 @@
     "new_followers": "Nouveaux abonnés",
     "hours_of_live": "Heures de diffusion en direct",
     "target": "Audience cible",
-    "today_party_duration": "Durée de la fête aujourd'hui",
+    "today_party_duration": "Durée de la salle aujourd'hui",
     "today_live_duration": "Durée de la diffusion en direct aujourd'hui"
   },
   "my_agent_screen": {
@@ -2644,7 +2644,7 @@
     "join_more_group": "Vous pouvez rejoindre plus de groupes d'amour vrai",
     "stream_bio": "Arrière-plan de mini biographie exclusif en diffusion",
     "mvp_badge": "Insigne MVP",
-    "party_room_wallpaper": "Papier peint exclusif de la salle de fête",
+    "party_room_wallpaper": "Papier peint exclusif de la salle",
     "claim_daily_diamonds": "Peut réclamer 10 uDiamants quotidiennement"
   },
   "video_editor_sdk_options": {
@@ -2701,7 +2701,7 @@
   },
   "go_live_options": {
     "video_stream": "Diffusion Vidéo",
-    "live_party": "Fête en Direct",
+    "live_party": "Salle en Direct",
     "audio_stream": "Diffusion Audio",
     "music_": "Musique",
     "dancing_": "Danse",
