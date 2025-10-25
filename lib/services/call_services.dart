@@ -79,12 +79,21 @@ Future<void> onUserLogin(UserModel currentUser) async {
 /// Ensure signaling plugin is connected
 void _ensureSignalingConnection() async {
   try {
+    print('🔌 Ensuring signaling plugin connection...');
+
     // Wait a bit for the signaling plugin to initialize
+    await Future.delayed(Duration(milliseconds: 1000));
+
+    // Try to trigger signaling connection by creating a signaling plugin instance
+    final signalingPlugin = ZegoUIKitSignalingPlugin();
+    print(
+        '📡 Signaling plugin instance created: ${signalingPlugin.runtimeType}');
+
+    // Wait a bit more for the connection to establish
     await Future.delayed(Duration(milliseconds: 500));
 
-    // The signaling plugin should be connected automatically
-    // but we can add some logging to verify
     print('✅ Call service initialized with signaling plugin');
+    print('🔗 Signaling plugin should now be connected to Zego servers');
   } catch (e) {
     print('❌ Error ensuring signaling connection: $e');
   }
@@ -101,6 +110,30 @@ String getCallServiceStatus() {
     return '✅ Call service is initialized and ready';
   } else {
     return '❌ Call service is not initialized - check Zego account limits';
+  }
+}
+
+/// Retry signaling connection if needed
+Future<void> retrySignalingConnection() async {
+  if (!_isCallServiceInitialized) {
+    print('⚠️ Call service not initialized, cannot retry signaling connection');
+    return;
+  }
+
+  try {
+    print('🔄 Retrying signaling connection...');
+
+    // Create a new signaling plugin instance to trigger connection
+    final signalingPlugin = ZegoUIKitSignalingPlugin();
+    print(
+        '📡 Retry signaling plugin instance created: ${signalingPlugin.runtimeType}');
+
+    // Wait for connection to establish
+    await Future.delayed(Duration(milliseconds: 1000));
+
+    print('✅ Signaling connection retry completed');
+  } catch (e) {
+    print('❌ Error retrying signaling connection: $e');
   }
 }
 
