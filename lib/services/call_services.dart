@@ -52,9 +52,6 @@ Future<void> onUserLogin(UserModel currentUser) async {
         [ZegoUIKitSignalingPlugin()],
       );
       print('✅ Call invitation service initialized');
-
-      // Configure audio and video settings for better call quality
-      _configureCallSettings();
     } catch (e) {
       print('⚠️ Warning during call service initialization: $e');
       // Continue with initialization even if there are minor errors
@@ -143,24 +140,6 @@ Future<void> retrySignalingConnection() async {
     print('✅ Signaling connection retry completed');
   } catch (e) {
     print('❌ Error retrying signaling connection: $e');
-  }
-}
-
-/// Configure call settings for better audio and video quality
-void _configureCallSettings() {
-  try {
-    print('🔧 Configuring call settings for optimal audio/video quality...');
-
-    // Note: ZegoUIKitPrebuiltCall handles most configuration automatically
-    // but we can add some logging to ensure proper setup
-    print('✅ Call settings configured for:');
-    print('   🎤 Audio: Microphone access enabled');
-    print('   📷 Video: Camera access enabled');
-    print('   🔊 Audio routing: Speaker/earpiece switching enabled');
-    print('   📱 Device orientation: Auto-rotation enabled');
-    print('   🔄 Network: Adaptive bitrate enabled');
-  } catch (e) {
-    print('❌ Error configuring call settings: $e');
   }
 }
 
