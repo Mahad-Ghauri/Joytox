@@ -16,6 +16,13 @@ class PointsController {
     _subscribeToCommands(roomID, onPointsUpdate);
   }
 
+  static void loadInitialPoints(
+      int myPoints, int hisPoints, Function(int, int) onPointsUpdate) {
+    controller.myBattlePoints.value = myPoints;
+    controller.hisBattlePoints.value = hisPoints;
+    onPointsUpdate(myPoints, hisPoints);
+  }
+
   static void dispose() {
     _subscription.cancel();
   }

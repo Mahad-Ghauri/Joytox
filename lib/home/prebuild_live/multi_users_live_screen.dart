@@ -132,6 +132,12 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen>
         widget.liveStreaming!.getDiamonds!.toString();
     showGiftSendersController.shareMediaFiles.value =
         widget.liveStreaming!.getSharingMedia!;
+
+    // Initialize battle points from database
+    showGiftSendersController.myBattlePoints.value =
+        widget.liveStreaming!.getMyBattlePoints!;
+    showGiftSendersController.hisBattlePoints.value =
+        widget.liveStreaming!.getHisBattlePoints!;
     ZegoGiftManager().cache.cacheAllFiles(giftItemList);
 
     ZegoGiftManager().service.recvNotifier.addListener(onGiftReceived);

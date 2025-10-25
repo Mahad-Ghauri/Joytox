@@ -17,23 +17,28 @@ Controller controller = Get.put(Controller());
 class PointsDisplay extends StatefulWidget {
   final String roomID;
   List<ZegoUIKitUser?> hosts;
+  final int initialMyPoints;
+  final int initialHisPoints;
 
   PointsDisplay({
     required this.roomID,
-    required this.hosts
+    required this.hosts,
+    this.initialMyPoints = 0,
+    this.initialHisPoints = 0,
   });
-
 
   @override
   _PointsDisplayState createState() => _PointsDisplayState();
 }
 
 class _PointsDisplayState extends State<PointsDisplay> {
-
   @override
   void initState() {
     super.initState();
     PointsController.initialize(widget.roomID, _updatePoints);
+    // Load initial points from database
+    PointsController.loadInitialPoints(
+        widget.initialMyPoints, widget.initialHisPoints, _updatePoints);
   }
 
   @override
@@ -51,21 +56,23 @@ class _PointsDisplayState extends State<PointsDisplay> {
   Widget build(BuildContext context) {
     Size size = MediaQuery.sizeOf(context);
     var pkColors = [kOrangedColor, kPurpleColor];
-    return Obx((){
+    return Obx(() {
       return Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: List.generate(
           widget.hosts.length,
-              (index) {
+          (index) {
             return ContainerCorner(
               width: size.width / 2,
               height: 15,
               color: pkColors[index],
               borderWidth: 0,
               child: TextWithTap(
-                "${index == 0 ? controller.myBattlePoints.value : controller.hisBattlePoints.value} "+"coins_and_points_screen.points_".tr(),
+                "${index == 0 ? controller.myBattlePoints.value : controller.hisBattlePoints.value} " +
+                    "coins_and_points_screen.points_".tr(),
                 color: Colors.white,
-                alignment: index == 1 ? Alignment.centerRight : Alignment.centerLeft,
+                alignment:
+                    index == 1 ? Alignment.centerRight : Alignment.centerLeft,
                 fontSize: 12,
                 marginRight: index == 1 ? 10 : 0,
                 marginLeft: index == 0 ? 10 : 0,

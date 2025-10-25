@@ -432,6 +432,12 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
   }
 
   initiateBattleTimer() {
+    // Load initial battle points from database
+    showGiftSendersController.myBattlePoints.value =
+        widget.liveStreaming!.getMyBattlePoints!;
+    showGiftSendersController.hisBattlePoints.value =
+        widget.liveStreaming!.getHisBattlePoints!;
+
     Future.delayed(Duration(seconds: 3)).then((value) {
       final currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
       sendSyncCommand(startTime: currentTime, duration: 120);
