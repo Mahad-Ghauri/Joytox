@@ -113,21 +113,68 @@ class _CommentPostScreenState extends State<CommentPostScreen> {
   }
 
   _createComment(PostsModel post, String text) async {
-    CommentsModel comment = CommentsModel();
-    comment.setAuthor = widget.currentUser!;
-    comment.setText = text;
-    comment.setAuthorId = widget.currentUser!.objectId!;
-    comment.setPostId = post.objectId!;
-    comment.setPost = post;
+    try {
+      // Validate comment text
+      if (text.trim().isEmpty) {
+        QuickHelp.showAppNotificationAdvanced(
+          context: context,
+          title: "Error",
+          message: "Comment cannot be empty",
+          isError: true,
+        );
+        return;
+      }
 
-    await comment.save();
+      // Show loading indicator
+      QuickHelp.showLoadingDialog(context);
 
-    //post.setComments = comment.objectId!;
-    await post.save();
+      CommentsModel comment = CommentsModel();
+      comment.setAuthor = widget.currentUser!;
+      comment.setText = text.trim();
+      comment.setAuthorId = widget.currentUser!.objectId!;
+      comment.setPostId = post.objectId!;
+      comment.setPost = post;
 
-    QuickActions.createOrDeleteNotification(widget.currentUser!,
-        post.getAuthor!, NotificationsModel.notificationTypeCommentPost,
-        post: post);
+      ParseResponse commentResponse = await comment.save();
+
+      if (commentResponse.success) {
+        // Update post to trigger live query updates
+        await post.save();
+
+        // Create notification
+        QuickActions.createOrDeleteNotification(widget.currentUser!,
+            post.getAuthor!, NotificationsModel.notificationTypeCommentPost,
+            post: post);
+
+        QuickHelp.hideLoadingDialog(context);
+
+        // Show success feedback
+        QuickHelp.showAppNotificationAdvanced(
+          context: context,
+          title: "Success",
+          message: "Comment posted successfully",
+          isError: false,
+        );
+      } else {
+        QuickHelp.hideLoadingDialog(context);
+        QuickHelp.showAppNotificationAdvanced(
+          context: context,
+          title: "Error",
+          message: "Failed to post comment. Please try again.",
+          isError: true,
+        );
+        print('Comment save failed: ${commentResponse.error?.message}');
+      }
+    } catch (e) {
+      QuickHelp.hideLoadingDialog(context);
+      QuickHelp.showAppNotificationAdvanced(
+        context: context,
+        title: "Error",
+        message: "Failed to post comment. Please check your connection.",
+        isError: true,
+      );
+      print('Comment creation error: $e');
+    }
   }
 
   goToUserProfile(UserModel user) {

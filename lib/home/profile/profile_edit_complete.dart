@@ -17,7 +17,6 @@ import 'package:trace/ui/container_with_corner.dart';
 import 'package:trace/ui/text_with_tap.dart';
 import 'package:trace/utils/colors.dart';
 // // import 'package:wechat_assets_picker/wechat_assets_picker.dart';  // Temporarily disabled due to Flutter 3.35 compatibility
-import 'package:image_picker/image_picker.dart'; // Temporarily disabled due to Flutter 3.35 compatibility
 import 'package:image_picker/image_picker.dart';
 import '../../models/FanClubModel.dart';
 import '../../ui/button_with_icon.dart';
@@ -673,7 +672,7 @@ class _ProfileCompleteEditState extends State<ProfileCompleteEdit> {
       List<String> savedImagesPaths = [];
       DateTime date = DateTime.now();
 
-      for (int i = 0; i < images!.length; i++) {
+      for (int i = 0; i < images.length; i++) {
         String imageName = 'avatar${date.second}_${date.millisecond}.jpg';
 
         File tempFile = File('${tempDir.path}/$imageName');

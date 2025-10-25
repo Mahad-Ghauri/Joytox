@@ -6,6 +6,7 @@ import 'package:get/instance_manager.dart';
 import 'package:zego_uikit_prebuilt_live_streaming/zego_uikit_prebuilt_live_streaming.dart';
 
 import '../controller/controller.dart';
+
 Controller controller = Get.put(Controller());
 
 class PointsController {
@@ -19,25 +20,35 @@ class PointsController {
     _subscription.cancel();
   }
 
-  static void _subscribeToCommands(String roomID, Function(int, int) onPointsUpdate) {
-    _subscription = ZegoUIKitPrebuiltLiveStreamingController().room.commandReceivedStream().listen((event) {
+  static void _subscribeToCommands(
+      String roomID, Function(int, int) onPointsUpdate) {
+    _subscription = ZegoUIKitPrebuiltLiveStreamingController()
+        .room
+        .commandReceivedStream()
+        .listen((event) {
       for (var message in event.messages) {
         final commandString = utf8.decode(message.message);
         print('Raw command received: $commandString');
         try {
           final command = jsonDecode(commandString);
-          if (command is Map<String, dynamic> && command.containsKey('hisBattlePoints') && command.containsKey('myPoints')) {
-            final hisPoints = command['hisBattlePoints'];
-            final myPoints = command['myPoints'];
+          if (command is Map<String, dynamic>) {
             print('Command received: $commandString');
-            if(hisPoints > 0){
-              _updateHisPoints(hisPoints, onPointsUpdate);
+
+            // Handle hisBattlePoints (opponent's points)
+            if (command.containsKey('hisBattlePoints')) {
+              final hisPoints = command['hisBattlePoints'];
+              if (hisPoints > 0) {
+                _updateHisPoints(hisPoints, onPointsUpdate);
+              }
             }
 
-            if(myPoints > 0) {
-              _updateMyPoints(myPoints, onPointsUpdate);
+            // Handle myPoints (my points)
+            if (command.containsKey('myPoints')) {
+              final myPoints = command['myPoints'];
+              if (myPoints > 0) {
+                _updateMyPoints(myPoints, onPointsUpdate);
+              }
             }
-
           } else {
             print('Invalid command format');
           }
@@ -50,19 +61,27 @@ class PointsController {
 
   static void _updateHisPoints(int points, Function(int, int) onPointsUpdate) {
     controller.hisBattlePoints.value += points;
-    onPointsUpdate(controller.myBattlePoints.value, controller.hisBattlePoints.value);
-  }
-  static void _updateMyPoints(int points, Function(int, int) onPointsUpdate) {
-    controller.myBattlePoints.value += points;
-    onPointsUpdate(controller.myBattlePoints.value, controller.hisBattlePoints.value);
+    onPointsUpdate(
+        controller.myBattlePoints.value, controller.hisBattlePoints.value);
   }
 
-  static void sendPointsUpdate({required String roomID, required int hisPoints, required int myPoints}) async {
-    final command = jsonEncode({'hisBattlePoints': hisPoints, 'myPoints': myPoints});
-    final commandSent = await ZegoUIKitPrebuiltLiveStreamingController().room.sendCommand(
-      roomID: roomID,
-      command: Uint8List.fromList(utf8.encode(command)),
-    );
+  static void _updateMyPoints(int points, Function(int, int) onPointsUpdate) {
+    controller.myBattlePoints.value += points;
+    onPointsUpdate(
+        controller.myBattlePoints.value, controller.hisBattlePoints.value);
+  }
+
+  static void sendPointsUpdate(
+      {required String roomID,
+      required int hisPoints,
+      required int myPoints}) async {
+    final command =
+        jsonEncode({'hisBattlePoints': hisPoints, 'myPoints': myPoints});
+    final commandSent =
+        await ZegoUIKitPrebuiltLiveStreamingController().room.sendCommand(
+              roomID: roomID,
+              command: Uint8List.fromList(utf8.encode(command)),
+            );
 
     if (commandSent) {
       debugPrint('Points update sent: $command');
@@ -73,6 +92,7 @@ class PointsController {
 
   static void updateLocalPoints(int points, Function(int, int) onPointsUpdate) {
     controller.myBattlePoints.value += points;
-    onPointsUpdate(controller.myBattlePoints.value, controller.hisBattlePoints.value);
+    onPointsUpdate(
+        controller.myBattlePoints.value, controller.hisBattlePoints.value);
   }
 }

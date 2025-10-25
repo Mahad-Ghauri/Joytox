@@ -297,7 +297,7 @@ class _UploadLivePhotoState extends State<UploadLivePhoto> {
       List<String> savedImagesPaths = [];
       DateTime date = DateTime.now();
 
-      for (int i = 0; i < images!.length; i++) {
+      for (int i = 0; i < images.length; i++) {
         String imageName = 'live_photo_${date.second}_${date.millisecond}.jpg';
 
         File tempFile = File('${tempDir.path}/$imageName');

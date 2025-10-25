@@ -1275,6 +1275,37 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen>
         await widget.liveStreaming!.save();
         sendMessage("sent_gift".tr(namedArgs: {"name": "host_".tr()}));
       } else {
+        // Handle PK battle points when gift is sent to opponent
+        if (showGiftSendersController.battleTimer.value > 0 &&
+            widget.liveStreaming!.getBattleStatus ==
+                LiveStreamingModel.battleAlive) {
+          // Calculate battle points (1 point per 5 coins, same as diamonds)
+          final battlePoints =
+              QuickHelp.getDiamondsForReceiver(giftsModel.getCoins!);
+
+          // Update local controller for real-time display (opponent's points)
+          showGiftSendersController.hisBattlePoints.value += battlePoints;
+
+          // Send real-time battle points update to opponent via room commands
+          try {
+            PointsController.sendPointsUpdate(
+              roomID: widget.liveID,
+              hisPoints: battlePoints, // Add points to opponent's side
+              myPoints: 0, // No change to my points from this gift
+            );
+            debugPrint(
+                "🎯 Battle points sent to opponent via room command: $battlePoints");
+          } catch (e) {
+            debugPrint(
+                "⚠️ Failed to send battle points to opponent via room command: $e");
+          }
+
+          // Save to cloud function for persistence
+          QuickCloudCode.saveHisBattlePoints(
+            points: battlePoints,
+            liveChannel: widget.liveStreaming!.getBattleLiveId!,
+          );
+        }
         sendMessage("sent_gift".tr(namedArgs: {"name": mUser.getFullName!}));
       }
 

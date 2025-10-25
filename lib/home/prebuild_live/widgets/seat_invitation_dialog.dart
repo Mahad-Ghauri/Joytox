@@ -307,8 +307,7 @@ class _SeatInvitationDialogState extends State<SeatInvitationDialog>
 
         // Use the Zego API to move user to the specific seat
         final controller = ZegoUIKitPrebuiltLiveAudioRoomController();
-        print(
-            "🎧 [SEAT MOVE DEBUG] Controller obtained: ${controller != null}");
+        print("🎧 [SEAT MOVE DEBUG] Controller obtained: true");
 
         // Check seat status before attempting to take it
         final currentUser = controller.seat.getUserByIndex(seatIndex);

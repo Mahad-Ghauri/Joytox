@@ -774,7 +774,7 @@ class _ReportScreenState extends State<ReportScreen> {
       List<String> savedImagesPaths = [];
       DateTime date = DateTime.now();
 
-      for (int i = 0; i < images!.length; i++) {
+      for (int i = 0; i < images.length; i++) {
         String imageName =
             'post_picture_${selectedPictures.length + i}_${date.second}_${date.millisecond}.jpg';
 

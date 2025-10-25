@@ -616,39 +616,6 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
   final isSeatClosedNotifier = ValueNotifier<bool>(false);
   final isRequestingNotifier = ValueNotifier<bool>(false);
 
-  // Calculate seat index based on user ID and seat layout
-  int _calculateSeatIndex(String? userId) {
-    if (userId == null) return 1;
-
-    // Host always gets seat index 0
-    if (userId == widget.liveStreaming!.getAuthorId) {
-      return 0;
-    }
-
-    // For other users, we need to determine their seat index
-    final seatStates = showGiftSendersController.seatStates;
-    for (int i = 1; i < seatStates.length; i++) {
-      final seatState = seatStates[i];
-      if (seatState != null && seatState['userId'] == userId) {
-        return i;
-      }
-    }
-
-    // If user not found in any seat, return -1
-    return 1;
-  }
-
-  // Validate if a user can occupy a specific seat
-  bool _canUserOccupySeat(int seatIndex, String userId) {
-    // Seat 0 is reserved for host/admin only
-    if (seatIndex == 0) {
-      return userId == widget.liveStreaming!.getAuthorId;
-    }
-
-    // Other seats can be occupied by any user (subject to other restrictions)
-    return true;
-  }
-
   // Initialize and sync room background theme using Zego room properties
   Future<void> _initThemeSync() async {
     try {
@@ -661,7 +628,7 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
         final result = await ZegoUIKitSignalingPlugin().queryRoomProperties(
           roomID: roomID,
         );
-        props = Map<String, String>.from(result.properties ?? {});
+        props = Map<String, String>.from(result.properties);
       } catch (e) {
         debugPrint('queryRoomProperties failed: $e');
       }
@@ -3422,40 +3389,6 @@ class _PrebuildAudioRoomScreenState extends State<PrebuildAudioRoomScreen>
         }
       });
     }
-  }
-
-  // Theme management methods
-  void _showThemeSelector() {
-    if (!widget.isHost!) {
-      QuickHelp.showAppNotificationAdvanced(
-        context: context,
-        title: "Error",
-        message: "Only the host can change the room theme.",
-        isError: true,
-      );
-      return;
-    }
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => RoomThemeSelector(
-        currentUser: widget.currentUser!,
-        liveStreaming: widget.liveStreaming!,
-        onThemeSelected: _onThemeChanged,
-      ),
-    );
-  }
-
-  void _onThemeChanged(String newTheme) {
-    print("🎨 Theme changed to: $newTheme");
-
-    // Update the controller state
-    showGiftSendersController.updateRoomTheme(newTheme);
-
-    // The UI will automatically update due to Obx wrapper on background
-    print("🎨 Theme applied successfully!");
   }
 
   Future<void> _ensureMusicPlayer() async {

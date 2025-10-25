@@ -36,7 +36,7 @@ void main() {
           isPlaying: true,
           positionMs: 5000,
         );
-        
+
         final copied = original.copyWith(isPlaying: false);
         expect(copied.trackUrl, equals(original.trackUrl));
         expect(copied.isPlaying, isFalse);
@@ -49,10 +49,10 @@ void main() {
           isPlaying: true,
           positionMs: 5000,
         );
-        
+
         final json = original.toJson();
         final deserialized = MusicPlaybackState.fromJson(json);
-        
+
         expect(deserialized.trackUrl, equals(original.trackUrl));
         expect(deserialized.isPlaying, equals(original.isPlaying));
         expect(deserialized.positionMs, equals(original.positionMs));
@@ -64,7 +64,7 @@ void main() {
           'isPlaying': null,
           'positionMs': null,
         };
-        
+
         final state = MusicPlaybackState.fromJson(json);
         expect(state.trackUrl, isNull);
         expect(state.isPlaying, isFalse); // Default value
@@ -73,7 +73,7 @@ void main() {
 
       test('should handle missing JSON keys correctly', () {
         final json = <String, dynamic>{};
-        
+
         final state = MusicPlaybackState.fromJson(json);
         expect(state.trackUrl, isNull);
         expect(state.isPlaying, isFalse); // Default value
@@ -84,7 +84,7 @@ void main() {
     group('Audio Room Manager State Management', () {
       test('should initialize with default values', () {
         final manager = ZegoLiveAudioRoomManager();
-        
+
         expect(manager.roleNoti.value, equals(ZegoLiveAudioRoomRole.audience));
         expect(manager.hostUserNoti.value, isNull);
         expect(manager.musicStateNoti.value, isNull);
@@ -93,34 +93,37 @@ void main() {
 
       test('should handle music state updates correctly', () {
         final manager = ZegoLiveAudioRoomManager();
-        
+
         final testState = MusicPlaybackState(
           trackUrl: 'https://example.com/test.mp3',
           isPlaying: true,
           positionMs: 0,
         );
-        
+
         // Simulate state update
         manager.musicStateNoti.value = testState;
-        
-        expect(manager.musicStateNoti.value?.trackUrl, equals(testState.trackUrl));
-        expect(manager.musicStateNoti.value?.isPlaying, equals(testState.isPlaying));
-        expect(manager.musicStateNoti.value?.positionMs, equals(testState.positionMs));
+
+        expect(
+            manager.musicStateNoti.value?.trackUrl, equals(testState.trackUrl));
+        expect(manager.musicStateNoti.value?.isPlaying,
+            equals(testState.isPlaying));
+        expect(manager.musicStateNoti.value?.positionMs,
+            equals(testState.positionMs));
       });
 
       test('should clear state properly', () {
         final manager = ZegoLiveAudioRoomManager();
-        
+
         // Set some state
         manager.musicStateNoti.value = MusicPlaybackState(
           trackUrl: 'https://example.com/test.mp3',
           isPlaying: true,
           positionMs: 0,
         );
-        
+
         // Clear state
         manager.clear();
-        
+
         expect(manager.musicStateNoti.value, isNull);
         expect(manager.hostUserNoti.value, isNull);
         expect(manager.isLockSeat.value, isFalse);
@@ -130,28 +133,31 @@ void main() {
     group('Audio State Synchronization', () {
       test('should maintain consistent state between host and audience', () {
         final manager = ZegoLiveAudioRoomManager();
-        
+
         // Test that music state is properly synchronized
         final testState = MusicPlaybackState(
           trackUrl: 'https://example.com/test.mp3',
           isPlaying: true,
           positionMs: 0,
         );
-        
+
         // Simulate state update
         manager.musicStateNoti.value = testState;
-        
-        expect(manager.musicStateNoti.value?.trackUrl, equals(testState.trackUrl));
-        expect(manager.musicStateNoti.value?.isPlaying, equals(testState.isPlaying));
-        expect(manager.musicStateNoti.value?.positionMs, equals(testState.positionMs));
+
+        expect(
+            manager.musicStateNoti.value?.trackUrl, equals(testState.trackUrl));
+        expect(manager.musicStateNoti.value?.isPlaying,
+            equals(testState.isPlaying));
+        expect(manager.musicStateNoti.value?.positionMs,
+            equals(testState.positionMs));
       });
 
       test('should handle state transitions correctly', () {
         final manager = ZegoLiveAudioRoomManager();
-        
+
         // Initial state
         expect(manager.musicStateNoti.value, isNull);
-        
+
         // Play state
         final playState = MusicPlaybackState(
           trackUrl: 'https://example.com/test.mp3',
@@ -160,12 +166,12 @@ void main() {
         );
         manager.musicStateNoti.value = playState;
         expect(manager.musicStateNoti.value?.isPlaying, isTrue);
-        
+
         // Pause state
         final pauseState = playState.copyWith(isPlaying: false);
         manager.musicStateNoti.value = pauseState;
         expect(manager.musicStateNoti.value?.isPlaying, isFalse);
-        
+
         // Stop state
         final stopState = MusicPlaybackState.stopped();
         manager.musicStateNoti.value = stopState;
@@ -194,11 +200,14 @@ void main() {
         final mp3Url = 'https://example.com/audio.mp3';
         final wavUrl = 'https://example.com/audio.wav';
         final aacUrl = 'https://example.com/audio.aac';
-        
-        final mp3State = MusicPlaybackState(trackUrl: mp3Url, isPlaying: true, positionMs: 0);
-        final wavState = MusicPlaybackState(trackUrl: wavUrl, isPlaying: true, positionMs: 0);
-        final aacState = MusicPlaybackState(trackUrl: aacUrl, isPlaying: true, positionMs: 0);
-        
+
+        final mp3State = MusicPlaybackState(
+            trackUrl: mp3Url, isPlaying: true, positionMs: 0);
+        final wavState = MusicPlaybackState(
+            trackUrl: wavUrl, isPlaying: true, positionMs: 0);
+        final aacState = MusicPlaybackState(
+            trackUrl: aacUrl, isPlaying: true, positionMs: 0);
+
         expect(mp3State.trackUrl, equals(mp3Url));
         expect(wavState.trackUrl, equals(wavUrl));
         expect(aacState.trackUrl, equals(aacUrl));
@@ -207,8 +216,6 @@ void main() {
 
     group('Error Handling and Recovery', () {
       test('should handle JSON parsing errors gracefully', () {
-        final invalidJson = '{"invalid": "json"';
-        
         expect(() {
           // jsonDecode is not imported, so this test will fail.
           // Assuming jsonDecode is available or this test is meant to be removed.
@@ -219,21 +226,21 @@ void main() {
 
       test('should handle null values in state updates', () {
         final manager = ZegoLiveAudioRoomManager();
-        
+
         // Should not crash when setting null values
         expect(() {
           manager.musicStateNoti.value = null;
         }, returnsNormally);
-        
+
         expect(manager.musicStateNoti.value, isNull);
       });
 
       test('should handle empty state updates', () {
         final manager = ZegoLiveAudioRoomManager();
-        
+
         final emptyState = MusicPlaybackState.empty();
         manager.musicStateNoti.value = emptyState;
-        
+
         expect(manager.musicStateNoti.value?.trackUrl, isNull);
         expect(manager.musicStateNoti.value?.isPlaying, isFalse);
         expect(manager.musicStateNoti.value?.positionMs, equals(0));
@@ -243,7 +250,7 @@ void main() {
     group('Performance and Resource Management', () {
       test('should handle rapid state updates efficiently', () {
         final manager = ZegoLiveAudioRoomManager();
-        
+
         // Simulate rapid state updates
         for (int i = 0; i < 10; i++) {
           final state = MusicPlaybackState(
@@ -253,9 +260,10 @@ void main() {
           );
           manager.musicStateNoti.value = state;
         }
-        
+
         // Final state should be the last one
-        expect(manager.musicStateNoti.value?.trackUrl, equals('https://example.com/audio9.mp3'));
+        expect(manager.musicStateNoti.value?.trackUrl,
+            equals('https://example.com/audio9.mp3'));
         expect(manager.musicStateNoti.value?.isPlaying, isFalse);
         expect(manager.musicStateNoti.value?.positionMs, equals(9000));
       });
@@ -267,9 +275,9 @@ void main() {
           isPlaying: true,
           positionMs: largePosition,
         );
-        
+
         expect(state.positionMs, equals(largePosition));
-        
+
         final json = state.toJson();
         final deserialized = MusicPlaybackState.fromJson(json);
         expect(deserialized.positionMs, equals(largePosition));

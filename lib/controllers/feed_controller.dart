@@ -201,25 +201,44 @@ class FeedController extends GetxController {
   }
 
   Future<void> createComment(PostsModel post, String text) async {
-    CommentsModel comment = CommentsModel()
-      ..setAuthor = currentUser
-      ..setText = text
-      ..setAuthorId = currentUser.objectId!
-      ..setPostId = post.objectId!
-      ..setPost = post;
+    try {
+      // Validate comment text
+      if (text.trim().isEmpty) {
+        print('Comment text is empty');
+        return;
+      }
 
-    await comment.save();
-    await post.save();
+      CommentsModel comment = CommentsModel()
+        ..setAuthor = currentUser
+        ..setText = text.trim()
+        ..setAuthorId = currentUser.objectId!
+        ..setPostId = post.objectId!
+        ..setPost = post;
 
-    QuickActions.createOrDeleteNotification(
-      currentUser,
-      post.getAuthor!,
-      NotificationsModel.notificationTypeCommentPost,
-      post: post,
-    );
+      ParseResponse commentResponse = await comment.save();
 
-    // Atualizar post no cache também
-    postsService.updatePost(post);
+      if (commentResponse.success) {
+        // Update post to trigger live query updates
+        await post.save();
+
+        // Create notification
+        QuickActions.createOrDeleteNotification(
+          currentUser,
+          post.getAuthor!,
+          NotificationsModel.notificationTypeCommentPost,
+          post: post,
+        );
+
+        // Update post in cache
+        postsService.updatePost(post);
+
+        print('Comment created successfully');
+      } else {
+        print('Comment save failed: ${commentResponse.error?.message}');
+      }
+    } catch (e) {
+      print('Comment creation error: $e');
+    }
   }
 
   Future<void> deletePost(PostsModel post) async {

@@ -27,11 +27,11 @@ class VideoReelsCommentScreen extends StatefulWidget {
   VideoReelsCommentScreen({this.currentUser, this.post, super.key});
 
   @override
-  State<VideoReelsCommentScreen> createState() => _VideoReelsCommentScreenState();
+  State<VideoReelsCommentScreen> createState() =>
+      _VideoReelsCommentScreenState();
 }
 
 class _VideoReelsCommentScreenState extends State<VideoReelsCommentScreen> {
-
   TextEditingController replyController = TextEditingController();
 
   bool showCommentOrReplyTextField = true;
@@ -44,7 +44,6 @@ class _VideoReelsCommentScreenState extends State<VideoReelsCommentScreen> {
 
   TextEditingController commentController = TextEditingController();
 
-
   @override
   void initState() {
     super.initState();
@@ -55,7 +54,7 @@ class _VideoReelsCommentScreenState extends State<VideoReelsCommentScreen> {
   Widget build(BuildContext context) {
     bool isDark = QuickHelp.isDarkMode(context);
     return GestureDetector(
-      onTap: (){
+      onTap: () {
         FocusScopeNode focusScopeNode = FocusScope.of(context);
         if (!focusScopeNode.hasPrimaryFocus &&
             focusScopeNode.focusedChild != null) {
@@ -65,7 +64,9 @@ class _VideoReelsCommentScreenState extends State<VideoReelsCommentScreen> {
       child: Scaffold(
         appBar: AppBar(
           automaticallyImplyLeading: false,
-          leading: BackButton(color: isDark ? Colors.white : kContentColorLightTheme,),
+          leading: BackButton(
+            color: isDark ? Colors.white : kContentColorLightTheme,
+          ),
           centerTitle: true,
           title: TextWithTap(
             "feed.reels_video_comments".tr(),
@@ -73,7 +74,7 @@ class _VideoReelsCommentScreenState extends State<VideoReelsCommentScreen> {
           ),
         ),
         body: showAllComments(),
-        bottomNavigationBar:  commentInputField(),
+        bottomNavigationBar: commentInputField(),
       ),
     );
   }
@@ -155,7 +156,7 @@ class _VideoReelsCommentScreenState extends State<VideoReelsCommentScreen> {
     var size = MediaQuery.of(context).size;
 
     QueryBuilder<CommentsModel> queryBuilder =
-    QueryBuilder<CommentsModel>(CommentsModel());
+        QueryBuilder<CommentsModel>(CommentsModel());
     queryBuilder.whereEqualTo(CommentsModel.keyPost, widget.post);
     queryBuilder.whereNotContainedIn(
         CommentsModel.keyObjectId, widget.currentUser!.getReportedCommentID!);
@@ -189,14 +190,15 @@ class _VideoReelsCommentScreenState extends State<VideoReelsCommentScreen> {
                   children: [
                     GestureDetector(
                       onTap: () {
-                        if(commentsModel.getAuthorId == widget.currentUser!.objectId) {
-                          QuickHelp.goToNavigatorScreen(context,
+                        if (commentsModel.getAuthorId ==
+                            widget.currentUser!.objectId) {
+                          QuickHelp.goToNavigatorScreen(
+                              context,
                               HomeScreen(
                                 currentUser: widget.currentUser,
                                 initialTabIndex: 4,
-                              )
-                          );
-                        }else{
+                              ));
+                        } else {
                           goToUserProfile(commentsModel.getAuthor!);
                         }
                       },
@@ -208,28 +210,25 @@ class _VideoReelsCommentScreenState extends State<VideoReelsCommentScreen> {
                             width: 40,
                             height: 40,
                           ),
-                          if (commentsModel.getAuthor!.getAvatarFrame !=
-                              null &&
-                              commentsModel.getAuthor!
-                                  .getCanUseAvatarFrame!)
+                          if (commentsModel.getAuthor!.getAvatarFrame != null &&
+                              commentsModel.getAuthor!.getCanUseAvatarFrame!)
                             ContainerCorner(
                               borderWidth: 0,
                               width: 55,
                               height: 55,
                               child: CachedNetworkImage(
-                                imageUrl: commentsModel.getAuthor!
-                                    .getAvatarFrame!.url!,
-                                imageBuilder:
-                                    (context, imageProvider) =>
+                                imageUrl: commentsModel
+                                    .getAuthor!.getAvatarFrame!.url!,
+                                imageBuilder: (context, imageProvider) =>
                                     Container(
-                                      decoration: BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        image: DecorationImage(
-                                          image: imageProvider,
-                                          fit: BoxFit.fill,
-                                        ),
-                                      ),
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    image: DecorationImage(
+                                      image: imageProvider,
+                                      fit: BoxFit.fill,
                                     ),
+                                  ),
+                                ),
                               ),
                             ),
                         ],
@@ -255,7 +254,7 @@ class _VideoReelsCommentScreenState extends State<VideoReelsCommentScreen> {
                                   Flexible(
                                     child: Column(
                                       crossAxisAlignment:
-                                      CrossAxisAlignment.start,
+                                          CrossAxisAlignment.start,
                                       children: [
                                         TextWithTap(
                                           commentsModel.getAuthor!.getFullName!,
@@ -350,9 +349,9 @@ class _VideoReelsCommentScreenState extends State<VideoReelsCommentScreen> {
 
   openReportComments(
       {required UserModel author,
-        required int commentOrReply,
-        CommentsModel? comment,
-        ReplyModel? replyComment}) async {
+      required int commentOrReply,
+      CommentsModel? comment,
+      ReplyModel? replyComment}) async {
     showModalBottomSheet(
         context: (context),
         isScrollControlled: true,
@@ -371,9 +370,9 @@ class _VideoReelsCommentScreenState extends State<VideoReelsCommentScreen> {
 
   Widget _showReportCommentsBottomSheet(
       {required UserModel author,
-        required int commentOrReply,
-        CommentsModel? comment,
-        ReplyModel? replyComment}) {
+      required int commentOrReply,
+      CommentsModel? comment,
+      ReplyModel? replyComment}) {
     return GestureDetector(
       onTap: () => Navigator.of(context).pop(),
       child: Container(
@@ -418,46 +417,46 @@ class _VideoReelsCommentScreenState extends State<VideoReelsCommentScreen> {
                         Column(
                           children: List.generate(
                               QuickHelp.getReportCodeMessageList().length,
-                                  (index) {
-                                String code =
+                              (index) {
+                            String code =
                                 QuickHelp.getReportCodeMessageList()[index];
 
-                                return TextButton(
-                                  onPressed: () {
-                                    Navigator.of(context).pop();
+                            return TextButton(
+                              onPressed: () {
+                                Navigator.of(context).pop();
 
-                                    if (commentOrReply == 1) {
-                                      _saveReportComment(comment!.objectId!);
-                                    } else if (commentOrReply == 2) {
-                                      _saveReportReply(replyComment!.objectId!);
-                                    }
-                                  },
-                                  child: Column(
-                                    children: [
-                                      Row(
-                                        mainAxisAlignment:
+                                if (commentOrReply == 1) {
+                                  _saveReportComment(comment!.objectId!);
+                                } else if (commentOrReply == 2) {
+                                  _saveReportReply(replyComment!.objectId!);
+                                }
+                              },
+                              child: Column(
+                                children: [
+                                  Row(
+                                    mainAxisAlignment:
                                         MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          TextWithTap(
-                                            QuickHelp.getReportMessage(code),
-                                            color: kGrayColor,
-                                            fontSize: 15,
-                                            marginBottom: 5,
-                                          ),
-                                          const Icon(
-                                            Icons.arrow_forward_ios,
-                                            size: 18,
-                                            color: kGrayColor,
-                                          ),
-                                        ],
+                                    children: [
+                                      TextWithTap(
+                                        QuickHelp.getReportMessage(code),
+                                        color: kGrayColor,
+                                        fontSize: 15,
+                                        marginBottom: 5,
                                       ),
-                                      const Divider(
-                                        height: 1.0,
-                                      )
+                                      const Icon(
+                                        Icons.arrow_forward_ios,
+                                        size: 18,
+                                        color: kGrayColor,
+                                      ),
                                     ],
                                   ),
-                                );
-                              }),
+                                  const Divider(
+                                    height: 1.0,
+                                  )
+                                ],
+                              ),
+                            );
+                          }),
                         ),
                         ContainerCorner(
                           marginTop: 30,
@@ -538,12 +537,11 @@ class _VideoReelsCommentScreenState extends State<VideoReelsCommentScreen> {
     }
   }
 
-
   Widget showAllReplies(CommentsModel commentsModel) {
     var size = MediaQuery.of(context).size;
 
     QueryBuilder<ReplyModel> queryBuilder =
-    QueryBuilder<ReplyModel>(ReplyModel());
+        QueryBuilder<ReplyModel>(ReplyModel());
 
     queryBuilder.whereEqualTo(ReplyModel.keyCommentId, commentsModel.objectId);
     queryBuilder.orderByAscending(ReplyModel.keyCreatedAt);
@@ -579,15 +577,16 @@ class _VideoReelsCommentScreenState extends State<VideoReelsCommentScreen> {
                   mainAxisAlignment: MainAxisAlignment.start,
                   children: [
                     GestureDetector(
-                      onTap: (){
-                        if(replyModel.getAuthorId == widget.currentUser!.objectId) {
-                          QuickHelp.goToNavigatorScreen(context,
+                      onTap: () {
+                        if (replyModel.getAuthorId ==
+                            widget.currentUser!.objectId) {
+                          QuickHelp.goToNavigatorScreen(
+                              context,
                               HomeScreen(
                                 currentUser: widget.currentUser,
                                 initialTabIndex: 4,
-                              )
-                          );
-                        }else{
+                              ));
+                        } else {
                           goToUserProfile(replyModel.getAuthor!);
                         }
                       },
@@ -599,27 +598,23 @@ class _VideoReelsCommentScreenState extends State<VideoReelsCommentScreen> {
                             width: 35,
                             height: 35,
                           ),
-                          if (replyModel.getAuthor!.getAvatarFrame !=
-                              null &&
-                              replyModel.getAuthor!
-                                  .getCanUseAvatarFrame!)
+                          if (replyModel.getAuthor!.getAvatarFrame != null &&
+                              replyModel.getAuthor!.getCanUseAvatarFrame!)
                             ContainerCorner(
                               borderWidth: 0,
                               width: 45,
                               height: 45,
                               child: CachedNetworkImage(
-                                imageUrl: replyModel.getAuthor!
-                                    .getAvatarFrame!.url!,
-                                imageBuilder:
-                                    (context, imageProvider) =>
+                                imageUrl:
+                                    replyModel.getAuthor!.getAvatarFrame!.url!,
+                                imageBuilder: (context, imageProvider) =>
                                     Container(
-                                      decoration: BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        image: DecorationImage(
-                                            image: imageProvider,
-                                            fit: BoxFit.fill),
-                                      ),
-                                    ),
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    image: DecorationImage(
+                                        image: imageProvider, fit: BoxFit.fill),
+                                  ),
+                                ),
                               ),
                             ),
                         ],
@@ -645,7 +640,7 @@ class _VideoReelsCommentScreenState extends State<VideoReelsCommentScreen> {
                                   Flexible(
                                     child: Column(
                                       crossAxisAlignment:
-                                      CrossAxisAlignment.start,
+                                          CrossAxisAlignment.start,
                                       children: [
                                         TextWithTap(
                                           replyModel.getAuthor!.getFullName!,
@@ -662,8 +657,10 @@ class _VideoReelsCommentScreenState extends State<VideoReelsCommentScreen> {
                                               left: 10, right: 10),
                                           child: ExpandableText(
                                             replyModel.getText!,
-                                            expandText: 'show_more'.tr().toLowerCase(),
-                                            collapseText: 'show_less'.tr().toLowerCase(),
+                                            expandText:
+                                                'show_more'.tr().toLowerCase(),
+                                            collapseText:
+                                                'show_less'.tr().toLowerCase(),
                                             maxLines: 4,
                                             linkColor: Colors.blue,
                                             style: GoogleFonts.nunito(
@@ -849,5 +846,4 @@ class _VideoReelsCommentScreenState extends State<VideoReelsCommentScreen> {
       commentToReply.clear();
     });
   }
-
 }

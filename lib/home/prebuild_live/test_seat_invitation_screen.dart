@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:easy_localization/easy_localization.dart';
 import 'package:trace/models/UserModel.dart';
 import 'package:trace/models/LiveStreamingModel.dart';
 import 'package:trace/models/SeatInvitationModel.dart';
