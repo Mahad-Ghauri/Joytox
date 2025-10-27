@@ -6,6 +6,7 @@ import 'package:cached_video_player_plus/cached_video_player_plus.dart';
 import 'package:trace/views/reels_interactions.dart';
 import '../controllers/reels_controller.dart';
 import '../controllers/video_interactions_controller.dart';
+import '../controllers/feed_controller.dart';
 import '../models/UserModel.dart';
 import '../models/PostsModel.dart';
 import '../services/posts_service.dart';
@@ -697,11 +698,121 @@ class _VideoPlayerItemState extends State<VideoPlayerItem>
   @override
   void dispose() {
     print('VideoPlayerItem: dispose para o índice ${widget.index}');
+
+    // Refresh user data and trigger setState when video item is disposed
+    _refreshUserDataAndTriggerSetState();
+
     _isDisposed = true;
     _retryTimer?.cancel();
     _animationController.dispose();
     controller.removeCustomListener(_checkController);
     super.dispose();
+  }
+
+  /// Refresh user data and trigger setState when video item is disposed
+  void _refreshUserDataAndTriggerSetState() {
+    try {
+      print(
+          '🔄 VideoPlayerItem: Refreshing user data and triggering setState on dispose for index ${widget.index}');
+
+      // Refresh current user data if available
+      if (widget.currentUser != null) {
+        print(
+            '🔄 VideoPlayerItem: Current user before refresh: ${widget.currentUser!.getFullName}');
+
+        // Force refresh user data from server
+        widget.currentUser!.fetch().then((updatedUser) {
+          print(
+              '🔄 VideoPlayerItem: User data refreshed successfully: ${widget.currentUser!.getFullName}');
+
+          // Update the user in GetX dependency injection
+          if (Get.isRegistered<UserModel>()) {
+            Get.find<UserModel>().fromJson(widget.currentUser!.toJson());
+            print(
+                '🔄 VideoPlayerItem: User updated in GetX dependency injection');
+          }
+
+          // Trigger setState refresh on feed widgets
+          _triggerFeedRefresh();
+        }).catchError((error) {
+          print('🔄 VideoPlayerItem: Error refreshing user data: $error');
+          // Still trigger feed refresh even if user refresh fails
+          _triggerFeedRefresh();
+        });
+      } else {
+        // Trigger feed refresh even if no current user
+        _triggerFeedRefresh();
+      }
+    } catch (e) {
+      print(
+          '🔄 VideoPlayerItem: Error in _refreshUserDataAndTriggerSetState: $e');
+      // Still trigger feed refresh on error
+      _triggerFeedRefresh();
+    }
+  }
+
+  /// Trigger setState refresh on feed widgets to update user profile name and picture
+  void _triggerFeedRefresh() {
+    try {
+      print('🔄 VideoPlayerItem: Triggering feed refresh to update UI...');
+
+      // Refresh FeedController if available
+      if (Get.isRegistered<FeedController>()) {
+        final feedController = Get.find<FeedController>();
+        print('🔄 VideoPlayerItem: Refreshing FeedController...');
+
+        // Force refresh the feed
+        feedController.refreshFeed().then((_) {
+          print('🔄 VideoPlayerItem: FeedController refreshed successfully');
+        }).catchError((error) {
+          print('🔄 VideoPlayerItem: Error refreshing FeedController: $error');
+        });
+      }
+
+      // Refresh PostsService if available
+      if (Get.isRegistered<PostsService>()) {
+        final postsService = Get.find<PostsService>();
+        print('🔄 VideoPlayerItem: Refreshing PostsService...');
+
+        // Force refresh all posts to update user data
+        postsService.refreshContent().then((_) {
+          print('🔄 VideoPlayerItem: PostsService refreshed successfully');
+
+          // Force UI refresh by updating the reactive lists
+          postsService.allPosts.refresh();
+          postsService.videoPosts.refresh();
+
+          print('🔄 VideoPlayerItem: UI refresh triggered for all posts');
+        }).catchError((error) {
+          print('🔄 VideoPlayerItem: Error refreshing PostsService: $error');
+        });
+      }
+
+      // Also refresh the video interactions controller for this specific video
+      _refreshVideoInteractionsController();
+    } catch (e) {
+      print('🔄 VideoPlayerItem: Error in _triggerFeedRefresh: $e');
+    }
+  }
+
+  /// Refresh the video interactions controller for this specific video
+  void _refreshVideoInteractionsController() {
+    try {
+      final tag = 'video_interactions_${widget.video.objectId}';
+      if (Get.isRegistered<VideoInteractionsController>(tag: tag)) {
+        final controller = Get.find<VideoInteractionsController>(tag: tag);
+        print(
+            '🔄 VideoPlayerItem: Refreshing video interactions controller for video: ${widget.video.objectId}');
+
+        // Force refresh the video data
+        controller.refreshVideoData();
+
+        print('🔄 VideoPlayerItem: Video interactions controller refreshed');
+      }
+    } catch (e) {
+      print(
+          '🔄 VideoPlayerItem: Error refreshing video interactions controller: $e');
+    }
   }
 
   @override
@@ -832,7 +943,7 @@ class _VideoPlayerItemState extends State<VideoPlayerItem>
         // Interações (likes, comentários, etc)
         ReelsInteractions(
           postModel: widget.video,
-          currentUser: widget.currentUser ?? Get.find<UserModel>(),
+          currentUser: widget.currentUser,
         ),
       ],
     );

@@ -47,12 +47,17 @@ class ShortsCachedView extends StatelessWidget {
         _controller.playVideo(pageController.page?.toInt() ?? initialPage);
       });
 
-      final videoInteractionController = Get.put(
-        VideoInteractionsController(
-          video: _controller.shorts[initialPage],
-          currentUser: currentUser,
-        ),
-      );
+      final String tag =
+          'video_interactions_${_controller.shorts[initialPage].objectId}';
+      if (!Get.isRegistered<VideoInteractionsController>(tag: tag)) {
+        Get.put(
+          VideoInteractionsController(
+            video: _controller.shorts[initialPage],
+            currentUser: currentUser,
+          ),
+          tag: tag,
+        );
+      }
 
       return WillPopScope(
         onWillPop: () async {
@@ -72,18 +77,44 @@ class ShortsCachedView extends StatelessWidget {
               onPageChanged: (index) {
                 _controller.lastSavedIndex.value = index;
                 _controller.playVideo(index);
-                videoInteractionController.resetViewProgress();
+
+                // Update video interactions controller for the new video
+                final String newTag =
+                    'video_interactions_${_controller.shorts[index].objectId}';
+                if (!Get.isRegistered<VideoInteractionsController>(
+                    tag: newTag)) {
+                  Get.put(
+                    VideoInteractionsController(
+                      video: _controller.shorts[index],
+                      currentUser: currentUser,
+                    ),
+                    tag: newTag,
+                  );
+                }
+
+                // Reset view progress for the new video
+                final newController =
+                    Get.find<VideoInteractionsController>(tag: newTag);
+                newController.resetViewProgress();
               },
               itemBuilder: (context, index) {
                 var currentVideoController =
                     _controller.videoControllers[index];
 
+                final String currentTag =
+                    'video_interactions_${_controller.shorts[index].objectId}';
                 _controller.videoControllers[index].addListener(() {
                   if (_controller.videoControllers[index].value.isPlaying) {
-                    videoInteractionController.updateVideoProgress(
-                      _controller.videoControllers[index].value.position,
-                      _controller.videoControllers[index].value.duration,
-                    );
+                    if (Get.isRegistered<VideoInteractionsController>(
+                        tag: currentTag)) {
+                      final currentController =
+                          Get.find<VideoInteractionsController>(
+                              tag: currentTag);
+                      currentController.updateVideoProgress(
+                        _controller.videoControllers[index].value.position,
+                        _controller.videoControllers[index].value.duration,
+                      );
+                    }
                   }
                 });
 

@@ -1299,12 +1299,7 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen>
         await leadersModel.save();
       }
 
-      await QuickCloudCode.sendGift(
-        author: mUser,
-        credits: giftsModel.getCoins!,
-      );
-
-      // Send gift via ZegoGiftController service for real-time room commands
+      // Send gift via ZegoGiftController service for real-time room commands and billing
       try {
         await ZegoGiftController().service.sendGift(
               receiverId: mUser.objectId!,
@@ -1316,8 +1311,8 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen>
       }
 
       if (mUser.objectId == widget.liveStreaming!.getAuthorId) {
-        // Add diamonds to live streaming (for earnings)
-        widget.liveStreaming!.addDiamonds = QuickHelp.getDiamondsForReceiver(
+        // Add coins to live streaming (for earnings)
+        widget.liveStreaming!.addDiamonds = QuickHelp.getCoinsForReceiver(
           giftsModel.getCoins!,
         );
 
@@ -1327,7 +1322,7 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen>
                 LiveStreamingModel.battleAlive) {
           // Calculate battle points (1 point per 5 coins, same as diamonds)
           final battlePoints =
-              QuickHelp.getDiamondsForReceiver(giftsModel.getCoins!);
+              QuickHelp.getCoinsForReceiver(giftsModel.getCoins!);
 
           // Update local battle points
           widget.liveStreaming!.addMyBattlePoints = battlePoints;
@@ -1378,7 +1373,7 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen>
                 LiveStreamingModel.battleAlive) {
           // Calculate battle points (1 point per 5 coins, same as diamonds)
           final battlePoints =
-              QuickHelp.getDiamondsForReceiver(giftsModel.getCoins!);
+              QuickHelp.getCoinsForReceiver(giftsModel.getCoins!);
 
           // Update local controller for real-time display (opponent's points)
           showGiftSendersController.hisBattlePoints.value += battlePoints;

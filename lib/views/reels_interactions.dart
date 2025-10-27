@@ -22,13 +22,14 @@ import '../../../utils/text_sanitizer.dart';
 import '../services/posts_service.dart';
 import '../../home/profile/profile_screen.dart';
 
-class ReelsInteractions extends GetView<VideoInteractionsController> {
+class ReelsInteractions extends StatelessWidget {
   final PostsModel postModel;
   final UserModel? currentUser;
 
   ReelsInteractions({
     required this.postModel,
     this.currentUser,
+    super.key,
   }) {
     if (!Get.isRegistered<VideoInteractionsController>(
         tag: postModel.objectId)) {
@@ -40,6 +41,10 @@ class ReelsInteractions extends GetView<VideoInteractionsController> {
         tag: postModel.objectId,
       );
     }
+  }
+
+  VideoInteractionsController get controller {
+    return Get.find<VideoInteractionsController>(tag: postModel.objectId);
   }
 
   /// Enhanced method to ensure author is loaded with proper error handling and UI updates
@@ -460,10 +465,12 @@ class ReelsInteractions extends GetView<VideoInteractionsController> {
     print('ReelsInteractions: Author ID: ${postModel.getAuthorId}');
     print(
         'ReelsInteractions: Author avatar: ${postModel.getAuthor?.getAvatar?.url}');
+    print('ReelsInteractions: Current user: ${currentUser?.getFullName}');
+    print('ReelsInteractions: Current user ID: ${currentUser?.objectId}');
 
     // Always try to fetch author if not loaded or if author has no name
     if ((postModel.getAuthor == null ||
-            postModel.getAuthor!.getFullName == null) &&
+            postModel.getAuthor?.getFullName == null) &&
         postModel.getAuthorId != null) {
       _ensureAuthorIsLoaded();
     }
@@ -518,6 +525,51 @@ class ReelsInteractions extends GetView<VideoInteractionsController> {
       );
     }
 
+    // Check if author has a valid name
+    final authorName = author.getFullName;
+    print('ReelsInteractions: Author name: $authorName');
+
+    if (authorName == null || authorName.isEmpty) {
+      print(
+          'ReelsInteractions: Author name is null or empty, showing loading...');
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          GestureDetector(
+            onTap: () {
+              print('Author name not loaded yet, cannot navigate to profile');
+            },
+            child: Container(
+              width: 45,
+              height: 45,
+              decoration: BoxDecoration(
+                color: Colors.grey.withOpacity(0.3),
+                shape: BoxShape.circle,
+              ),
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white70),
+              ),
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              TextWithTap(
+                "Loading...",
+                fontWeight: FontWeight.bold,
+                color: Colors.white.withOpacity(1.0),
+                fontSize: 15,
+                marginLeft: 3,
+              ),
+            ],
+          ),
+        ],
+      );
+    }
+
     // Author is loaded, show the actual data
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -526,7 +578,12 @@ class ReelsInteractions extends GetView<VideoInteractionsController> {
         // Enhanced avatar widget with better error handling and navigation
         GestureDetector(
           onTap: () {
-            if (author.objectId == currentUser?.objectId) {
+            if (currentUser == null) {
+              print('Current user is null, cannot navigate to profile');
+              return;
+            }
+
+            if (author.objectId == currentUser!.objectId) {
               // Navigate to current user's profile
               QuickHelp.goToNavigatorScreen(
                 context,

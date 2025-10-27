@@ -7012,6 +7012,11 @@ class QuickHelp {
     return (coins ~/ 5);
   }
 
+  static int getCoinsForReceiver(int coins) {
+    // Give 1 coin for every 5 coins sent (only for multiples of 5)
+    return (coins ~/ 5);
+  }
+
   static int getDiamondsForAgency(int diamonds) {
     double finalDiamonds = (diamonds / 100) * Setup.agencyPercent;
     return int.parse(finalDiamonds.toStringAsFixed(0));

@@ -13,6 +13,7 @@ import 'package:video_player/video_player.dart';
 import '../app/setup.dart';
 import '../controllers/feed_controller.dart';
 import '../helpers/quick_help.dart';
+import '../services/posts_service.dart';
 import '../helpers/quick_actions.dart';
 import '../home/profile/profile_screen.dart';
 import '../models/PostsModel.dart';
@@ -48,6 +49,39 @@ class FeedPostWidget extends StatelessWidget {
     this.onVideoTap,
   }) : super(key: key);
 
+  /// Enhanced method to ensure author is loaded with proper error handling and UI updates
+  void _ensureAuthorIsLoaded() {
+    // Check if author is already loaded and has valid data
+    if (post.getAuthor != null && post.getAuthor!.getFullName != null) {
+      print(
+          'FeedPostWidget: Author already loaded for post ${post.objectId}: ${post.getAuthor!.getFullName}');
+      return;
+    }
+
+    // Check if we have an author ID to fetch
+    if (post.getAuthorId == null) {
+      print('FeedPostWidget: No author ID for post ${post.objectId}');
+      return;
+    }
+
+    print('FeedPostWidget: Fetching author for post ${post.objectId}');
+
+    // Try to fetch author using PostsService
+    if (Get.isRegistered<PostsService>()) {
+      try {
+        final postsService = Get.find<PostsService>();
+        postsService.fetchAuthorForPost(post).then((_) {
+          print(
+              'FeedPostWidget: Author fetched successfully for post ${post.objectId}');
+        }).catchError((error) {
+          print('FeedPostWidget: Error fetching author: $error');
+        });
+      } catch (e) {
+        print('FeedPostWidget: Error accessing PostsService: $e');
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final FeedController controller = Get.find<FeedController>();
@@ -55,6 +89,9 @@ class FeedPostWidget extends StatelessWidget {
     Size size = MediaQuery.of(context).size;
 
     try {
+      // Enhanced method to ensure author is loaded with proper error handling and UI updates
+      _ensureAuthorIsLoaded();
+
       if (post.getAuthor == null) {
         return Container(
           margin: EdgeInsets.all(10),

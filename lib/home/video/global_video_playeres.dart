@@ -195,7 +195,7 @@ class _GlobalVideoPlayerState extends State<GlobalVideoPlayer> {
 
         ReelsInteractions(
           postModel: widget.video,
-          currentUser: widget.currentUser ?? Get.find<UserModel>(),
+          currentUser: widget.currentUser,
         ),
       ],
     );

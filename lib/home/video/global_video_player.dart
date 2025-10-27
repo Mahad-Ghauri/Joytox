@@ -22,8 +22,8 @@ class GlobalVideoPlayer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if(currentVideoController!.value.isInitialized) {
-       currentVideoController = CachedVideoPlayerPlusController.networkUrl(
+    if (currentVideoController!.value.isInitialized) {
+      currentVideoController = CachedVideoPlayerPlusController.networkUrl(
         Uri.parse(video!.getVideo!.url!),
         invalidateCacheIfOlderThan: const Duration(days: 2),
       );
@@ -42,7 +42,7 @@ class GlobalVideoPlayer extends StatelessWidget {
         ),
         ReelsInteractions(
           postModel: video!,
-          currentUser: currentUser ?? Get.find<UserModel>(),
+          currentUser: currentUser,
         ),
       ],
     );

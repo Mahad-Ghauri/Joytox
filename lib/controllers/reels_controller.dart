@@ -12,6 +12,8 @@ import '../models/UserModel.dart';
 import 'dart:async';
 import 'dart:math';
 import 'package:trace/controllers/video_recommendation_controller.dart';
+import 'package:trace/controllers/video_interactions_controller.dart';
+import 'package:trace/controllers/feed_controller.dart';
 import '../services/video_cache_manager.dart';
 import '../services/posts_service.dart';
 import 'package:trace/models/VideoQuality.dart';
@@ -896,6 +898,9 @@ class ReelsController extends GetxController with WidgetsBindingObserver {
 
   @override
   void onClose() {
+    // Refresh user data and trigger setState when video is closed
+    _refreshUserDataAndTriggerSetState();
+
     // Garantir que todos os controladores são liberados quando o controlador for fechado
     disposeAllControllers();
 
@@ -910,6 +915,140 @@ class ReelsController extends GetxController with WidgetsBindingObserver {
     WidgetsBinding.instance.removeObserver(this);
 
     super.onClose();
+  }
+
+  /// Refresh user data and trigger setState when video is closed to prevent "Usuario" issue
+  void _refreshUserDataAndTriggerSetState() {
+    try {
+      print(
+          '🔄 ReelsController: Refreshing user data and triggering setState on close...');
+
+      // Refresh current user data
+      if (currentUser != null) {
+        print(
+            '🔄 ReelsController: Current user before refresh: ${currentUser?.getFullName ?? "Unknown"}');
+
+        // Force refresh user data from server
+        currentUser!.fetch().then((updatedUser) {
+          print(
+              '🔄 ReelsController: User data refreshed successfully: ${currentUser?.getFullName ?? "Unknown"}');
+
+          // Update the user in GetX dependency injection
+          if (Get.isRegistered<UserModel>()) {
+            Get.find<UserModel>().fromJson(currentUser!.toJson());
+            print(
+                '🔄 ReelsController: User updated in GetX dependency injection');
+          }
+
+          // Trigger setState refresh on feed widgets
+          _triggerFeedRefresh();
+        }).catchError((error) {
+          print('🔄 ReelsController: Error refreshing user data: $error');
+          // Still trigger feed refresh even if user refresh fails
+          _triggerFeedRefresh();
+        });
+      } else {
+        // Trigger feed refresh even if no current user
+        _triggerFeedRefresh();
+      }
+    } catch (e) {
+      print(
+          '🔄 ReelsController: Error in _refreshUserDataAndTriggerSetState: $e');
+      // Still trigger feed refresh on error
+      _triggerFeedRefresh();
+    }
+  }
+
+  /// Trigger setState refresh on feed widgets to update user profile name and picture
+  void _triggerFeedRefresh() {
+    try {
+      print('🔄 ReelsController: Triggering feed refresh to update UI...');
+
+      // Add a small delay to prevent crashes during rapid state changes
+      Future.delayed(Duration(milliseconds: 100), () {
+        try {
+          // Refresh FeedController if available
+          if (Get.isRegistered<FeedController>()) {
+            final feedController = Get.find<FeedController>();
+            print('🔄 ReelsController: Refreshing FeedController...');
+
+            // Force refresh the feed
+            feedController.refreshFeed().then((_) {
+              print(
+                  '🔄 ReelsController: FeedController refreshed successfully');
+            }).catchError((error) {
+              print(
+                  '🔄 ReelsController: Error refreshing FeedController: $error');
+            });
+          }
+
+          // Refresh PostsService if available
+          if (Get.isRegistered<PostsService>()) {
+            final postsService = Get.find<PostsService>();
+            print('🔄 ReelsController: Refreshing PostsService...');
+
+            // Force refresh all posts to update user data
+            postsService.refreshContent().then((_) {
+              print('🔄 ReelsController: PostsService refreshed successfully');
+
+              // Force UI refresh by updating the reactive lists
+              postsService.allPosts.refresh();
+              postsService.videoPosts.refresh();
+
+              print('🔄 ReelsController: UI refresh triggered for all posts');
+            }).catchError((error) {
+              print(
+                  '🔄 ReelsController: Error refreshing PostsService: $error');
+            });
+          }
+
+          // Trigger refresh on all video interactions controllers
+          _refreshAllVideoInteractionsControllers();
+        } catch (e) {
+          print('🔄 ReelsController: Error in delayed _triggerFeedRefresh: $e');
+        }
+      });
+    } catch (e) {
+      print('🔄 ReelsController: Error in _triggerFeedRefresh: $e');
+    }
+  }
+
+  /// Refresh all video interactions controllers to ensure proper user data
+  void _refreshAllVideoInteractionsControllers() {
+    try {
+      print(
+          '🔄 ReelsController: Refreshing all video interactions controllers...');
+
+      // Get all registered VideoInteractionsController instances
+      for (var video in videos) {
+        final tag = 'video_interactions_${video.objectId}';
+        if (Get.isRegistered<VideoInteractionsController>(tag: tag)) {
+          try {
+            final controller = Get.find<VideoInteractionsController>(tag: tag);
+            print(
+                '🔄 ReelsController: Refreshing controller for video: ${video.objectId}');
+
+            // Force refresh the video data
+            controller.refreshVideoData();
+
+            // Update the current user in the controller
+            if (currentUser != null) {
+              // The controller already has the currentUser, but we can force a refresh
+              print(
+                  '🔄 ReelsController: Controller user: ${controller.currentUser?.getFullName}');
+            }
+          } catch (e) {
+            print(
+                '🔄 ReelsController: Error refreshing controller for video ${video.objectId}: $e');
+          }
+        }
+      }
+
+      print('🔄 ReelsController: All video interactions controllers refreshed');
+    } catch (e) {
+      print(
+          '🔄 ReelsController: Error in _refreshAllVideoInteractionsControllers: $e');
+    }
   }
 
   /// Método para buscar controlador por URL (necessário para compatibilidade)

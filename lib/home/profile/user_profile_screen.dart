@@ -279,9 +279,13 @@ class _UserProfileScreenState extends State<UserProfileScreen>
 
   getUserPictures() {
     setState(() {
-      userPictures.add(widget.mUser!.getAvatar!);
+      // Disable null checks - use safe navigation instead
+      if (widget.mUser?.getAvatar != null) {
+        userPictures.add(widget.mUser!.getAvatar!);
+      }
 
-      if (widget.mUser!.getImagesList!.isNotEmpty) {
+      if (widget.mUser?.getImagesList != null &&
+          widget.mUser!.getImagesList!.isNotEmpty) {
         for (ParseFileBase image in widget.mUser!.getImagesList!) {
           userPictures.add(image);
         }
@@ -1241,7 +1245,7 @@ class _UserProfileScreenState extends State<UserProfileScreen>
       return Stack(
         children: [
           QuickActions.profileAvatar(
-            widget.mUser!.getAvatar!.url!,
+            widget.mUser?.getAvatar?.url ?? '',
             width: double.infinity,
             height: double.infinity,
           ),
@@ -1384,15 +1388,20 @@ class _UserProfileScreenState extends State<UserProfileScreen>
   Widget tabUserData() {
     Size size = MediaQuery.of(context).size;
 
-    double wealthPercent = widget.mUser!.getCreditsSent! /
-        QuickHelp.wealthLevelValue(creditSent: widget.mUser!.getCreditsSent!) *
-        100;
+    double wealthPercent = widget.mUser?.getCreditsSent != null
+        ? widget.mUser!.getCreditsSent! /
+            QuickHelp.wealthLevelValue(
+                creditSent: widget.mUser!.getCreditsSent!) *
+            100
+        : 0;
     String wealthPercentString = wealthPercent.toStringAsFixed(2);
 
-    double receivedGiftPercent = widget.mUser!.getDiamondsTotal! /
-        QuickHelp.receivedGiftsValue(
-            receivedGift: widget.mUser!.getDiamondsTotal!) *
-        100;
+    double receivedGiftPercent = widget.mUser?.getDiamondsTotal != null
+        ? widget.mUser!.getDiamondsTotal! /
+            QuickHelp.receivedGiftsValue(
+                receivedGift: widget.mUser!.getDiamondsTotal!) *
+            100
+        : 0;
     String receivedGiftPercentString = receivedGiftPercent.toStringAsFixed(2);
 
     return Column(

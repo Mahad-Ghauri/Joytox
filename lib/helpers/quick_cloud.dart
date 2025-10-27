@@ -59,11 +59,11 @@ class QuickCloudCode {
 
   static Future<ParseResponse> sendGift(
       {required UserModel author, required int credits}) async {
-    int diamondsToAdd = QuickHelp.getDiamondsForReceiver(credits);
+    int coinsToAdd = QuickHelp.getCoinsForReceiver(credits);
     print(
         "🎁 [GIFT DEBUG] Sending gift to ${author.getFullName} (${author.objectId})");
-    print("🎁 [GIFT DEBUG] Credits: $credits, Diamonds to add: $diamondsToAdd");
-    print("🎁 [GIFT DEBUG] Receiver current diamonds: ${author.getDiamonds}");
+    print("🎁 [GIFT DEBUG] Credits: $credits, Coins to add: $coinsToAdd");
+    print("🎁 [GIFT DEBUG] Receiver current coins: ${author.getCredits}");
 
     // Get current user
     ParseUser? currentUser = await ParseUser.currentUser();
@@ -78,7 +78,7 @@ class QuickCloudCode {
       'giftId':
           'gift_${DateTime.now().millisecondsSinceEpoch}', // Generate unique gift ID
       'credits': credits,
-      'diamonds': diamondsToAdd,
+      'coins': coinsToAdd, // Changed from diamonds to coins
     };
 
     print("🎁 [GIFT DEBUG] Sending parameters: $params");
@@ -87,7 +87,7 @@ class QuickCloudCode {
         author.getInvitedByUser!.isNotEmpty) {
       sendAgencyDiamonds(
           invitedById: author.getInvitedByUser!,
-          credits: QuickHelp.getDiamondsForAgency(diamondsToAdd));
+          credits: QuickHelp.getDiamondsForAgency(coinsToAdd));
     }
 
     ParseResponse response = await function.execute(parameters: params);
@@ -103,7 +103,7 @@ class QuickCloudCode {
         // Fetch the updated user data from the server
         await author.fetch();
         print("🎁 [GIFT DEBUG] Receiver data refreshed successfully");
-        print("🎁 [GIFT DEBUG] Receiver new diamonds: ${author.getDiamonds}");
+        print("🎁 [GIFT DEBUG] Receiver new coins: ${author.getCredits}");
       } catch (e) {
         print("🎁 [GIFT DEBUG] Error refreshing receiver data: $e");
       }
@@ -139,15 +139,15 @@ class QuickCloudCode {
         print('⚠️ [GIFT DEBUG] Failed to update LeadersModel: $e');
       }
     } else {
-      // Fallback: If cloud function fails, add diamonds directly to receiver
+      // Fallback: If cloud function fails, add coins directly to receiver
       print(
-          "🎁 [GIFT DEBUG] Cloud function failed, adding diamonds directly to receiver");
-      author.setDiamonds = diamondsToAdd;
+          "🎁 [GIFT DEBUG] Cloud function failed, adding coins directly to receiver");
+      author.addCredit = coinsToAdd;
       ParseResponse saveResponse = await author.save();
       print(
           "🎁 [GIFT DEBUG] Direct save response: success=${saveResponse.success}");
       if (saveResponse.success) {
-        print("🎁 [GIFT DEBUG] Receiver new diamonds: ${author.getDiamonds}");
+        print("🎁 [GIFT DEBUG] Receiver new coins: ${author.getCredits}");
       }
     }
 
