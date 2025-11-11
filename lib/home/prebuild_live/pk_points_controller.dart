@@ -10,18 +10,21 @@ import '../controller/controller.dart';
 Controller controller = Get.put(Controller());
 
 class PointsController {
-  static late StreamSubscription _subscription;
-  static StreamSubscription? _opponentSubscription; // NEW: For opponent room
+  static StreamSubscription? _subscription;
 
-  static void initialize(String roomID, Function(int, int) onPointsUpdate,
-      {String? opponentRoomID}) {
+  /// Initialize the points controller with command receiver for the current room
+  /// This listens to commands sent TO this room (from both this room and opponent room)
+  static void initialize(String roomID, Function(int, int) onPointsUpdate) {
+    // Cancel any existing subscription
+    _subscription?.cancel();
+    
+    // Subscribe to command stream for THIS room only
+    // We will receive commands from:
+    // 1. Same room users (when gifts sent to our host)
+    // 2. Opponent room (when they send cross-room updates)
     _subscribeToCommands(roomID, onPointsUpdate);
     
-    // Subscribe to opponent room if provided
-    if (opponentRoomID != null && opponentRoomID.isNotEmpty && opponentRoomID != roomID) {
-      _subscribeToOpponentRoom(opponentRoomID, onPointsUpdate);
-      debugPrint('🎯 Subscribed to both rooms - My: $roomID, Opponent: $opponentRoomID');
-    }
+    debugPrint('🎯 PointsController initialized for room: $roomID');
   }
 
   static void loadInitialPoints(
@@ -29,61 +32,13 @@ class PointsController {
     controller.myBattlePoints.value = myPoints;
     controller.hisBattlePoints.value = hisPoints;
     onPointsUpdate(myPoints, hisPoints);
+    debugPrint('🎯 Initial points loaded - My: $myPoints, His: $hisPoints');
   }
 
   static void dispose() {
-    _subscription.cancel();
-    _opponentSubscription?.cancel();
-  }
-
-  // NEW: Method to dynamically subscribe to opponent room during battle
-  static void subscribeToOpponentRoom(
-      String opponentRoomID, Function(int, int) onPointsUpdate) {
-    if (_opponentSubscription != null) {
-      _opponentSubscription!.cancel();
-    }
-    _subscribeToOpponentRoom(opponentRoomID, onPointsUpdate);
-    debugPrint(
-        '🎯 Dynamically subscribed to opponent room: $opponentRoomID');
-  }
-
-  static void _subscribeToOpponentRoom(
-      String opponentRoomID, Function(int, int) onPointsUpdate) {
-    _opponentSubscription = ZegoUIKitPrebuiltLiveStreamingController()
-        .room
-        .commandReceivedStream()
-        .listen((event) {
-      for (var message in event.messages) {
-        final commandString = utf8.decode(message.message);
-        print('🎯 Opponent room command received: $commandString');
-        try {
-          final command = jsonDecode(commandString);
-          if (command is Map<String, dynamic>) {
-            // Get the sender's user ID from the command payload
-            final senderUserId = command['senderId'] ?? '';
-            final currentUserId = command['currentUserId'] ?? '';
-
-            // Skip processing if this command is from ourselves
-            if (senderUserId == currentUserId) {
-              print('🎯 Skipping own command from opponent room');
-              continue;
-            }
-
-            // Handle myPoints from opponent - this becomes our hisBattlePoints
-            if (command.containsKey('myPoints')) {
-              final myPoints = command['myPoints'];
-              if (myPoints > 0) {
-                print(
-                    '🎯📊 Updating opponent points from opponent room: $myPoints');
-                _updateHisPoints(myPoints, onPointsUpdate);
-              }
-            }
-          }
-        } catch (e) {
-          print('🎯 Error decoding opponent room command: $e');
-        }
-      }
-    });
+    _subscription?.cancel();
+    _subscription = null;
+    debugPrint('🎯 PointsController disposed');
   }
 
   static void _subscribeToCommands(
@@ -94,57 +49,45 @@ class PointsController {
         .listen((event) {
       for (var message in event.messages) {
         final commandString = utf8.decode(message.message);
-        print('Raw command received: $commandString');
         try {
           final command = jsonDecode(commandString);
           if (command is Map<String, dynamic>) {
-            print('Command received: $commandString');
+            // Extract command metadata
+            final senderRoomID = command['senderRoomID'] ?? '';
+            final currentRoomID = command['currentRoomID'] ?? roomID;
+            final isFromOpponent = senderRoomID.isNotEmpty && senderRoomID != currentRoomID;
 
-            // Get the sender's user ID from the command payload
-            final senderUserId = command['senderId'] ?? '';
-            final currentUserId = command['currentUserId'] ?? '';
-            final isCrossRoom = command['isCrossRoom'] ?? false;
+            debugPrint('🎯 [${roomID}] Command received: $commandString');
+            debugPrint('🎯 Sender room: $senderRoomID, My room: $currentRoomID, From opponent: $isFromOpponent');
 
-            // Skip processing if this command is from ourselves
-            if (senderUserId == currentUserId) {
-              print('Skipping own command from $senderUserId');
-              continue;
-            }
-
-            // Log cross-room messages for debugging
-            if (isCrossRoom) {
-              print(
-                  '🎯 Cross-room PK battle points received from $senderUserId');
-            }
-
-            // Handle hisBattlePoints (opponent's points) - this should be the sender's points
-            if (command.containsKey('hisBattlePoints')) {
-              final hisPoints = command['hisBattlePoints'];
-              if (hisPoints > 0) {
-                print(
-                    '📊 Updating opponent points from hisBattlePoints: $hisPoints');
-                _updateHisPoints(hisPoints, onPointsUpdate);
+            // Handle points update
+            if (command.containsKey('points')) {
+              final points = command['points'] as int;
+              
+              if (isFromOpponent) {
+                // Points from opponent room = update hisBattlePoints
+                debugPrint('🎯 ✅ OPPONENT points update: $points');
+                _updateHisPoints(points, onPointsUpdate);
+              } else {
+                // Points from my room = update myBattlePoints
+                debugPrint('🎯 ✅ MY points update: $points');
+                _updateMyPoints(points, onPointsUpdate);
               }
             }
-
-            // Handle myPoints (my points) - this should be the sender's points, so update hisBattlePoints
-            if (command.containsKey('myPoints')) {
-              final myPoints = command['myPoints'];
-              if (myPoints > 0) {
-                // The sender's "myPoints" becomes our "hisBattlePoints"
-                print(
-                    '📊 Updating opponent points from myPoints: $myPoints (cross-room: $isCrossRoom)');
-                _updateHisPoints(myPoints, onPointsUpdate);
-              }
-            }
-          } else {
-            print('Invalid command format');
           }
         } catch (e) {
-          print('Error decoding command: $e');
+          debugPrint('🎯 ❌ Error decoding command: $e');
         }
       }
     });
+    
+    debugPrint('🎯 Started listening to commands in room: $roomID');
+  }
+
+  static void _updateMyPoints(int absolutePoints, Function(int, int) onPointsUpdate) {
+    controller.myBattlePoints.value = absolutePoints;
+    onPointsUpdate(
+        controller.myBattlePoints.value, controller.hisBattlePoints.value);
   }
 
   static void _updateHisPoints(int absolutePoints, Function(int, int) onPointsUpdate) {
@@ -154,66 +97,50 @@ class PointsController {
         controller.myBattlePoints.value, controller.hisBattlePoints.value);
   }
 
-  static void sendPointsUpdate(
-      {required String roomID,
-      required int myPoints,
-      required String senderId,
-      required String currentUserId}) async {
-    // Only send our own points - the receiver will treat this as their opponent's points
+  /// Send points update to both current room AND opponent room
+  /// This ensures both rooms receive the update
+  static void sendPointsUpdateCrossRoom({
+    required String currentRoomID,
+    required String opponentRoomID,
+    required int myTotalPoints,
+    required String senderHostID,
+  }) async {
+    // Create command with room identification
     final command = jsonEncode({
-      'myPoints': myPoints,
-      'senderId': senderId,
-      'currentUserId': currentUserId
-    });
-    final commandSent =
-        await ZegoUIKitPrebuiltLiveStreamingController().room.sendCommand(
-              roomID: roomID,
-              command: Uint8List.fromList(utf8.encode(command)),
-            );
-
-    if (commandSent) {
-      debugPrint('Points update sent: $command');
-    } else {
-      debugPrint('Failed to send points update');
-    }
-  }
-
-  /// Send points update to both current room and opponent room for PK battles
-  /// Uses absolute total values instead of incremental for better sync
-  static void sendPointsUpdateCrossRoom(
-      {required String currentRoomID,
-      required String opponentRoomID,
-      required int myTotalPoints, // Changed to total points instead of increment
-      required String senderId,
-      required String currentUserId}) async {
-    final command = jsonEncode({
-      'myPoints': myTotalPoints, // Send absolute total, not increment
-      'senderId': senderId,
-      'currentUserId': currentUserId,
-      'isCrossRoom': true // Flag to identify cross-room messages
+      'points': myTotalPoints,
+      'senderRoomID': currentRoomID,
+      'currentRoomID': currentRoomID,
+      'senderHostID': senderHostID,
+      'timestamp': DateTime.now().millisecondsSinceEpoch,
     });
 
-    // Send to current room (non-blocking, fire and forget)
+    debugPrint('🎯 📤 Sending points=$myTotalPoints from room=$currentRoomID');
+
+    // Send to MY room (so viewers in my room see the update)
     ZegoUIKitPrebuiltLiveStreamingController().room.sendCommand(
       roomID: currentRoomID,
       command: Uint8List.fromList(utf8.encode(command)),
-    ).then((currentRoomSent) {
-      if (!currentRoomSent) {
-        debugPrint('⚠️ Failed to send to current room');
+    ).then((sent) {
+      if (sent) {
+        debugPrint('🎯 ✅ Sent to MY room ($currentRoomID)');
+      } else {
+        debugPrint('🎯 ❌ Failed to send to MY room');
       }
     });
 
-    // Send to opponent room (non-blocking, fire and forget)
-    ZegoUIKitPrebuiltLiveStreamingController().room.sendCommand(
-      roomID: opponentRoomID,
-      command: Uint8List.fromList(utf8.encode(command)),
-    ).then((opponentRoomSent) {
-      if (opponentRoomSent) {
-        debugPrint('🎯 Cross-room points sent successfully to opponent: $myTotalPoints');
-      } else {
-        debugPrint('⚠️ Failed to send to opponent room');
-      }
-    });
+    // Send to OPPONENT room (so viewers in opponent room see the update as "his points")
+    if (opponentRoomID.isNotEmpty && opponentRoomID != currentRoomID) {
+      ZegoUIKitPrebuiltLiveStreamingController().room.sendCommand(
+        roomID: opponentRoomID,
+        command: Uint8List.fromList(utf8.encode(command)),
+      ).then((sent) {
+        if (sent) {
+          debugPrint('🎯 ✅ Sent to OPPONENT room ($opponentRoomID)');
+        } else {
+          debugPrint('🎯 ❌ Failed to send to opponent room');
+        }
+      });
+    }
   }
 
   static void updateLocalPoints(int absolutePoints, Function(int, int) onPointsUpdate) {

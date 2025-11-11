@@ -1357,14 +1357,13 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen>
                 currentRoomID: widget.liveID,
                 opponentRoomID: opponentRoomID,
                 myTotalPoints: totalMyPoints, // Absolute total, not increment
-                senderId: widget.currentUser!.objectId!,
-                currentUserId: widget.currentUser!.objectId!,
+                senderHostID: widget.liveStreaming!.getAuthorId!,
               );
               debugPrint(
-                  "🎯 INSTANT cross-room update sent - Total: $totalMyPoints (added: $battlePoints) to opponent: $opponentRoomID");
+                  "🎯 [Multi] INSTANT cross-room update sent - Total: $totalMyPoints (added: $battlePoints) to opponent: $opponentRoomID");
             }
           } catch (e) {
-            debugPrint("⚠️ Cross-room command failed (non-blocking): $e");
+            debugPrint("⚠️ [Multi] Cross-room command failed (non-blocking): $e");
           }
 
           // Save to database asynchronously (don't block UI)
@@ -1413,15 +1412,14 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen>
                 currentRoomID: widget.liveID,
                 opponentRoomID: opponentRoomID,
                 myTotalPoints: totalHisPoints, // This becomes the opponent's "myPoints"
-                senderId: widget.currentUser!.objectId!,
-                currentUserId: widget.currentUser!.objectId!,
+                senderHostID: widget.liveStreaming!.getAuthorId!,
               );
               debugPrint(
-                  "🎯 Cross-room update sent to opponent - Their total points: $totalHisPoints (added: $battlePoints)");
+                  "🎯 [Multi] Cross-room update sent to opponent - Their total points: $totalHisPoints (added: $battlePoints)");
             }
           } catch (e) {
             debugPrint(
-                "⚠️ Failed to process opponent gift: $e");
+                "⚠️ [Multi] Failed to process opponent gift: $e");
           }
           
           // Save to database asynchronously (non-blocking)
@@ -1498,19 +1496,16 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen>
             newUpdatedLive.getSharingMedia!;
       }
 
-      // Subscribe to opponent room if battle status is active
-      if (newUpdatedLive.getBattleStatus == LiveStreamingModel.battleAlive &&
-          newUpdatedLive.getBattleLiveId != null &&
-          newUpdatedLive.getBattleLiveId!.isNotEmpty) {
-        PointsController.subscribeToOpponentRoom(
-          newUpdatedLive.getBattleLiveId!,
-          (myPoints, hisPoints) {
-            showGiftSendersController.myBattlePoints.value = myPoints;
-            showGiftSendersController.hisBattlePoints.value = hisPoints;
-            debugPrint('🎯 [Multi] Points updated from opponent room (UPDATE) - My: $myPoints, His: $hisPoints');
-          },
-        );
-        debugPrint('🎯 [Multi] LiveQuery UPDATE - battle active, subscribed to opponent room: ${newUpdatedLive.getBattleLiveId}');
+      // Update battle points from database as backup
+      if (newUpdatedLive.getBattleStatus == LiveStreamingModel.battleAlive) {
+        if (newUpdatedLive.getMyBattlePoints! > showGiftSendersController.myBattlePoints.value) {
+          showGiftSendersController.myBattlePoints.value = newUpdatedLive.getMyBattlePoints!;
+          debugPrint('🎯 [Multi] LiveQuery - My points from DB: ${newUpdatedLive.getMyBattlePoints}');
+        }
+        if (newUpdatedLive.getHisBattlePoints! > showGiftSendersController.hisBattlePoints.value) {
+          showGiftSendersController.hisBattlePoints.value = newUpdatedLive.getHisBattlePoints!;
+          debugPrint('🎯 [Multi] LiveQuery - His points from DB: ${newUpdatedLive.getHisBattlePoints}');
+        }
       }
 
       if (!newUpdatedLive.getStreaming! && !widget.isHost) {
@@ -1566,19 +1561,11 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen>
             widget.liveStreaming!.getRoomTheme!;
       }
       
-      // Subscribe to opponent room if in battle
-      if (updatedLive.getBattleStatus == LiveStreamingModel.battleAlive &&
-          updatedLive.getBattleLiveId != null &&
-          updatedLive.getBattleLiveId!.isNotEmpty) {
-        PointsController.subscribeToOpponentRoom(
-          updatedLive.getBattleLiveId!,
-          (myPoints, hisPoints) {
-            showGiftSendersController.myBattlePoints.value = myPoints;
-            showGiftSendersController.hisBattlePoints.value = hisPoints;
-            debugPrint('🎯 [Multi] Points updated from opponent room (ENTER) - My: $myPoints, His: $hisPoints');
-          },
-        );
-        debugPrint('🎯 [Multi] LiveQuery ENTER - subscribed to opponent room: ${updatedLive.getBattleLiveId}');
+      // Load initial battle points from database
+      if (updatedLive.getBattleStatus == LiveStreamingModel.battleAlive) {
+        showGiftSendersController.myBattlePoints.value = updatedLive.getMyBattlePoints!;
+        showGiftSendersController.hisBattlePoints.value = updatedLive.getHisBattlePoints!;
+        debugPrint('🎯 [Multi] LiveQuery ENTER - Initial points loaded - My: ${updatedLive.getMyBattlePoints}, His: ${updatedLive.getHisBattlePoints}');
       }
     });
   }

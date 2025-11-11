@@ -438,19 +438,31 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
     showGiftSendersController.hisBattlePoints.value =
         widget.liveStreaming!.getHisBattlePoints!;
 
-    // Subscribe to opponent room for cross-room point updates
-    if (widget.liveStreaming!.getBattleLiveId != null &&
-        widget.liveStreaming!.getBattleLiveId!.isNotEmpty) {
-      PointsController.subscribeToOpponentRoom(
-        widget.liveStreaming!.getBattleLiveId!,
-        (myPoints, hisPoints) {
-          showGiftSendersController.myBattlePoints.value = myPoints;
-          showGiftSendersController.hisBattlePoints.value = hisPoints;
-          debugPrint('🎯 Points updated from opponent room - My: $myPoints, His: $hisPoints');
-        },
-      );
-      debugPrint('🎯 PK Battle started - subscribed to opponent room: ${widget.liveStreaming!.getBattleLiveId}');
-    }
+    // Initialize PointsController - it will listen to commands sent to THIS room
+    // (includes commands from same room AND cross-room commands from opponent)
+    PointsController.initialize(
+      widget.liveID,
+      (myPoints, hisPoints) {
+        showGiftSendersController.myBattlePoints.value = myPoints;
+        showGiftSendersController.hisBattlePoints.value = hisPoints;
+      },
+    );
+
+    // Load initial points into controller
+    PointsController.loadInitialPoints(
+      widget.liveStreaming!.getMyBattlePoints!,
+      widget.liveStreaming!.getHisBattlePoints!,
+      (myPoints, hisPoints) {
+        showGiftSendersController.myBattlePoints.value = myPoints;
+        showGiftSendersController.hisBattlePoints.value = hisPoints;
+      },
+    );
+
+    debugPrint('🎯 ========== PK BATTLE INITIALIZED ==========');
+    debugPrint('🎯 My Room ID: ${widget.liveID}');
+    debugPrint('🎯 Opponent Room ID: ${widget.liveStreaming!.getBattleLiveId}');
+    debugPrint('🎯 Initial - My Points: ${widget.liveStreaming!.getMyBattlePoints}, His Points: ${widget.liveStreaming!.getHisBattlePoints}');
+    debugPrint('🎯 ==========================================');
 
     Future.delayed(Duration(seconds: 3)).then((value) {
       final currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
@@ -702,6 +714,15 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
     showGiftSendersController.isPrivateLive.value = false;
     showGiftSendersController.isPrivateLive.value =
         widget.liveStreaming!.getPrivate!;
+    
+    // Dispose PointsController streams
+    try {
+      PointsController.dispose();
+      debugPrint('🎯 PointsController disposed');
+    } catch (e) {
+      debugPrint('🎯 Error disposing PointsController: $e');
+    }
+    
     if (subscription != null) {
       liveQuery.client.unSubscribe(subscription!);
     }
@@ -1915,12 +1936,15 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
         debugPrint("⚠️ Failed to send gift via ZegoGiftController: $e");
       }
 
-      if (mUser.objectId == widget.liveStreaming!.getAuthorId) {
-        // Add diamonds to live streaming (for display during stream)
+      // Check if gift is sent to my room's host or opponent's host
+      bool isGiftToMyHost = mUser.objectId == widget.liveStreaming!.getAuthorId;
+      
+      if (isGiftToMyHost) {
+        // Gift sent to MY room's host (my points increase)
         final diamondsToAdd = QuickHelp.getCoinsForReceiver(giftsModel.getCoins!);
         widget.liveStreaming!.addDiamonds = diamondsToAdd;
 
-        // 💰 UPDATE HOST'S ACTUAL EARNINGS via cloud function (handles race conditions)
+        // 💰 UPDATE HOST'S ACTUAL EARNINGS via cloud function
         try {
           await QuickCloudCode.sendGift(
             author: mUser,
@@ -1935,108 +1959,71 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
         if (showGiftSendersController.battleTimer.value > 0 &&
             widget.liveStreaming!.getBattleStatus ==
                 LiveStreamingModel.battleAlive) {
-          // Calculate battle points (1 point per 5 coins, same as diamonds)
-          final battlePoints =
-              QuickHelp.getCoinsForReceiver(giftsModel.getCoins!);
-
-          // Update local battle points in database
-          widget.liveStreaming!.addMyBattlePoints = battlePoints;
           
-          // Get the new total points after adding
+          final battlePoints = QuickHelp.getCoinsForReceiver(giftsModel.getCoins!);
+          
+          // Update MY points in database
+          widget.liveStreaming!.addMyBattlePoints = battlePoints;
           final totalMyPoints = widget.liveStreaming!.getMyBattlePoints!;
 
-          // Update local controller for instant real-time display
+          // Update local UI instantly
           showGiftSendersController.myBattlePoints.value = totalMyPoints;
-
-          // Send real-time battle points update to opponent via cross-room commands
-          // This is INSTANT and non-blocking - uses absolute totals for perfect sync
-          try {
-            final opponentRoomID = widget.liveStreaming!.getBattleLiveId!;
-            if (opponentRoomID.isNotEmpty && opponentRoomID != widget.liveID) {
-              // Send absolute total points (not incremental) for perfect sync
-              PointsController.sendPointsUpdateCrossRoom(
-                currentRoomID: widget.liveID,
-                opponentRoomID: opponentRoomID,
-                myTotalPoints: totalMyPoints, // Absolute total, not increment
-                senderId: widget.currentUser!.objectId!,
-                currentUserId: widget.currentUser!.objectId!,
-              );
-              debugPrint(
-                  "🎯 INSTANT cross-room update sent - Total: $totalMyPoints (added: $battlePoints) to opponent: $opponentRoomID");
-            }
-          } catch (e) {
-            debugPrint("⚠️ Cross-room command failed (non-blocking): $e");
-          }
-
-          // Save to database asynchronously (don't block UI)
-          // This provides backup and persistence
-          widget.liveStreaming!.save().then((_) {
-            debugPrint("💾 Database saved - Total points: $totalMyPoints");
-          }).catchError((e) {
-            debugPrint("⚠️ Database save failed (non-critical): $e");
+          
+          // Update via PointsController for proper sync
+          PointsController.updateLocalPoints(totalMyPoints, (my, his) {
+            showGiftSendersController.myBattlePoints.value = my;
+            showGiftSendersController.hisBattlePoints.value = his;
           });
 
-          // Save to opponent's database via cloud function (non-blocking)
+          // Send to BOTH rooms (my room + opponent room)
+          final opponentRoomID = widget.liveStreaming!.getBattleLiveId!;
+          if (opponentRoomID.isNotEmpty && opponentRoomID != widget.liveID) {
+            PointsController.sendPointsUpdateCrossRoom(
+              currentRoomID: widget.liveID,
+              opponentRoomID: opponentRoomID,
+              myTotalPoints: totalMyPoints,
+              senderHostID: widget.liveStreaming!.getAuthorId!,
+            );
+            debugPrint("🎯 📤 GIFT TO MY HOST - Sent points update: $totalMyPoints");
+          }
+
+          // Save to database (async)
+          widget.liveStreaming!.save().then((_) {
+            debugPrint("💾 My points saved: $totalMyPoints");
+          });
+
+          // Sync to opponent's database
           QuickCloudCode.saveHisBattlePoints(
             points: battlePoints,
-            liveChannel: widget.liveStreaming!.getBattleLiveId!,
+            liveChannel: opponentRoomID,
           );
         } else {
-          // Save non-battle gifts normally
           await widget.liveStreaming!.save();
         }
         sendMessage("sent_gift".tr(namedArgs: {"name": "host_".tr()}));
       } else {
-        // Handle PK battle points when gift is sent to opponent
+        // Gift sent to OPPONENT's host (opponent's points increase)
         if (showGiftSendersController.battleTimer.value > 0 &&
             widget.liveStreaming!.getBattleStatus ==
                 LiveStreamingModel.battleAlive) {
-          // Calculate battle points (1 point per 5 coins, same as diamonds)
-          final battlePoints =
-              QuickHelp.getCoinsForReceiver(giftsModel.getCoins!);
-
-          // Update opponent's points in database
-          widget.liveStreaming!.addHisBattlePoints = battlePoints;
           
-          // Get the new total opponent points
+          final battlePoints = QuickHelp.getCoinsForReceiver(giftsModel.getCoins!);
+          
+          // Update OPPONENT's points in my database
+          widget.liveStreaming!.addHisBattlePoints = battlePoints;
           final totalHisPoints = widget.liveStreaming!.getHisBattlePoints!;
 
-          // Update local controller for instant real-time display (opponent's points)
+          // Update local UI instantly (show opponent's points)
           showGiftSendersController.hisBattlePoints.value = totalHisPoints;
 
-          // Send real-time battle points update to opponent via cross-room commands
-          // This tells the opponent their points increased
-          try {
-            final opponentRoomID = widget.liveStreaming!.getBattleLiveId!;
-            if (opponentRoomID.isNotEmpty && opponentRoomID != widget.liveID) {
-              // Send the opponent's new total points to them so they see their own points update
-              PointsController.sendPointsUpdateCrossRoom(
-                currentRoomID: widget.liveID,
-                opponentRoomID: opponentRoomID,
-                myTotalPoints: totalHisPoints, // This becomes the opponent's "myPoints"
-                senderId: widget.currentUser!.objectId!,
-                currentUserId: widget.currentUser!.objectId!,
-              );
-              debugPrint(
-                  "🎯 Cross-room update sent to opponent - Their total points: $totalHisPoints (added: $battlePoints)");
-            }
-          } catch (e) {
-            debugPrint(
-                "⚠️ Failed to process opponent gift: $e");
-          }
-          
-          // Save to database asynchronously (non-blocking)
-          widget.liveStreaming!.save().then((_) {
-            debugPrint("💾 Opponent points saved - Total: $totalHisPoints");
-          }).catchError((e) {
-            debugPrint("⚠️ Database save failed (non-critical): $e");
-          });
+          // DON'T send cross-room command here - the opponent's room will handle it
+          // when the gift arrives in their room
+          debugPrint("🎯 OPPONENT POINTS UPDATE - Local only: His=$totalHisPoints");
 
-          // Save to cloud function for persistence
-          QuickCloudCode.saveHisBattlePoints(
-            points: battlePoints,
-            liveChannel: widget.liveStreaming!.getBattleLiveId!,
-          );
+          // Save to database (async)
+          widget.liveStreaming!.save().then((_) {
+            debugPrint("💾 Opponent points saved locally: $totalHisPoints");
+          });
         }
         sendMessage("sent_gift".tr(namedArgs: {"name": mUser.getFullName!}));
       }
@@ -2102,31 +2089,16 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
       }
       
       // Update battle points from database when LiveQuery UPDATE event fires
-      // Use absolute values from database as source of truth for consistency
       if (newUpdatedLive.getBattleStatus == LiveStreamingModel.battleAlive) {
-        // Only update if database values are higher (avoid overwriting real-time updates with stale data)
-        if (newUpdatedLive.getMyBattlePoints! >= showGiftSendersController.myBattlePoints.value) {
+        // Database values provide backup - only update if higher than current
+        if (newUpdatedLive.getMyBattlePoints! > showGiftSendersController.myBattlePoints.value) {
           showGiftSendersController.myBattlePoints.value = newUpdatedLive.getMyBattlePoints!;
+          debugPrint('🎯 LiveQuery UPDATE - My points from DB: ${newUpdatedLive.getMyBattlePoints}');
         }
-        if (newUpdatedLive.getHisBattlePoints! >= showGiftSendersController.hisBattlePoints.value) {
+        if (newUpdatedLive.getHisBattlePoints! > showGiftSendersController.hisBattlePoints.value) {
           showGiftSendersController.hisBattlePoints.value = newUpdatedLive.getHisBattlePoints!;
+          debugPrint('🎯 LiveQuery UPDATE - His points from DB: ${newUpdatedLive.getHisBattlePoints}');
         }
-        debugPrint('🎯 LiveQuery UPDATE - Database backup - My: ${newUpdatedLive.getMyBattlePoints}, His: ${newUpdatedLive.getHisBattlePoints}');
-      }
-      
-      // Subscribe to opponent room if battle status just became active
-      if (newUpdatedLive.getBattleStatus == LiveStreamingModel.battleAlive &&
-          newUpdatedLive.getBattleLiveId != null &&
-          newUpdatedLive.getBattleLiveId!.isNotEmpty) {
-        PointsController.subscribeToOpponentRoom(
-          newUpdatedLive.getBattleLiveId!,
-          (myPoints, hisPoints) {
-            showGiftSendersController.myBattlePoints.value = myPoints;
-            showGiftSendersController.hisBattlePoints.value = hisPoints;
-            debugPrint('🎯 Points updated from opponent room (UPDATE) - My: $myPoints, His: $hisPoints');
-          },
-        );
-        debugPrint('🎯 LiveQuery UPDATE - battle active, subscribed to opponent room: ${newUpdatedLive.getBattleLiveId}');
       }
       
       showGiftSendersController.isBattleLive.value = newUpdatedLive.getBattle!;
@@ -2156,20 +2128,7 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
       showGiftSendersController.myBattlePoints.value =
           updatedLive.getMyBattlePoints!;
       
-      // Subscribe to opponent room if in battle
-      if (updatedLive.getBattleStatus == LiveStreamingModel.battleAlive &&
-          updatedLive.getBattleLiveId != null &&
-          updatedLive.getBattleLiveId!.isNotEmpty) {
-        PointsController.subscribeToOpponentRoom(
-          updatedLive.getBattleLiveId!,
-          (myPoints, hisPoints) {
-            showGiftSendersController.myBattlePoints.value = myPoints;
-            showGiftSendersController.hisBattlePoints.value = hisPoints;
-            debugPrint('🎯 Points updated from opponent room (ENTER) - My: $myPoints, His: $hisPoints');
-          },
-        );
-        debugPrint('🎯 LiveQuery ENTER - subscribed to opponent room: ${updatedLive.getBattleLiveId}');
-      }
+      debugPrint('🎯 LiveQuery ENTER - Initial points loaded - My: ${updatedLive.getMyBattlePoints}, His: ${updatedLive.getHisBattlePoints}');
     });
   }
 

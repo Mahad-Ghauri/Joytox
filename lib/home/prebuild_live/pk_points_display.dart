@@ -16,7 +16,6 @@ Controller controller = Get.put(Controller());
 
 class PointsDisplay extends StatefulWidget {
   final String roomID;
-  final String? opponentRoomID; // NEW: For cross-room subscription
   List<ZegoUIKitUser?> hosts;
   final int initialMyPoints;
   final int initialHisPoints;
@@ -24,7 +23,6 @@ class PointsDisplay extends StatefulWidget {
   PointsDisplay({
     required this.roomID,
     required this.hosts,
-    this.opponentRoomID, // NEW
     this.initialMyPoints = 0,
     this.initialHisPoints = 0,
   });
@@ -37,10 +35,10 @@ class _PointsDisplayState extends State<PointsDisplay> {
   @override
   void initState() {
     super.initState();
+    // Initialize PointsController to listen to commands in THIS room only
     PointsController.initialize(
       widget.roomID, 
       _updatePoints,
-      opponentRoomID: widget.opponentRoomID, // NEW: Pass opponent room
     );
     // Load initial points from database
     PointsController.loadInitialPoints(
