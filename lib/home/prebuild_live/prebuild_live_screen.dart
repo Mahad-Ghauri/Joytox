@@ -1935,8 +1935,11 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
           final battlePoints =
               QuickHelp.getCoinsForReceiver(giftsModel.getCoins!);
 
-          // Update local battle points
+          // Update local battle points in database
           widget.liveStreaming!.addMyBattlePoints = battlePoints;
+          
+          // Save immediately to database to trigger LiveQuery for all viewers
+          await widget.liveStreaming!.save();
 
           // Update local controller for real-time display
           showGiftSendersController.myBattlePoints.value += battlePoints;
@@ -1969,13 +1972,15 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
             debugPrint("⚠️ Failed to send battle points via room command: $e");
           }
 
-          // Save to cloud function for persistence
+          // Save to cloud function for persistence in opponent's database
           QuickCloudCode.saveHisBattlePoints(
             points: battlePoints,
             liveChannel: widget.liveStreaming!.getBattleLiveId!,
           );
+        } else {
+          // Save non-battle gifts normally
+          await widget.liveStreaming!.save();
         }
-        await widget.liveStreaming!.save();
         sendMessage("sent_gift".tr(namedArgs: {"name": "host_".tr()}));
       } else {
         // Handle PK battle points when gift is sent to opponent
@@ -2087,6 +2092,14 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
           newUpdatedLive.getRepeatBattleTimes! > repeatPkTimes) {
         repeatPkTimes = newUpdatedLive.getRepeatBattleTimes!;
         initiateBattleTimer();
+      }
+      
+      // Update battle points from database when LiveQuery UPDATE event fires
+      // This ensures all viewers see consistent points from database saves
+      if (newUpdatedLive.getBattleStatus == LiveStreamingModel.battleAlive) {
+        showGiftSendersController.myBattlePoints.value = newUpdatedLive.getMyBattlePoints!;
+        showGiftSendersController.hisBattlePoints.value = newUpdatedLive.getHisBattlePoints!;
+        debugPrint('🎯 LiveQuery UPDATE - Points from database - My: ${newUpdatedLive.getMyBattlePoints}, His: ${newUpdatedLive.getHisBattlePoints}');
       }
       
       // Subscribe to opponent room if battle status just became active
