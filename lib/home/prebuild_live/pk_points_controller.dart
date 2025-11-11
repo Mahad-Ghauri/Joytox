@@ -11,9 +11,17 @@ Controller controller = Get.put(Controller());
 
 class PointsController {
   static late StreamSubscription _subscription;
+  static StreamSubscription? _opponentSubscription; // NEW: For opponent room
 
-  static void initialize(String roomID, Function(int, int) onPointsUpdate) {
+  static void initialize(String roomID, Function(int, int) onPointsUpdate,
+      {String? opponentRoomID}) {
     _subscribeToCommands(roomID, onPointsUpdate);
+    
+    // Subscribe to opponent room if provided
+    if (opponentRoomID != null && opponentRoomID.isNotEmpty && opponentRoomID != roomID) {
+      _subscribeToOpponentRoom(opponentRoomID, onPointsUpdate);
+      debugPrint('🎯 Subscribed to both rooms - My: $roomID, Opponent: $opponentRoomID');
+    }
   }
 
   static void loadInitialPoints(
@@ -25,6 +33,57 @@ class PointsController {
 
   static void dispose() {
     _subscription.cancel();
+    _opponentSubscription?.cancel();
+  }
+
+  // NEW: Method to dynamically subscribe to opponent room during battle
+  static void subscribeToOpponentRoom(
+      String opponentRoomID, Function(int, int) onPointsUpdate) {
+    if (_opponentSubscription != null) {
+      _opponentSubscription!.cancel();
+    }
+    _subscribeToOpponentRoom(opponentRoomID, onPointsUpdate);
+    debugPrint(
+        '🎯 Dynamically subscribed to opponent room: $opponentRoomID');
+  }
+
+  static void _subscribeToOpponentRoom(
+      String opponentRoomID, Function(int, int) onPointsUpdate) {
+    _opponentSubscription = ZegoUIKitPrebuiltLiveStreamingController()
+        .room
+        .commandReceivedStream()
+        .listen((event) {
+      for (var message in event.messages) {
+        final commandString = utf8.decode(message.message);
+        print('🎯 Opponent room command received: $commandString');
+        try {
+          final command = jsonDecode(commandString);
+          if (command is Map<String, dynamic>) {
+            // Get the sender's user ID from the command payload
+            final senderUserId = command['senderId'] ?? '';
+            final currentUserId = command['currentUserId'] ?? '';
+
+            // Skip processing if this command is from ourselves
+            if (senderUserId == currentUserId) {
+              print('🎯 Skipping own command from opponent room');
+              continue;
+            }
+
+            // Handle myPoints from opponent - this becomes our hisBattlePoints
+            if (command.containsKey('myPoints')) {
+              final myPoints = command['myPoints'];
+              if (myPoints > 0) {
+                print(
+                    '🎯📊 Updating opponent points from opponent room: $myPoints');
+                _updateHisPoints(myPoints, onPointsUpdate);
+              }
+            }
+          }
+        } catch (e) {
+          print('🎯 Error decoding opponent room command: $e');
+        }
+      }
+    });
   }
 
   static void _subscribeToCommands(

@@ -1311,10 +1311,20 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen>
       }
 
       if (mUser.objectId == widget.liveStreaming!.getAuthorId) {
-        // Add coins to live streaming (for earnings)
-        widget.liveStreaming!.addDiamonds = QuickHelp.getCoinsForReceiver(
-          giftsModel.getCoins!,
-        );
+        // Add diamonds to live streaming (for display during stream)
+        final diamondsToAdd = QuickHelp.getCoinsForReceiver(giftsModel.getCoins!);
+        widget.liveStreaming!.addDiamonds = diamondsToAdd;
+
+        // 💰 UPDATE HOST'S ACTUAL EARNINGS via cloud function (handles race conditions)
+        try {
+          await QuickCloudCode.sendGift(
+            author: mUser,
+            credits: giftsModel.getCoins!,
+          );
+          debugPrint("💰 [LIVE EARNINGS] Successfully sent earnings via cloud function");
+        } catch (e) {
+          debugPrint("❌ [LIVE EARNINGS] Error sending gift via cloud function: $e");
+        }
 
         // Handle PK battle points if battle is active
         if (showGiftSendersController.battleTimer.value > 0 &&
@@ -1476,6 +1486,21 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen>
             newUpdatedLive.getSharingMedia!;
       }
 
+      // Subscribe to opponent room if battle status is active
+      if (newUpdatedLive.getBattleStatus == LiveStreamingModel.battleAlive &&
+          newUpdatedLive.getBattleLiveId != null &&
+          newUpdatedLive.getBattleLiveId!.isNotEmpty) {
+        PointsController.subscribeToOpponentRoom(
+          newUpdatedLive.getBattleLiveId!,
+          (myPoints, hisPoints) {
+            showGiftSendersController.myBattlePoints.value = myPoints;
+            showGiftSendersController.hisBattlePoints.value = hisPoints;
+            debugPrint('🎯 [Multi] Points updated from opponent room (UPDATE) - My: $myPoints, His: $hisPoints');
+          },
+        );
+        debugPrint('🎯 [Multi] LiveQuery UPDATE - battle active, subscribed to opponent room: ${newUpdatedLive.getBattleLiveId}');
+      }
+
       if (!newUpdatedLive.getStreaming! && !widget.isHost) {
         QuickHelp.goToNavigatorScreen(
             context,
@@ -1527,6 +1552,21 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen>
       if (widget.liveStreaming!.getRoomTheme != null) {
         showGiftSendersController.selectedRoomTheme.value =
             widget.liveStreaming!.getRoomTheme!;
+      }
+      
+      // Subscribe to opponent room if in battle
+      if (updatedLive.getBattleStatus == LiveStreamingModel.battleAlive &&
+          updatedLive.getBattleLiveId != null &&
+          updatedLive.getBattleLiveId!.isNotEmpty) {
+        PointsController.subscribeToOpponentRoom(
+          updatedLive.getBattleLiveId!,
+          (myPoints, hisPoints) {
+            showGiftSendersController.myBattlePoints.value = myPoints;
+            showGiftSendersController.hisBattlePoints.value = hisPoints;
+            debugPrint('🎯 [Multi] Points updated from opponent room (ENTER) - My: $myPoints, His: $hisPoints');
+          },
+        );
+        debugPrint('🎯 [Multi] LiveQuery ENTER - subscribed to opponent room: ${updatedLive.getBattleLiveId}');
       }
     });
   }

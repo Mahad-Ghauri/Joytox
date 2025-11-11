@@ -438,6 +438,20 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
     showGiftSendersController.hisBattlePoints.value =
         widget.liveStreaming!.getHisBattlePoints!;
 
+    // Subscribe to opponent room for cross-room point updates
+    if (widget.liveStreaming!.getBattleLiveId != null &&
+        widget.liveStreaming!.getBattleLiveId!.isNotEmpty) {
+      PointsController.subscribeToOpponentRoom(
+        widget.liveStreaming!.getBattleLiveId!,
+        (myPoints, hisPoints) {
+          showGiftSendersController.myBattlePoints.value = myPoints;
+          showGiftSendersController.hisBattlePoints.value = hisPoints;
+          debugPrint('🎯 Points updated from opponent room - My: $myPoints, His: $hisPoints');
+        },
+      );
+      debugPrint('🎯 PK Battle started - subscribed to opponent room: ${widget.liveStreaming!.getBattleLiveId}');
+    }
+
     Future.delayed(Duration(seconds: 3)).then((value) {
       final currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
       sendSyncCommand(startTime: currentTime, duration: 120);
@@ -1897,10 +1911,20 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
       }
 
       if (mUser.objectId == widget.liveStreaming!.getAuthorId) {
-        // Add coins to live streaming (for earnings)
-        widget.liveStreaming!.addDiamonds = QuickHelp.getCoinsForReceiver(
-          giftsModel.getCoins!,
-        );
+        // Add diamonds to live streaming (for display during stream)
+        final diamondsToAdd = QuickHelp.getCoinsForReceiver(giftsModel.getCoins!);
+        widget.liveStreaming!.addDiamonds = diamondsToAdd;
+
+        // 💰 UPDATE HOST'S ACTUAL EARNINGS via cloud function (handles race conditions)
+        try {
+          await QuickCloudCode.sendGift(
+            author: mUser,
+            credits: giftsModel.getCoins!,
+          );
+          debugPrint("💰 [LIVE EARNINGS] Successfully sent earnings via cloud function");
+        } catch (e) {
+          debugPrint("❌ [LIVE EARNINGS] Error sending gift via cloud function: $e");
+        }
 
         // Handle PK battle points if battle is active
         if (showGiftSendersController.battleTimer.value > 0 &&
@@ -2063,6 +2087,22 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
         repeatPkTimes = newUpdatedLive.getRepeatBattleTimes!;
         initiateBattleTimer();
       }
+      
+      // Subscribe to opponent room if battle status just became active
+      if (newUpdatedLive.getBattleStatus == LiveStreamingModel.battleAlive &&
+          newUpdatedLive.getBattleLiveId != null &&
+          newUpdatedLive.getBattleLiveId!.isNotEmpty) {
+        PointsController.subscribeToOpponentRoom(
+          newUpdatedLive.getBattleLiveId!,
+          (myPoints, hisPoints) {
+            showGiftSendersController.myBattlePoints.value = myPoints;
+            showGiftSendersController.hisBattlePoints.value = hisPoints;
+            debugPrint('🎯 Points updated from opponent room (UPDATE) - My: $myPoints, His: $hisPoints');
+          },
+        );
+        debugPrint('🎯 LiveQuery UPDATE - battle active, subscribed to opponent room: ${newUpdatedLive.getBattleLiveId}');
+      }
+      
       showGiftSendersController.isBattleLive.value = newUpdatedLive.getBattle!;
       if (!newUpdatedLive.getStreaming! && !widget.isHost) {
         QuickHelp.goToNavigatorScreen(
@@ -2089,6 +2129,21 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
           updatedLive.getHisBattlePoints!;
       showGiftSendersController.myBattlePoints.value =
           updatedLive.getMyBattlePoints!;
+      
+      // Subscribe to opponent room if in battle
+      if (updatedLive.getBattleStatus == LiveStreamingModel.battleAlive &&
+          updatedLive.getBattleLiveId != null &&
+          updatedLive.getBattleLiveId!.isNotEmpty) {
+        PointsController.subscribeToOpponentRoom(
+          updatedLive.getBattleLiveId!,
+          (myPoints, hisPoints) {
+            showGiftSendersController.myBattlePoints.value = myPoints;
+            showGiftSendersController.hisBattlePoints.value = hisPoints;
+            debugPrint('🎯 Points updated from opponent room (ENTER) - My: $myPoints, His: $hisPoints');
+          },
+        );
+        debugPrint('🎯 LiveQuery ENTER - subscribed to opponent room: ${updatedLive.getBattleLiveId}');
+      }
     });
   }
 
