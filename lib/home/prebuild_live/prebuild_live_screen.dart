@@ -216,7 +216,41 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
         widget.liveStreaming!.getDiamonds!.toString();
     showGiftSendersController.isBattleLive.value =
         widget.liveStreaming!.getBattle!;
-    if (showGiftSendersController.isBattleLive.value) {}
+    
+    // 🎯 Initialize PK battle points for viewers joining an active battle
+    if (showGiftSendersController.isBattleLive.value && 
+        widget.liveStreaming!.getBattleStatus == LiveStreamingModel.battleAlive) {
+      
+      // Load current points from database immediately
+      final initialMyPoints = widget.liveStreaming!.getMyBattlePoints ?? 0;
+      final initialHisPoints = widget.liveStreaming!.getHisBattlePoints ?? 0;
+      
+      showGiftSendersController.myBattlePoints.value = initialMyPoints;
+      showGiftSendersController.hisBattlePoints.value = initialHisPoints;
+      
+      debugPrint('🎯 [VIEWER JOIN] Loaded initial points - My: $initialMyPoints, His: $initialHisPoints');
+      
+      // Initialize PointsController to listen for real-time updates
+      PointsController.initialize(
+        widget.liveID,
+        (myPoints, hisPoints) {
+          showGiftSendersController.myBattlePoints.value = myPoints;
+          showGiftSendersController.hisBattlePoints.value = hisPoints;
+          debugPrint('🎯 [VIEWER] Points updated via command - My: $myPoints, His: $hisPoints');
+        },
+      );
+      
+      // Load initial points into PointsController
+      PointsController.loadInitialPoints(
+        initialMyPoints,
+        initialHisPoints,
+        (myPoints, hisPoints) {
+          showGiftSendersController.myBattlePoints.value = myPoints;
+          showGiftSendersController.hisBattlePoints.value = hisPoints;
+        },
+      );
+    }
+    
     ZegoGiftManager().cache.cacheAllFiles(giftItemList);
 
     ZegoGiftManager().service.recvNotifier.addListener(onGiftReceived);
@@ -264,10 +298,31 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
       {required UserModel user,
       required ZegoLiveStreamingIncomingPKBattleRequestReceivedEvent event}) {
     Size size = MediaQuery.sizeOf(context);
+    
+    // Safety check: If user is null, show error message
+    if (user == null) {
+      return Container(
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.5),
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(25.0),
+            topRight: Radius.circular(25.0),
+          ),
+        ),
+        child: Center(
+          child: TextWithTap(
+            "Error: User information not available",
+            color: Colors.white,
+            fontSize: 16,
+          ),
+        ),
+      );
+    }
+    
     var numbers = [
-      user.getFollowing!.length,
-      user.getFollowers!.length,
-      user.getDiamondsTotal!,
+      user.getFollowing?.length ?? 0,
+      user.getFollowers?.length ?? 0,
+      user.getDiamondsTotal ?? 0,
     ];
     return Container(
       decoration: BoxDecoration(
@@ -322,7 +377,7 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
                       width: size.width / 3,
                     ),
                     TextWithTap(
-                      user.getFullName!,
+                      user.getFullName ?? "Unknown User",
                       alignment: Alignment.center,
                       textAlign: TextAlign.center,
                       fontSize: 28,
@@ -2004,6 +2059,15 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
               });
               
               debugPrint("💾 ✅ Cloud function synced - My: $newMyPoints, His: $newHisPoints");
+              
+              // 🎯 Send real-time command using cloud function results (don't fetch from DB yet)
+              // This ensures viewers get the LATEST points immediately
+              PointsController.sendPointsUpdateToMyRoom(
+                currentRoomID: widget.liveID,
+                myTotalPoints: newMyPoints,  // ✅ Use cloud function result directly
+                senderHostID: widget.liveStreaming!.getAuthorId!,
+              );
+              debugPrint("🎯 📤 Real-time command sent to my room - Points: $newMyPoints");
             } else {
               // Fallback: Manual update if cloud function fails
               debugPrint("⚠️ Cloud function failed - Success: ${cloudResponse.success}, Error: ${cloudResponse.error?.message}, Code: ${cloudResponse.error?.code}");
@@ -2011,6 +2075,14 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
               final totalMyPoints = widget.liveStreaming!.getMyBattlePoints!;
               showGiftSendersController.myBattlePoints.value = totalMyPoints;
               await widget.liveStreaming!.save();
+              
+              // Send command with fallback value
+              PointsController.sendPointsUpdateToMyRoom(
+                currentRoomID: widget.liveID,
+                myTotalPoints: totalMyPoints,
+                senderHostID: widget.liveStreaming!.getAuthorId!,
+              );
+              debugPrint("🎯 📤 Real-time command sent (fallback) - Points: $totalMyPoints");
             }
           } catch (e) {
             debugPrint("❌ Cloud function exception: $e - Using fallback");
@@ -2019,19 +2091,15 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
             final totalMyPoints = widget.liveStreaming!.getMyBattlePoints!;
             showGiftSendersController.myBattlePoints.value = totalMyPoints;
             await widget.liveStreaming!.save();
+            
+            // Send command with fallback value
+            PointsController.sendPointsUpdateToMyRoom(
+              currentRoomID: widget.liveID,
+              myTotalPoints: totalMyPoints,
+              senderHostID: widget.liveStreaming!.getAuthorId!,
+            );
+            debugPrint("🎯 📤 Real-time command sent (exception fallback) - Points: $totalMyPoints");
           }
-
-          // Send real-time command to MY room for instant UI update in my room
-          // Opponent will get updates via cloud function database sync + LiveQuery
-          await widget.liveStreaming!.fetch();
-          final currentMyPoints = widget.liveStreaming!.getMyBattlePoints!;
-          
-          PointsController.sendPointsUpdateToMyRoom(
-            currentRoomID: widget.liveID,
-            myTotalPoints: currentMyPoints,
-            senderHostID: widget.liveStreaming!.getAuthorId!,
-          );
-          debugPrint("🎯 📤 Real-time command sent to my room - Points: $currentMyPoints");
         } else {
           await widget.liveStreaming!.save();
         }
@@ -2107,10 +2175,18 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
       showGiftSendersController.diamondsCounter.value =
           newUpdatedLive.getDiamonds.toString();
 
-      showGiftSendersController.hisBattlePoints.value =
-          newUpdatedLive.getHisBattlePoints!;
-      showGiftSendersController.myBattlePoints.value =
-          newUpdatedLive.getMyBattlePoints!;
+      // 🎯 CRITICAL: Always update points from database - it's the source of truth!
+      // The cloud function ensures both documents are synchronized
+      // Don't use conditional updates (>) as they cause desync between competitors
+      if (newUpdatedLive.getBattleStatus == LiveStreamingModel.battleAlive) {
+        final dbMyPoints = newUpdatedLive.getMyBattlePoints ?? 0;
+        final dbHisPoints = newUpdatedLive.getHisBattlePoints ?? 0;
+        
+        showGiftSendersController.myBattlePoints.value = dbMyPoints;
+        showGiftSendersController.hisBattlePoints.value = dbHisPoints;
+        
+        debugPrint('🎯 LiveQuery UPDATE - Database sync - My: $dbMyPoints, His: $dbHisPoints');
+      }
 
       showGiftSendersController.myBattleVictories.value =
           newUpdatedLive.getMyBattleVictory!;
@@ -2126,19 +2202,6 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
           newUpdatedLive.getRepeatBattleTimes! > repeatPkTimes) {
         repeatPkTimes = newUpdatedLive.getRepeatBattleTimes!;
         initiateBattleTimer();
-      }
-      
-      // Update battle points from database when LiveQuery UPDATE event fires
-      if (newUpdatedLive.getBattleStatus == LiveStreamingModel.battleAlive) {
-        // Database values provide backup - only update if higher than current
-        if (newUpdatedLive.getMyBattlePoints! > showGiftSendersController.myBattlePoints.value) {
-          showGiftSendersController.myBattlePoints.value = newUpdatedLive.getMyBattlePoints!;
-          debugPrint('🎯 LiveQuery UPDATE - My points from DB: ${newUpdatedLive.getMyBattlePoints}');
-        }
-        if (newUpdatedLive.getHisBattlePoints! > showGiftSendersController.hisBattlePoints.value) {
-          showGiftSendersController.hisBattlePoints.value = newUpdatedLive.getHisBattlePoints!;
-          debugPrint('🎯 LiveQuery UPDATE - His points from DB: ${newUpdatedLive.getHisBattlePoints}');
-        }
       }
       
       showGiftSendersController.isBattleLive.value = newUpdatedLive.getBattle!;
@@ -3186,7 +3249,7 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      QuickActions.avatarWidget(live.getAuthor!,
+                      QuickActions.avatarWidget(live.getAuthor,
                           width: 45, height: 45),
                       Padding(
                         padding: const EdgeInsets.only(left: 10),
@@ -3197,7 +3260,7 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
                             ContainerCorner(
                               width: size.width / 3,
                               child: TextWithTap(
-                                live.getAuthor!.getUsername!.capitalize,
+                                live.getAuthor?.getUsername?.capitalize ?? "Unknown",
                                 fontSize: size.width / 23,
                                 fontWeight: FontWeight.w700,
                                 marginBottom: 4,

@@ -6966,19 +6966,30 @@ class QuickHelp {
       VoidCallback? onTap,
       UserModel? user,
       String? avatarUrl}) {
+    // Only show user avatar if user object is valid (not just non-null but has data)
+    Widget? notificationIcon;
+    if (user != null) {
+      try {
+        notificationIcon = QuickActions.avatarWidget(
+          user,
+          imageUrl: avatarUrl,
+          width: 60,
+          height: 60,
+        );
+      } catch (e) {
+        debugPrint('⚠️ Failed to create avatar widget in notification: $e');
+        notificationIcon = avatar; // Fallback to provided avatar or null
+      }
+    } else {
+      notificationIcon = avatar;
+    }
+    
     showTopSnackBar(
       context,
       SnackBarPro.custom(
         title: title,
         message: message,
-        icon: user != null
-            ? QuickActions.avatarWidget(
-                user,
-                imageUrl: avatarUrl,
-                width: 60,
-                height: 60,
-              )
-            : avatar,
+        icon: notificationIcon,
         textStyleTitle: TextStyle(
           fontWeight: FontWeight.w600,
           fontSize: 16,

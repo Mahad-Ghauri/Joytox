@@ -146,9 +146,11 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen>
 
     // Initialize battle points from database
     showGiftSendersController.myBattlePoints.value =
-        widget.liveStreaming!.getMyBattlePoints!;
+        widget.liveStreaming!.getMyBattlePoints ?? 0;
     showGiftSendersController.hisBattlePoints.value =
-        widget.liveStreaming!.getHisBattlePoints!;
+        widget.liveStreaming!.getHisBattlePoints ?? 0;
+    
+    debugPrint('🎯 [Multi INIT] Initial points from database - My: ${widget.liveStreaming!.getMyBattlePoints}, His: ${widget.liveStreaming!.getHisBattlePoints}');
     
     // Initialize PointsController to receive cross-room updates
     PointsController.initialize(
@@ -157,6 +159,16 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen>
         showGiftSendersController.myBattlePoints.value = myPoints;
         showGiftSendersController.hisBattlePoints.value = hisPoints;
         debugPrint('🎯 [Multi] Points updated via command - My: $myPoints, His: $hisPoints');
+      },
+    );
+    
+    // Load initial points into PointsController
+    PointsController.loadInitialPoints(
+      widget.liveStreaming!.getMyBattlePoints ?? 0,
+      widget.liveStreaming!.getHisBattlePoints ?? 0,
+      (myPoints, hisPoints) {
+        showGiftSendersController.myBattlePoints.value = myPoints;
+        showGiftSendersController.hisBattlePoints.value = hisPoints;
       },
     );
     
@@ -1377,6 +1389,14 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen>
               showGiftSendersController.hisBattlePoints.value = newHisPoints;
               
               debugPrint("💾 [Multi] ✅ Cloud sync - My: $newMyPoints, His: $newHisPoints");
+              
+              // 🎯 Send real-time command using cloud function results (don't fetch from DB yet)
+              PointsController.sendPointsUpdateToMyRoom(
+                currentRoomID: widget.liveID,
+                myTotalPoints: newMyPoints,  // ✅ Use cloud function result directly
+                senderHostID: widget.liveStreaming!.getAuthorId!,
+              );
+              debugPrint("🎯 [Multi] 📤 Real-time command sent to my room - Points: $newMyPoints");
             } else {
               // Fallback
               debugPrint("⚠️ [Multi] Cloud function failed - Success: ${cloudResponse.success}, Error: ${cloudResponse.error?.message}, Code: ${cloudResponse.error?.code}");
@@ -1384,6 +1404,14 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen>
               final totalMyPoints = widget.liveStreaming!.getMyBattlePoints!;
               showGiftSendersController.myBattlePoints.value = totalMyPoints;
               await widget.liveStreaming!.save();
+              
+              // Send command with fallback value
+              PointsController.sendPointsUpdateToMyRoom(
+                currentRoomID: widget.liveID,
+                myTotalPoints: totalMyPoints,
+                senderHostID: widget.liveStreaming!.getAuthorId!,
+              );
+              debugPrint("🎯 [Multi] 📤 Real-time command sent (fallback) - Points: $totalMyPoints");
             }
           } catch (e) {
             debugPrint("❌ [Multi] Cloud function exception: $e");
@@ -1391,19 +1419,15 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen>
             final totalMyPoints = widget.liveStreaming!.getMyBattlePoints!;
             showGiftSendersController.myBattlePoints.value = totalMyPoints;
             await widget.liveStreaming!.save();
+            
+            // Send command with fallback value
+            PointsController.sendPointsUpdateToMyRoom(
+              currentRoomID: widget.liveID,
+              myTotalPoints: totalMyPoints,
+              senderHostID: widget.liveStreaming!.getAuthorId!,
+            );
+            debugPrint("🎯 [Multi] 📤 Real-time command sent (exception fallback) - Points: $totalMyPoints");
           }
-
-          // Send real-time command to MY room only
-          // Opponent will get updates via cloud function database sync + LiveQuery
-          await widget.liveStreaming!.fetch();
-          final currentMyPoints = widget.liveStreaming!.getMyBattlePoints!;
-          
-          PointsController.sendPointsUpdateToMyRoom(
-            currentRoomID: widget.liveID,
-            myTotalPoints: currentMyPoints,
-            senderHostID: widget.liveStreaming!.getAuthorId!,
-          );
-          debugPrint("🎯 [Multi] 📤 Real-time command sent to my room - Points: $currentMyPoints");
         } else {
           await widget.liveStreaming!.save();
         }
@@ -1489,16 +1513,17 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen>
             newUpdatedLive.getSharingMedia!;
       }
 
-      // Update battle points from database as backup
+      // 🎯 CRITICAL: Always update points from database - it's the source of truth!
+      // The cloud function ensures both documents are synchronized
+      // Don't use conditional updates (>) as they cause desync between competitors
       if (newUpdatedLive.getBattleStatus == LiveStreamingModel.battleAlive) {
-        if (newUpdatedLive.getMyBattlePoints! > showGiftSendersController.myBattlePoints.value) {
-          showGiftSendersController.myBattlePoints.value = newUpdatedLive.getMyBattlePoints!;
-          debugPrint('🎯 [Multi] LiveQuery - My points from DB: ${newUpdatedLive.getMyBattlePoints}');
-        }
-        if (newUpdatedLive.getHisBattlePoints! > showGiftSendersController.hisBattlePoints.value) {
-          showGiftSendersController.hisBattlePoints.value = newUpdatedLive.getHisBattlePoints!;
-          debugPrint('🎯 [Multi] LiveQuery - His points from DB: ${newUpdatedLive.getHisBattlePoints}');
-        }
+        final dbMyPoints = newUpdatedLive.getMyBattlePoints ?? 0;
+        final dbHisPoints = newUpdatedLive.getHisBattlePoints ?? 0;
+        
+        showGiftSendersController.myBattlePoints.value = dbMyPoints;
+        showGiftSendersController.hisBattlePoints.value = dbHisPoints;
+        
+        debugPrint('🎯 [Multi] LiveQuery UPDATE - Database sync - My: $dbMyPoints, His: $dbHisPoints');
       }
 
       if (!newUpdatedLive.getStreaming! && !widget.isHost) {
