@@ -1335,47 +1335,52 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen>
           final battlePoints =
               QuickHelp.getCoinsForReceiver(giftsModel.getCoins!);
 
-          // Update local battle points
+          // Update local battle points in database
           widget.liveStreaming!.addMyBattlePoints = battlePoints;
+          
+          // Get the new total points after adding
+          final totalMyPoints = widget.liveStreaming!.getMyBattlePoints!;
 
-          // Update local controller for real-time display
-          showGiftSendersController.myBattlePoints.value += battlePoints;
+          // Update local controller for instant real-time display
+          showGiftSendersController.myBattlePoints.value = totalMyPoints;
 
           // Send real-time battle points update to opponent via cross-room commands
+          // This is INSTANT and non-blocking - uses absolute totals for perfect sync
           try {
             final opponentRoomID = widget.liveStreaming!.getBattleLiveId!;
             if (opponentRoomID.isNotEmpty && opponentRoomID != widget.liveID) {
-              // Use cross-room signaling for PK battles
+              // Send absolute total points (not incremental) for perfect sync
               PointsController.sendPointsUpdateCrossRoom(
                 currentRoomID: widget.liveID,
                 opponentRoomID: opponentRoomID,
-                myPoints: battlePoints, // Add points to my side
+                myTotalPoints: totalMyPoints, // Absolute total, not increment
                 senderId: widget.currentUser!.objectId!,
                 currentUserId: widget.currentUser!.objectId!,
               );
               debugPrint(
-                  "🎯 Cross-room battle points sent: $battlePoints to opponent room: $opponentRoomID");
-            } else {
-              // Fallback to single room if no opponent room ID
-              PointsController.sendPointsUpdate(
-                roomID: widget.liveID,
-                myPoints: battlePoints,
-                senderId: widget.currentUser!.objectId!,
-                currentUserId: widget.currentUser!.objectId!,
-              );
-              debugPrint("🎯 Single room battle points sent: $battlePoints");
+                  "🎯 INSTANT cross-room update sent - Total: $totalMyPoints (added: $battlePoints) to opponent: $opponentRoomID");
             }
           } catch (e) {
-            debugPrint("⚠️ Failed to send battle points via room command: $e");
+            debugPrint("⚠️ Cross-room command failed (non-blocking): $e");
           }
 
-          // Save to cloud function for persistence
+          // Save to database asynchronously (don't block UI)
+          // This provides backup and persistence
+          widget.liveStreaming!.save().then((_) {
+            debugPrint("💾 Database saved - Total points: $totalMyPoints");
+          }).catchError((e) {
+            debugPrint("⚠️ Database save failed (non-critical): $e");
+          });
+
+          // Save to opponent's database via cloud function (non-blocking)
           QuickCloudCode.saveHisBattlePoints(
             points: battlePoints,
             liveChannel: widget.liveStreaming!.getBattleLiveId!,
           );
+        } else {
+          // Save non-battle gifts normally
+          await widget.liveStreaming!.save();
         }
-        await widget.liveStreaming!.save();
         sendMessage("sent_gift".tr(namedArgs: {"name": "host_".tr()}));
       } else {
         // Handle PK battle points when gift is sent to opponent
@@ -1386,39 +1391,36 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen>
           final battlePoints =
               QuickHelp.getCoinsForReceiver(giftsModel.getCoins!);
 
-          // Update local controller for real-time display (opponent's points)
-          showGiftSendersController.hisBattlePoints.value += battlePoints;
+          // Update opponent's points in database
+          widget.liveStreaming!.addHisBattlePoints = battlePoints;
+          
+          // Get the new total opponent points
+          final totalHisPoints = widget.liveStreaming!.getHisBattlePoints!;
+
+          // Update local controller for instant real-time display (opponent's points)
+          showGiftSendersController.hisBattlePoints.value = totalHisPoints;
 
           // Send real-time battle points update to opponent via cross-room commands
+          // This tells the opponent their points increased
           try {
             final opponentRoomID = widget.liveStreaming!.getBattleLiveId!;
             if (opponentRoomID.isNotEmpty && opponentRoomID != widget.liveID) {
-              // Use cross-room signaling for PK battles
-              PointsController.sendPointsUpdateCrossRoom(
-                currentRoomID: widget.liveID,
-                opponentRoomID: opponentRoomID,
-                myPoints:
-                    battlePoints, // Add points to my side (opponent will receive as their opponent's points)
-                senderId: widget.currentUser!.objectId!,
-                currentUserId: widget.currentUser!.objectId!,
-              );
+              // Note: We don't send here because opponent is updating their own points
+              // The opponent will update via their own gift handler
               debugPrint(
-                  "🎯 Cross-room battle points sent to opponent: $battlePoints to room: $opponentRoomID");
-            } else {
-              // Fallback to single room if no opponent room ID
-              PointsController.sendPointsUpdate(
-                roomID: widget.liveID,
-                myPoints: battlePoints,
-                senderId: widget.currentUser!.objectId!,
-                currentUserId: widget.currentUser!.objectId!,
-              );
-              debugPrint(
-                  "🎯 Single room battle points sent to opponent: $battlePoints");
+                  "🎯 Gift sent to opponent - Their points will update via their own handler");
             }
           } catch (e) {
             debugPrint(
-                "⚠️ Failed to send battle points to opponent via room command: $e");
+                "⚠️ Failed to process opponent gift: $e");
           }
+          
+          // Save to database asynchronously (non-blocking)
+          widget.liveStreaming!.save().then((_) {
+            debugPrint("💾 Opponent points saved - Total: $totalHisPoints");
+          }).catchError((e) {
+            debugPrint("⚠️ Database save failed (non-critical): $e");
+          });
 
           // Save to cloud function for persistence
           QuickCloudCode.saveHisBattlePoints(

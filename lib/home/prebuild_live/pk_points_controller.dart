@@ -147,8 +147,9 @@ class PointsController {
     });
   }
 
-  static void _updateHisPoints(int points, Function(int, int) onPointsUpdate) {
-    controller.hisBattlePoints.value += points;
+  static void _updateHisPoints(int absolutePoints, Function(int, int) onPointsUpdate) {
+    // Use absolute value instead of incremental to avoid accumulation errors
+    controller.hisBattlePoints.value = absolutePoints;
     onPointsUpdate(
         controller.myBattlePoints.value, controller.hisBattlePoints.value);
   }
@@ -178,43 +179,46 @@ class PointsController {
   }
 
   /// Send points update to both current room and opponent room for PK battles
+  /// Uses absolute total values instead of incremental for better sync
   static void sendPointsUpdateCrossRoom(
       {required String currentRoomID,
       required String opponentRoomID,
-      required int myPoints,
+      required int myTotalPoints, // Changed to total points instead of increment
       required String senderId,
       required String currentUserId}) async {
     final command = jsonEncode({
-      'myPoints': myPoints,
+      'myPoints': myTotalPoints, // Send absolute total, not increment
       'senderId': senderId,
       'currentUserId': currentUserId,
       'isCrossRoom': true // Flag to identify cross-room messages
     });
 
-    // Send to current room
-    final currentRoomSent =
-        await ZegoUIKitPrebuiltLiveStreamingController().room.sendCommand(
-              roomID: currentRoomID,
-              command: Uint8List.fromList(utf8.encode(command)),
-            );
+    // Send to current room (non-blocking, fire and forget)
+    ZegoUIKitPrebuiltLiveStreamingController().room.sendCommand(
+      roomID: currentRoomID,
+      command: Uint8List.fromList(utf8.encode(command)),
+    ).then((currentRoomSent) {
+      if (!currentRoomSent) {
+        debugPrint('⚠️ Failed to send to current room');
+      }
+    });
 
-    // Send to opponent room
-    final opponentRoomSent =
-        await ZegoUIKitPrebuiltLiveStreamingController().room.sendCommand(
-              roomID: opponentRoomID,
-              command: Uint8List.fromList(utf8.encode(command)),
-            );
-
-    if (currentRoomSent && opponentRoomSent) {
-      debugPrint('🎯 Cross-room points update sent successfully: $command');
-    } else {
-      debugPrint(
-          '⚠️ Cross-room points update failed - Current: $currentRoomSent, Opponent: $opponentRoomSent');
-    }
+    // Send to opponent room (non-blocking, fire and forget)
+    ZegoUIKitPrebuiltLiveStreamingController().room.sendCommand(
+      roomID: opponentRoomID,
+      command: Uint8List.fromList(utf8.encode(command)),
+    ).then((opponentRoomSent) {
+      if (opponentRoomSent) {
+        debugPrint('🎯 Cross-room points sent successfully to opponent: $myTotalPoints');
+      } else {
+        debugPrint('⚠️ Failed to send to opponent room');
+      }
+    });
   }
 
-  static void updateLocalPoints(int points, Function(int, int) onPointsUpdate) {
-    controller.myBattlePoints.value += points;
+  static void updateLocalPoints(int absolutePoints, Function(int, int) onPointsUpdate) {
+    // Use absolute value for consistency
+    controller.myBattlePoints.value = absolutePoints;
     onPointsUpdate(
         controller.myBattlePoints.value, controller.hisBattlePoints.value);
   }
