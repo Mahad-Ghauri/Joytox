@@ -1880,7 +1880,8 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
     ParseResponse parseResponse = await queryBuilder.query();
 
     if (parseResponse.success) {
-      updateCurrentUser(giftsSentModel.getDiamondsQuantity!);
+      // Note: Sender coin deduction is handled by QuickCloudCode.sendGift() cloud function
+      // Removed updateCurrentUser() to prevent double deduction
 
       if (parseResponse.results != null) {
         LeadersModel leadersModel =
