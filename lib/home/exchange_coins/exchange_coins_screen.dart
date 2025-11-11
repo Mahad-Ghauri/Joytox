@@ -21,7 +21,7 @@ class ExchangeCoinsScreen extends StatefulWidget {
 }
 
 class _ExchangeCoinsScreenState extends State<ExchangeCoinsScreen> {
-  int minCoinAmount = 500000;
+  int minCoinAmount = 300000;
   int maxCoinAmount = 2500000;
   int minPointAmount = 100000;
   int maxPointAmount = 500000;

@@ -11,7 +11,6 @@ import '../../utils/zegocloud_token.dart';
 import 'live_loading_screen.dart';
 import 'package:share_plus/share_plus.dart';
 
-
 class ZegoLiveScreen extends StatefulWidget {
   UserModel? currentUser;
 
@@ -52,7 +51,7 @@ class _ZegoLiveScreenState extends State<ZegoLiveScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if(isLiveLoading) {
+    if (isLiveLoading) {
       return LiveLoadingScreen();
     }
     return Scaffold(
@@ -68,7 +67,6 @@ class _ZegoLiveScreenState extends State<ZegoLiveScreen> {
       body: Stack(
         children: [
           (widget.isHost ? localView : remoteView) ?? LiveLoadingScreen(),
-
           Positioned(
             top: MediaQuery.of(context).size.height * 0.06,
             right: MediaQuery.of(context).size.width * 0.04,
@@ -86,8 +84,6 @@ class _ZegoLiveScreenState extends State<ZegoLiveScreen> {
               ),
             ),
           ),
-
-
           Positioned(
             bottom: MediaQuery.of(context).size.height / 20,
             left: 0,
@@ -122,10 +118,10 @@ $roomLink
     Share.share(message);
   }
 
-
   Future<ZegoRoomLoginResult> loginRoom() async {
     // The value of `userID` is generated locally and must be globally unique.
-    final user = ZegoUser(widget.currentUser!.objectId!, widget.currentUser!.username!);
+    final user =
+        ZegoUser(widget.currentUser!.objectId!, widget.currentUser!.username!);
 
     // The value of `roomID` is generated locally and must be globally unique.
     final roomID = widget.channelName;
@@ -149,14 +145,21 @@ $roomLink
           'loginRoom: errorCode:${loginRoomResult.errorCode}, extendedData:${loginRoomResult.extendedData}');
       if (loginRoomResult.errorCode == 0) {
         if (widget.isHost) {
+          // Start preview but keep camera off initially
+          // User will manually turn it on if needed
+          startPreview();
+          // Turn off camera after starting preview
+          Future.delayed(Duration(milliseconds: 500), () {
+            ZegoExpressEngine.instance.enableCamera(false);
+            print('ZegoLiveScreen: Camera turned off on room start');
+          });
           startPreview();
           startPublish();
         } else {
           // Viewers fallback in case no stream appears
           removeLiveLoadingScreen();
         }
-      }
-      else {
+      } else {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text('loginRoom failed: ${loginRoomResult.errorCode}')));
       }
@@ -219,7 +222,7 @@ $roomLink
     await ZegoExpressEngine.instance.createCanvasView((viewID) {
       localViewID = viewID;
       ZegoCanvas previewCanvas =
-      ZegoCanvas(viewID, viewMode: ZegoViewMode.AspectFill);
+          ZegoCanvas(viewID, viewMode: ZegoViewMode.AspectFill);
       ZegoExpressEngine.instance.startPreview(canvas: previewCanvas);
     }).then((canvasViewWidget) {
       setState(() {
@@ -243,7 +246,8 @@ $roomLink
   Future<void> startPublish() async {
     // After calling the `loginRoom` method, call this method to publish streams.
     // The StreamID must be unique in the room.
-    String streamID = '${widget.channelName}_${widget.currentUser!.objectId}_call';
+    String streamID =
+        '${widget.channelName}_${widget.currentUser!.objectId}_call';
     return ZegoExpressEngine.instance.startPublishingStream(streamID);
   }
 
@@ -269,8 +273,6 @@ $roomLink
     });
   }
 
-
-
   Future<void> stopPlayStream(String streamID) async {
     ZegoExpressEngine.instance.stopPlayingStream(streamID);
     if (remoteViewID != null) {
@@ -293,6 +295,4 @@ $roomLink
       }
     });
   }
-
-
 }

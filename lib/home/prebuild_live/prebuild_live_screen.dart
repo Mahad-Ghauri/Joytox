@@ -731,6 +731,9 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
       /// on host can control pk
       //..foreground =
       ..preview.showPreviewForHost = false
+            // Keep camera OFF when room starts - user will manually turn it on
+      ..turnOnCameraWhenJoining = false
+      ..turnOnMicrophoneWhenJoining = false 
       //..bottomMenuBar.hostExtendButtons = [privateLiveBtn]
       ..avatarBuilder = (BuildContext context, Size size, ZegoUIKitUser? user,
           Map extraInfo) {
