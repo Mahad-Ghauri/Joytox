@@ -215,7 +215,7 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen>
     )
       ..audioVideoView.foregroundBuilder = hostAudioVideoViewForegroundBuilder
       ..preview.showPreviewForHost = false
-            // Keep camera OFF when room starts - user will manually turn it on
+                  // Keep camera OFF when room starts - user will manually turn it on
       ..turnOnCameraWhenJoining = false
       ..turnOnMicrophoneWhenJoining = false 
       ..bottomMenuBar.hostExtendButtons = [themeButton, shareMediaButton]
@@ -1408,10 +1408,16 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen>
           try {
             final opponentRoomID = widget.liveStreaming!.getBattleLiveId!;
             if (opponentRoomID.isNotEmpty && opponentRoomID != widget.liveID) {
-              // Note: We don't send here because opponent is updating their own points
-              // The opponent will update via their own gift handler
+              // Send the opponent's new total points to them so they see their own points update
+              PointsController.sendPointsUpdateCrossRoom(
+                currentRoomID: widget.liveID,
+                opponentRoomID: opponentRoomID,
+                myTotalPoints: totalHisPoints, // This becomes the opponent's "myPoints"
+                senderId: widget.currentUser!.objectId!,
+                currentUserId: widget.currentUser!.objectId!,
+              );
               debugPrint(
-                  "🎯 Gift sent to opponent - Their points will update via their own handler");
+                  "🎯 Cross-room update sent to opponent - Their total points: $totalHisPoints (added: $battlePoints)");
             }
           } catch (e) {
             debugPrint(
