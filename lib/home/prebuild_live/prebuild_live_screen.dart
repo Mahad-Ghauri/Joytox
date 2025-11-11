@@ -1962,68 +1962,100 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
           
           final battlePoints = QuickHelp.getCoinsForReceiver(giftsModel.getCoins!);
           
-          // Update MY points in database
-          widget.liveStreaming!.addMyBattlePoints = battlePoints;
-          final totalMyPoints = widget.liveStreaming!.getMyBattlePoints!;
-
-          // Update local UI instantly
-          showGiftSendersController.myBattlePoints.value = totalMyPoints;
+          // 🎯 CRITICAL: Let cloud function handle ALL database updates
+          // Cloud function will:
+          // 1. Add battlePoints to MY document's my_points
+          // 2. Update opponent's document's his_points with my new total
+          // 3. Sync opponent's my_points back to my his_points
+          // This prevents double-increment bug!
           
-          // Update via PointsController for proper sync
-          PointsController.updateLocalPoints(totalMyPoints, (my, his) {
-            showGiftSendersController.myBattlePoints.value = my;
-            showGiftSendersController.hisBattlePoints.value = his;
-          });
+          try {
+            ParseResponse cloudResponse = await QuickCloudCode.saveHisBattlePoints(
+              points: battlePoints,  // Send increment to cloud function
+              liveChannel: widget.liveID,  // Pass my liveID so cloud can find my document
+            );
+            
+            if (cloudResponse.success && cloudResponse.results != null) {
+              // Cloud function returns the synced points
+              final result = cloudResponse.results!.first;
+              final newMyPoints = result['my_points'] ?? 0;
+              final newHisPoints = result['his_points'] ?? 0;
+              
+              // Update local UI with cloud function results
+              showGiftSendersController.myBattlePoints.value = newMyPoints;
+              showGiftSendersController.hisBattlePoints.value = newHisPoints;
+              
+              // Update PointsController state
+              PointsController.updateLocalPoints(newMyPoints, (my, his) {
+                showGiftSendersController.myBattlePoints.value = my;
+                showGiftSendersController.hisBattlePoints.value = newHisPoints;
+              });
+              
+              debugPrint("💾 ✅ Cloud function synced - My: $newMyPoints, His: $newHisPoints");
+            } else {
+              // Fallback: Manual update if cloud function fails
+              widget.liveStreaming!.addMyBattlePoints = battlePoints;
+              final totalMyPoints = widget.liveStreaming!.getMyBattlePoints!;
+              showGiftSendersController.myBattlePoints.value = totalMyPoints;
+              await widget.liveStreaming!.save();
+              debugPrint("⚠️ Cloud function failed, using fallback manual save");
+            }
+          } catch (e) {
+            debugPrint("❌ Cloud function error: $e - Using fallback");
+            // Fallback: Manual update
+            widget.liveStreaming!.addMyBattlePoints = battlePoints;
+            final totalMyPoints = widget.liveStreaming!.getMyBattlePoints!;
+            showGiftSendersController.myBattlePoints.value = totalMyPoints;
+            await widget.liveStreaming!.save();
+          }
 
-          // Send to BOTH rooms (my room + opponent room)
+          // Send real-time cross-room command for instant UI update
           final opponentRoomID = widget.liveStreaming!.getBattleLiveId!;
           if (opponentRoomID.isNotEmpty && opponentRoomID != widget.liveID) {
+            // Refresh points from database after cloud function
+            await widget.liveStreaming!.fetch();
+            final currentMyPoints = widget.liveStreaming!.getMyBattlePoints!;
+            
             PointsController.sendPointsUpdateCrossRoom(
               currentRoomID: widget.liveID,
               opponentRoomID: opponentRoomID,
-              myTotalPoints: totalMyPoints,
+              myTotalPoints: currentMyPoints,
               senderHostID: widget.liveStreaming!.getAuthorId!,
             );
-            debugPrint("🎯 📤 GIFT TO MY HOST - Sent points update: $totalMyPoints");
+            debugPrint("🎯 📤 Real-time command sent - Points: $currentMyPoints");
           }
-
-          // Save to database (async)
-          widget.liveStreaming!.save().then((_) {
-            debugPrint("💾 My points saved: $totalMyPoints");
-          });
-
-          // Sync to opponent's database
-          QuickCloudCode.saveHisBattlePoints(
-            points: battlePoints,
-            liveChannel: opponentRoomID,
-          );
         } else {
           await widget.liveStreaming!.save();
         }
         sendMessage("sent_gift".tr(namedArgs: {"name": "host_".tr()}));
       } else {
         // Gift sent to OPPONENT's host (opponent's points increase)
+        // The opponent's room will call the cloud function when they receive the gift
+        // We just need to update OUR local view of opponent's points
         if (showGiftSendersController.battleTimer.value > 0 &&
             widget.liveStreaming!.getBattleStatus ==
                 LiveStreamingModel.battleAlive) {
           
           final battlePoints = QuickHelp.getCoinsForReceiver(giftsModel.getCoins!);
           
-          // Update OPPONENT's points in my database
+          // Update OPPONENT's points in MY local database (for my view)
           widget.liveStreaming!.addHisBattlePoints = battlePoints;
           final totalHisPoints = widget.liveStreaming!.getHisBattlePoints!;
 
-          // Update local UI instantly (show opponent's points)
+          // Update local UI instantly
           showGiftSendersController.hisBattlePoints.value = totalHisPoints;
+          
+          debugPrint("🎯 📊 Opponent received gift - Updated my view of his points: $totalHisPoints");
 
-          // DON'T send cross-room command here - the opponent's room will handle it
-          // when the gift arrives in their room
-          debugPrint("🎯 OPPONENT POINTS UPDATE - Local only: His=$totalHisPoints");
-
-          // Save to database (async)
+          // Save MY view of opponent's points to MY database
           widget.liveStreaming!.save().then((_) {
-            debugPrint("💾 Opponent points saved locally: $totalHisPoints");
+            debugPrint("💾 My view of opponent points saved: $totalHisPoints");
           });
+          
+          // NOTE: Opponent's room will call saveHisBattlePoints which will sync everything
+          // The cloud function on opponent's side will update:
+          // - Opponent's document: my_points += battlePoints
+          // - My document: his_points = opponent's new my_points (auto-synced by cloud function)
         }
         sendMessage("sent_gift".tr(namedArgs: {"name": mUser.getFullName!}));
       }
