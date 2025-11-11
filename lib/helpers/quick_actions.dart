@@ -164,7 +164,10 @@ class QuickActions {
               : _avatarInitials(currentUser),
         ),
         // Show avatar frame if available
-        if (currentUser.getAvatarFrame != null && !hideAvatarFrame)
+        if (currentUser.getAvatarFrame != null && 
+            currentUser.getAvatarFrame!.url != null &&
+            currentUser.getAvatarFrame!.url!.isNotEmpty &&
+            !hideAvatarFrame)
           ContainerCorner(
             borderWidth: 0,
             width: frameWidth,
@@ -180,6 +183,11 @@ class QuickActions {
                   ),
                 ),
               ),
+              errorWidget: (context, url, error) {
+                // Silently fail if avatar frame can't be loaded
+                print('QuickActions.avatarWidget: Avatar frame load error: $error');
+                return const SizedBox();
+              },
             ),
           ),
         // Show VIP frame if user is VIP
