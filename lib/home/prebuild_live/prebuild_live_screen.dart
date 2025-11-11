@@ -1209,6 +1209,11 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
           ParseLiveListElementSnapshot<LiveViewersModel> snapshot) {
         if (snapshot.hasData) {
           LiveViewersModel viewer = snapshot.loadedData!;
+          
+          // Safety check: Skip if author is null
+          if (viewer.getAuthor == null) {
+            return const SizedBox.shrink();
+          }
 
           return Stack(
             alignment: Alignment.bottomCenter,
@@ -1230,7 +1235,7 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
                 borderRadius: 2,
                 marginRight: 7,
                 child: TextWithTap(
-                  QuickHelp.convertToK(viewer.getAuthor!.getCreditsSent!),
+                  QuickHelp.convertToK(viewer.getAuthor!.getCreditsSent ?? 0),
                   fontSize: 5,
                   fontWeight: FontWeight.w900,
                 ),
@@ -1524,7 +1529,7 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
                                     width: 45,
                                     child: TextWithTap(
                                       showGiftSendersController
-                                          .giftSenderList[index].getFullName!,
+                                          .giftSenderList[index].getFullName ?? "Unknown",
                                       fontSize: 8,
                                       color: Colors.white,
                                       marginTop: 2,
@@ -1555,7 +1560,7 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
                                     width: 45,
                                     child: TextWithTap(
                                       showGiftSendersController
-                                          .giftReceiverList[index].getFullName!,
+                                          .giftReceiverList[index].getFullName ?? "Unknown",
                                       fontSize: 8,
                                       color: Colors.white,
                                       marginTop: 2,
@@ -1972,12 +1977,19 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
           try {
             ParseResponse cloudResponse = await QuickCloudCode.saveHisBattlePoints(
               points: battlePoints,  // Send increment to cloud function
-              liveChannel: widget.liveID,  // Pass my liveID so cloud can find my document
+              liveChannel: widget.liveStreaming!.getStreamingChannel!,  // ✅ Use streaming_channel from database
             );
             
-            if (cloudResponse.success && cloudResponse.results != null) {
-              // Cloud function returns the synced points
-              final result = cloudResponse.results!.first;
+            debugPrint("🔍 Cloud response - Success: ${cloudResponse.success}, Results: ${cloudResponse.results}, Results length: ${cloudResponse.results?.length}");
+            debugPrint("🔍 Cloud response - Result type: ${cloudResponse.result?.runtimeType}");
+            debugPrint("🔍 Cloud response - Result: ${cloudResponse.result}");
+            debugPrint("🔍 Using streaming_channel: ${widget.liveStreaming!.getStreamingChannel}");
+            
+            // Parse Server cloud functions return data in 'result' not 'results'
+            if (cloudResponse.success && cloudResponse.result != null) {
+              final result = cloudResponse.result as Map<String, dynamic>;
+              debugPrint("🔍 Result data: $result");
+              
               final newMyPoints = result['my_points'] ?? 0;
               final newHisPoints = result['his_points'] ?? 0;
               
@@ -1994,14 +2006,14 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
               debugPrint("💾 ✅ Cloud function synced - My: $newMyPoints, His: $newHisPoints");
             } else {
               // Fallback: Manual update if cloud function fails
+              debugPrint("⚠️ Cloud function failed - Success: ${cloudResponse.success}, Error: ${cloudResponse.error?.message}, Code: ${cloudResponse.error?.code}");
               widget.liveStreaming!.addMyBattlePoints = battlePoints;
               final totalMyPoints = widget.liveStreaming!.getMyBattlePoints!;
               showGiftSendersController.myBattlePoints.value = totalMyPoints;
               await widget.liveStreaming!.save();
-              debugPrint("⚠️ Cloud function failed, using fallback manual save");
             }
           } catch (e) {
-            debugPrint("❌ Cloud function error: $e - Using fallback");
+            debugPrint("❌ Cloud function exception: $e - Using fallback");
             // Fallback: Manual update
             widget.liveStreaming!.addMyBattlePoints = battlePoints;
             final totalMyPoints = widget.liveStreaming!.getMyBattlePoints!;
@@ -2009,21 +2021,17 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
             await widget.liveStreaming!.save();
           }
 
-          // Send real-time cross-room command for instant UI update
-          final opponentRoomID = widget.liveStreaming!.getBattleLiveId!;
-          if (opponentRoomID.isNotEmpty && opponentRoomID != widget.liveID) {
-            // Refresh points from database after cloud function
-            await widget.liveStreaming!.fetch();
-            final currentMyPoints = widget.liveStreaming!.getMyBattlePoints!;
-            
-            PointsController.sendPointsUpdateCrossRoom(
-              currentRoomID: widget.liveID,
-              opponentRoomID: opponentRoomID,
-              myTotalPoints: currentMyPoints,
-              senderHostID: widget.liveStreaming!.getAuthorId!,
-            );
-            debugPrint("🎯 📤 Real-time command sent - Points: $currentMyPoints");
-          }
+          // Send real-time command to MY room for instant UI update in my room
+          // Opponent will get updates via cloud function database sync + LiveQuery
+          await widget.liveStreaming!.fetch();
+          final currentMyPoints = widget.liveStreaming!.getMyBattlePoints!;
+          
+          PointsController.sendPointsUpdateToMyRoom(
+            currentRoomID: widget.liveID,
+            myTotalPoints: currentMyPoints,
+            senderHostID: widget.liveStreaming!.getAuthorId!,
+          );
+          debugPrint("🎯 📤 Real-time command sent to my room - Points: $currentMyPoints");
         } else {
           await widget.liveStreaming!.save();
         }

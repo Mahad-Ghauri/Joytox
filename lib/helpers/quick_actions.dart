@@ -118,7 +118,7 @@ class QuickActions {
   }
 
   static Widget avatarWidget(
-    UserModel currentUser, {
+    UserModel? currentUser, {
     double? width,
     double? height,
     EdgeInsets? margin,
@@ -129,6 +129,21 @@ class QuickActions {
     double? vipFrameWidth = 43,
     double? vipFrameHeight = 40,
   }) {
+    // Handle null user gracefully
+    if (currentUser == null) {
+      print('QuickActions.avatarWidget: User is null, showing default avatar');
+      return Container(
+        margin: margin,
+        width: width,
+        height: height,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: Colors.grey[300],
+        ),
+        child: Icon(Icons.person, size: (width ?? 40) * 0.6, color: Colors.grey[600]),
+      );
+    }
+    
     // Debug logging
     print('QuickActions.avatarWidget: User: ${currentUser.getFullName}');
     print(
@@ -206,9 +221,29 @@ class QuickActions {
     );
   }
 
-  static Widget _avatarInitials(UserModel currentUser) {
+  static Widget _avatarInitials(UserModel? currentUser) {
+    // Handle null user
+    if (currentUser == null) {
+      return Container(
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: Colors.grey[300],
+        ),
+        child: Center(
+          child: Text(
+            '?',
+            style: TextStyle(
+              fontSize: 18,
+              color: Colors.grey[600],
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+      );
+    }
+    
     return AvatarInitials(
-      name: '${currentUser.getFirstName}',
+      name: '${currentUser.getFirstName ?? '?'}',
       textSize: 18,
       avatarRadius: 10,
       backgroundColor:

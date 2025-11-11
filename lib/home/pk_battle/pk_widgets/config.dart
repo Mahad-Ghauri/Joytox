@@ -102,7 +102,7 @@ ZegoLiveStreamingPKBattleConfig pkConfig(
               (index) {
             return ContainerCorner(
               child: TextWithTap(
-                  hosts[index]!.name,
+                  hosts[index]?.name ?? "Unknown",
                 color: Colors.white,
                 fontSize: 10,
               ),

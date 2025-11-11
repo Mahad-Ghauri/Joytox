@@ -97,11 +97,10 @@ class PointsController {
         controller.myBattlePoints.value, controller.hisBattlePoints.value);
   }
 
-  /// Send points update to both current room AND opponent room
-  /// This ensures both rooms receive the update
-  static void sendPointsUpdateCrossRoom({
+  /// Send points update to MY room only
+  /// The opponent will receive updates via cloud function database sync + LiveQuery
+  static void sendPointsUpdateToMyRoom({
     required String currentRoomID,
-    required String opponentRoomID,
     required int myTotalPoints,
     required String senderHostID,
   }) async {
@@ -114,9 +113,11 @@ class PointsController {
       'timestamp': DateTime.now().millisecondsSinceEpoch,
     });
 
-    debugPrint('🎯 📤 Sending points=$myTotalPoints from room=$currentRoomID');
+    debugPrint('🎯 📤 Sending points=$myTotalPoints to MY room=$currentRoomID');
 
     // Send to MY room (so viewers in my room see the update)
+    // NOTE: Cannot send to opponent's room - Zego doesn't support cross-room commands
+    // Opponent will get updates via cloud function + LiveQuery database sync
     ZegoUIKitPrebuiltLiveStreamingController().room.sendCommand(
       roomID: currentRoomID,
       command: Uint8List.fromList(utf8.encode(command)),
@@ -127,20 +128,6 @@ class PointsController {
         debugPrint('🎯 ❌ Failed to send to MY room');
       }
     });
-
-    // Send to OPPONENT room (so viewers in opponent room see the update as "his points")
-    if (opponentRoomID.isNotEmpty && opponentRoomID != currentRoomID) {
-      ZegoUIKitPrebuiltLiveStreamingController().room.sendCommand(
-        roomID: opponentRoomID,
-        command: Uint8List.fromList(utf8.encode(command)),
-      ).then((sent) {
-        if (sent) {
-          debugPrint('🎯 ✅ Sent to OPPONENT room ($opponentRoomID)');
-        } else {
-          debugPrint('🎯 ❌ Failed to send to opponent room');
-        }
-      });
-    }
   }
 
   static void updateLocalPoints(int absolutePoints, Function(int, int) onPointsUpdate) {

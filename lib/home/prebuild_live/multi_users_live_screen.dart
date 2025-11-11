@@ -879,6 +879,11 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen>
           ParseLiveListElementSnapshot<LiveViewersModel> snapshot) {
         if (snapshot.hasData) {
           LiveViewersModel viewer = snapshot.loadedData!;
+          
+          // Safety check: Skip if author is null
+          if (viewer.getAuthor == null) {
+            return const SizedBox.shrink();
+          }
 
           return Stack(
             alignment: Alignment.bottomCenter,
@@ -900,7 +905,7 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen>
                 borderRadius: 2,
                 marginRight: 7,
                 child: TextWithTap(
-                  QuickHelp.convertToK(viewer.getAuthor!.getCreditsSent!),
+                  QuickHelp.convertToK(viewer.getAuthor!.getCreditsSent ?? 0),
                   fontSize: 5,
                   fontWeight: FontWeight.w900,
                 ),
@@ -1353,11 +1358,18 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen>
           try {
             ParseResponse cloudResponse = await QuickCloudCode.saveHisBattlePoints(
               points: battlePoints,
-              liveChannel: widget.liveID,
+              liveChannel: widget.liveStreaming!.getStreamingChannel!,  // ✅ Use streaming_channel from database
             );
             
-            if (cloudResponse.success && cloudResponse.results != null) {
-              final result = cloudResponse.results!.first;
+            debugPrint("🔍 [Multi] Cloud response - Success: ${cloudResponse.success}, Results: ${cloudResponse.results}, Results length: ${cloudResponse.results?.length}");
+            debugPrint("🔍 [Multi] Cloud response - Result type: ${cloudResponse.result?.runtimeType}");
+            debugPrint("🔍 [Multi] Cloud response - Result: ${cloudResponse.result}");
+            debugPrint("🔍 [Multi] Using streaming_channel: ${widget.liveStreaming!.getStreamingChannel}");
+            
+            // Parse Server cloud functions return data in 'result' not 'results'
+            if (cloudResponse.success && cloudResponse.result != null) {
+              final result = cloudResponse.result as Map<String, dynamic>;
+              debugPrint("🔍 [Multi] Result data: $result");
               final newMyPoints = result['my_points'] ?? 0;
               final newHisPoints = result['his_points'] ?? 0;
               
@@ -1367,34 +1379,31 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen>
               debugPrint("💾 [Multi] ✅ Cloud sync - My: $newMyPoints, His: $newHisPoints");
             } else {
               // Fallback
+              debugPrint("⚠️ [Multi] Cloud function failed - Success: ${cloudResponse.success}, Error: ${cloudResponse.error?.message}, Code: ${cloudResponse.error?.code}");
               widget.liveStreaming!.addMyBattlePoints = battlePoints;
               final totalMyPoints = widget.liveStreaming!.getMyBattlePoints!;
               showGiftSendersController.myBattlePoints.value = totalMyPoints;
               await widget.liveStreaming!.save();
-              debugPrint("⚠️ [Multi] Cloud function failed, using fallback");
             }
           } catch (e) {
-            debugPrint("❌ [Multi] Cloud function error: $e");
+            debugPrint("❌ [Multi] Cloud function exception: $e");
             widget.liveStreaming!.addMyBattlePoints = battlePoints;
             final totalMyPoints = widget.liveStreaming!.getMyBattlePoints!;
             showGiftSendersController.myBattlePoints.value = totalMyPoints;
             await widget.liveStreaming!.save();
           }
 
-          // Send real-time cross-room command
-          final opponentRoomID = widget.liveStreaming!.getBattleLiveId!;
-          if (opponentRoomID.isNotEmpty && opponentRoomID != widget.liveID) {
-            await widget.liveStreaming!.fetch();
-            final currentMyPoints = widget.liveStreaming!.getMyBattlePoints!;
-            
-            PointsController.sendPointsUpdateCrossRoom(
-              currentRoomID: widget.liveID,
-              opponentRoomID: opponentRoomID,
-              myTotalPoints: currentMyPoints,
-              senderHostID: widget.liveStreaming!.getAuthorId!,
-            );
-            debugPrint("🎯 [Multi] 📤 Real-time command sent - Points: $currentMyPoints");
-          }
+          // Send real-time command to MY room only
+          // Opponent will get updates via cloud function database sync + LiveQuery
+          await widget.liveStreaming!.fetch();
+          final currentMyPoints = widget.liveStreaming!.getMyBattlePoints!;
+          
+          PointsController.sendPointsUpdateToMyRoom(
+            currentRoomID: widget.liveID,
+            myTotalPoints: currentMyPoints,
+            senderHostID: widget.liveStreaming!.getAuthorId!,
+          );
+          debugPrint("🎯 [Multi] 📤 Real-time command sent to my room - Points: $currentMyPoints");
         } else {
           await widget.liveStreaming!.save();
         }
@@ -1883,7 +1892,7 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen>
                                     width: 45,
                                     child: TextWithTap(
                                       showGiftSendersController
-                                          .giftSenderList[index].getFullName!,
+                                          .giftSenderList[index].getFullName ?? "Unknown",
                                       fontSize: 8,
                                       color: Colors.white,
                                       marginTop: 2,
@@ -1914,7 +1923,7 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen>
                                     width: 45,
                                     child: TextWithTap(
                                       showGiftSendersController
-                                          .giftReceiverList[index].getFullName!,
+                                          .giftReceiverList[index].getFullName ?? "Unknown",
                                       fontSize: 8,
                                       color: Colors.white,
                                       marginTop: 2,
