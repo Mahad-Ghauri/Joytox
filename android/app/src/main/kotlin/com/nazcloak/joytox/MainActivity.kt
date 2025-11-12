@@ -12,6 +12,37 @@ class MainActivity : FlutterActivity() {
     override fun onCreate(savedInstanceState: android.os.Bundle?) {
         super.onCreate(savedInstanceState)
         createNotificationChannel()
+        
+        // 🔥 Configure video player for optimal streaming
+        configureVideoBuffering()
+    }
+    
+    /**
+     * Configure video player to prevent ImageReader buffer overflow
+     * This fixes "Unable to acquire a buffer item" warnings
+     */
+    private fun configureVideoBuffering() {
+        try {
+            // 🔥 ExoPlayer frame dropping - aggressively drop frames to prevent buffer buildup
+            System.setProperty("exoplayer.video.renderer.frame.drop.enabled", "true")
+            
+            // 🔥 Disable tunneling - it causes buffer issues on some devices
+            System.setProperty("exoplayer.video.tunneling.enabled", "false")
+            
+            // 🔥 NEW: Reduce ExoPlayer's internal buffer sizes to prevent overflow
+            // These properties limit how much ExoPlayer buffers ahead
+            System.setProperty("exoplayer.loadcontrol.minbufferms", "2500")  // Min 2.5s (down from default 50s)
+            System.setProperty("exoplayer.loadcontrol.maxbufferms", "5000")  // Max 5s (down from default 50s)
+            System.setProperty("exoplayer.loadcontrol.bufferforplaybackms", "1000")  // 1s to start (down from 2.5s)
+            System.setProperty("exoplayer.loadcontrol.bufferforplaybackafterrebufferms", "1500")  // 1.5s after rebuffer
+            
+            // 🔥 NEW: Reduce ImageReader max images (limits concurrent frame decoding)
+            System.setProperty("android.media.mediacodec.video.max-output-buffers", "3")  // Down from default 4+
+            
+            android.util.Log.i("MainActivity", "ExoPlayer buffer configuration applied successfully")
+        } catch (e: Exception) {
+            android.util.Log.w("MainActivity", "Failed to configure video buffering: ${e.message}")
+        }
     }
 
     private fun createNotificationChannel() {

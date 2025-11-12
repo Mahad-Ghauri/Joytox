@@ -1,6 +1,5 @@
 // ignore_for_file: deprecated_member_use, unused_element
 
-import 'dart:async';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:expandable_text/expandable_text.dart';
 import 'package:flutter/material.dart';
@@ -49,12 +48,13 @@ class ReelsInteractions extends StatelessWidget {
 
   /// Enhanced method to ensure author is loaded with proper error handling and UI updates
   void _ensureAuthorIsLoaded() {
-    // Check if author is already loaded and has valid data
+    // 🔥 CRITICAL: Check if author is already loaded and has valid data
     if (postModel.getAuthor != null &&
-        postModel.getAuthor!.getFullName != null) {
+        postModel.getAuthor!.getFullName != null &&
+        postModel.getAuthor!.getFullName!.isNotEmpty) {
       print(
           'ReelsInteractions: Author already loaded for post ${postModel.objectId}: ${postModel.getAuthor!.getFullName}');
-      return;
+      return; // 🔥 Exit early - no need to fetch
     }
 
     // Check if we have an author ID to fetch
@@ -63,10 +63,27 @@ class ReelsInteractions extends StatelessWidget {
       return;
     }
 
+    // 🔥 PREVENT DUPLICATE FETCHES: Check if already fetching
+    final String fetchKey = 'fetching_author_${postModel.objectId}';
+    if (Get.isRegistered<Map<String, bool>>(tag: 'author_fetch_locks')) {
+      final locks = Get.find<Map<String, bool>>(tag: 'author_fetch_locks');
+      if (locks[fetchKey] == true) {
+        print('ReelsInteractions: Already fetching author for post ${postModel.objectId}');
+        return;
+      }
+    }
+
     print('ReelsInteractions: Fetching author for post ${postModel.objectId}');
 
     // Try to fetch author using PostsService
     if (Get.isRegistered<PostsService>()) {
+      // 🔥 Set fetch lock
+      if (!Get.isRegistered<Map<String, bool>>(tag: 'author_fetch_locks')) {
+        Get.put<Map<String, bool>>({}, tag: 'author_fetch_locks', permanent: true);
+      }
+      final locks = Get.find<Map<String, bool>>(tag: 'author_fetch_locks');
+      locks[fetchKey] = true;
+      
       final postsService = Get.find<PostsService>();
 
       // Use async method with proper error handling
@@ -92,8 +109,13 @@ class ReelsInteractions extends StatelessWidget {
           print(
               'ReelsInteractions: Failed to load author for post ${postModel.objectId} - author is null or has no name');
         }
+        
+        // 🔥 Release fetch lock
+        locks.remove(fetchKey);
       }).catchError((error) {
         print('ReelsInteractions: Error fetching author: $error');
+        // 🔥 Release fetch lock on error
+        locks.remove(fetchKey);
       });
     } else {
       print('ReelsInteractions: PostsService not registered');
@@ -102,37 +124,18 @@ class ReelsInteractions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Refresh video data when widget is built
+    // 🔥 Refresh video data when widget is built
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (Get.isRegistered<VideoInteractionsController>(
           tag: postModel.objectId)) {
         final controller =
             Get.find<VideoInteractionsController>(tag: postModel.objectId);
-        print('=== REELS INTERACTIONS WIDGET BUILD ===');
-        print('Post ID: ${postModel.objectId}');
-        print('Current likes count: ${controller.likesCount.value}');
-        print('Current comments count: ${controller.commentsCount.value}');
-        print('Current saves count: ${controller.savesCount.value}');
-
         // Force refresh video data from server
         controller.refreshVideoData();
-
-        print('=== REELS INTERACTIONS WIDGET BUILD END ===');
       }
     });
 
-    // Enhanced author fetching logic
-    _ensureAuthorIsLoaded();
-
-    // Force refresh author data if needed
-    if ((postModel.getAuthor == null ||
-            postModel.getAuthor!.getFullName == null) &&
-        postModel.getAuthorId != null) {
-      // Try to fetch author again after a short delay
-      Future.delayed(Duration(milliseconds: 500), () {
-        _ensureAuthorIsLoaded();
-      });
-    }
+    // 🔥 REMOVED: Author fetching logic - author should already be loaded in query
 
     return Column(
       mainAxisAlignment: MainAxisAlignment.end,
@@ -146,7 +149,14 @@ class ReelsInteractions extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  _userNameAndTimeUploadedWidget(context),
+                  // 🔥 CRITICAL: Wrap with GetBuilder to rebuild when author loads
+                  GetBuilder<VideoInteractionsController>(
+                    tag: postModel.objectId,
+                    id: 'author_widget',
+                    builder: (controller) {
+                      return _userNameAndTimeUploadedWidget(context);
+                    },
+                  ),
                   SizedBox(height: 8.0),
                   _rainBowBrandWidget(),
                   SizedBox(height: 8.0),
@@ -459,65 +469,39 @@ class ReelsInteractions extends StatelessWidget {
   }
 
   Widget _userNameAndTimeUploadedWidget(BuildContext context) {
-    // Debug logging
-    print(
-        'ReelsInteractions: Author for post ${postModel.objectId}: ${postModel.getAuthor?.getFullName}');
-    print('ReelsInteractions: Author ID: ${postModel.getAuthorId}');
-    print(
-        'ReelsInteractions: Author avatar: ${postModel.getAuthor?.getAvatar?.url}');
-    print('ReelsInteractions: Current user: ${currentUser?.getFullName}');
-    print('ReelsInteractions: Current user ID: ${currentUser?.objectId}');
-
-    // Always try to fetch author if not loaded or if author has no name
-    if ((postModel.getAuthor == null ||
-            postModel.getAuthor?.getFullName == null) &&
-        postModel.getAuthorId != null) {
-      _ensureAuthorIsLoaded();
-    }
-
     // Get the current author data
     final author = postModel.getAuthor;
 
-    // If author is null, show loading state
+    // 🔥 If author is null, it means the query didn't include it properly
+    // Just show a simple placeholder - don't try to fetch
     if (author == null) {
+      debugPrint('[REELS] ⚠️ Author is NULL for post ${postModel.objectId}');
       return Row(
         mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          GestureDetector(
-            onTap: () {
-              // Show loading message or do nothing when author is not loaded
-              print('Author not loaded yet, cannot navigate to profile');
-            },
-            child: Container(
-              width: 45,
-              height: 45,
-              decoration: BoxDecoration(
-                color: Colors.grey.withOpacity(0.3),
-                shape: BoxShape.circle,
-              ),
-              child: postModel.getAuthorId != null
-                  ? CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white70),
-                    )
-                  : Icon(
-                      Icons.person,
-                      color: Colors.white70,
-                      size: 24,
-                    ),
+          Container(
+            width: 45,
+            height: 45,
+            margin: EdgeInsets.only(right: 5),
+            decoration: BoxDecoration(
+              color: Colors.grey.withOpacity(0.2),
+              shape: BoxShape.circle,
             ),
+            child: Icon(Icons.person, color: Colors.white60, size: 24),
           ),
+          SizedBox(width: 8),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              TextWithTap(
-                postModel.getAuthorId != null ? "Loading..." : "Unknown User",
-                fontWeight: FontWeight.bold,
-                color: Colors.white.withOpacity(1.0),
-                fontSize: 15,
-                marginLeft: 3,
+              Text(
+                'Unknown User',
+                style: TextStyle(
+                  color: Colors.white70,
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ],
           ),
@@ -525,52 +509,7 @@ class ReelsInteractions extends StatelessWidget {
       );
     }
 
-    // Check if author has a valid name
-    final authorName = author.getFullName;
-    print('ReelsInteractions: Author name: $authorName');
-
-    if (authorName == null || authorName.isEmpty) {
-      print(
-          'ReelsInteractions: Author name is null or empty, showing loading...');
-      return Row(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          GestureDetector(
-            onTap: () {
-              print('Author name not loaded yet, cannot navigate to profile');
-            },
-            child: Container(
-              width: 45,
-              height: 45,
-              decoration: BoxDecoration(
-                color: Colors.grey.withOpacity(0.3),
-                shape: BoxShape.circle,
-              ),
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.white70),
-              ),
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              TextWithTap(
-                "Loading...",
-                fontWeight: FontWeight.bold,
-                color: Colors.white.withOpacity(1.0),
-                fontSize: 15,
-                marginLeft: 3,
-              ),
-            ],
-          ),
-        ],
-      );
-    }
-
-    // Author is loaded, show the actual data
+    // 🔥 Author is loaded, show the actual data
     return Row(
       mainAxisSize: MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.spaceBetween,

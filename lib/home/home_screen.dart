@@ -8,7 +8,8 @@ import 'package:trace/home/feed/feed_home_screen.dart';
 import 'package:trace/models/UserModel.dart';
 import 'package:flutter/material.dart';
 import '../app/constants.dart';
-import 'a_shorts/shorts_cached_view.dart';
+// import 'a_shorts/shorts_cached_view.dart'; // 🔄 OLD VERSION
+import 'a_shorts/shorts_optimized_view.dart'; // 🚀 NEW OPTIMIZED VERSION
 import 'live/all_lives_screen.dart';
 import 'message/message_list_screen.dart';
 import 'controllers/home_controller.dart';
@@ -134,7 +135,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       onPageChanged: controller.onTabChanged,
       physics: const NeverScrollableScrollPhysics(),
       children: [
-        ShortsCachedView(currentUser: widget.currentUser),
+        ShortsOptimizedView(currentUser: widget.currentUser), // 🚀 OPTIMIZED
         FeedHomeScreen(currentUser: widget.currentUser),
         AllLivesScreen(currentUser: widget.currentUser),
         MessagesListScreen(currentUser: widget.currentUser),

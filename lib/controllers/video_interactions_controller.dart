@@ -441,6 +441,24 @@ class VideoInteractionsController extends GetxController {
 
       await video.fetch();
 
+      // 🔥 CRITICAL: Fetch author separately if it's null OR if it has no name
+      if (video.getAuthor == null || video.getAuthor!.getFullName == null) {
+        print('VideoInteractionsController: Author null or incomplete, fetching separately...');
+        print('  - Author exists: ${video.getAuthor != null}');
+        print('  - Author name: ${video.getAuthor?.getFullName}');
+        print('  - Author ID: ${video.getAuthorId}');
+        
+        if (video.getAuthorId != null && Get.isRegistered<PostsService>()) {
+          await Get.find<PostsService>().fetchAuthorForPost(video);
+          print('VideoInteractionsController: Author fetched: ${video.getAuthor?.getFullName}');
+          
+          // 🔥 CRITICAL: Force UI update of author widget specifically
+          update(['author_widget']);
+        }
+      } else {
+        print('VideoInteractionsController: Author already complete: ${video.getAuthor?.getFullName}');
+      }
+
       // Update all counts with fresh data
       likesCount.value = video.getLikes.length;
       savesCount.value = video.getSaves.length;
