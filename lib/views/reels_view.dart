@@ -12,18 +12,29 @@ import '../models/PostsModel.dart';
 import '../services/posts_service.dart';
 import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../main.dart';
 
-class ReelsView extends GetView<ReelsController> {
+class ReelsView extends StatefulWidget {
   final UserModel? currentUser;
   final bool autoplayOnLoad;
 
   static int? lastViewedIndex;
 
-  ReelsView({
+  const ReelsView({
     Key? key,
     this.currentUser,
     this.autoplayOnLoad = true,
   }) : super(key: key);
+
+  @override
+  State<ReelsView> createState() => _ReelsViewState();
+
+  static void navigateToVideo(BuildContext context, PostsModel post, UserModel userModel) {}
+}
+
+class _ReelsViewState extends State<ReelsView> with RouteAware, WidgetsBindingObserver {
+  ReelsController? _controller;
+  bool _isDisposed = false;
 
   // Método estático simplificado para navegar para ReelsView
   static void navigateTo({bool showLoadingDialog = true}) {
@@ -54,6 +65,97 @@ class ReelsView extends GetView<ReelsController> {
   final RxBool _showBackToTopButton = false.obs;
   Timer? _scrollTimer;
   final int _minIndexForButton = 5;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    
+    // Get or create controller
+    if (Get.isRegistered<ReelsController>()) {
+      _controller = Get.find<ReelsController>();
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    
+    // Subscribe to route observer after route is available
+    final route = ModalRoute.of(context);
+    if (route != null && route is PageRoute) {
+      routeObserver.subscribe(this, route);
+    }
+    
+    // Ensure controller is available
+    if (_controller == null && Get.isRegistered<ReelsController>()) {
+      _controller = Get.find<ReelsController>();
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.paused || 
+        state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.hidden) {
+      _controller?.pauseAllVideos();
+    }
+  }
+
+  @override
+  void didPush() {
+    // Route was pushed onto navigator
+    print('ReelsView: Route pushed');
+  }
+
+  @override
+  void didPopNext() {
+    // Route was popped and this route is now on top
+    print('ReelsView: Route popped next - resuming');
+    if (_controller != null && widget.autoplayOnLoad) {
+      Future.delayed(Duration(milliseconds: 300), () {
+        if (!_isDisposed && mounted) {
+          _controller?.playCurrentVideo();
+        }
+      });
+    }
+  }
+
+  @override
+  void didPushNext() {
+    // New route was pushed on top of this one
+    print('ReelsView: New route pushed on top - pausing videos');
+    _controller?.pauseAllVideos();
+  }
+
+  @override
+  void didPop() {
+    // This route was popped
+    print('ReelsView: Route popped - pausing videos');
+    _controller?.pauseAllVideos();
+  }
+
+  @override
+  void dispose() {
+    _isDisposed = true;
+    WidgetsBinding.instance.removeObserver(this);
+    routeObserver.unsubscribe(this);
+    _controller?.pauseAllVideos();
+    _scrollTimer?.cancel();
+    super.dispose();
+  }
+
+  ReelsController get controller {
+    if (_controller == null) {
+      if (Get.isRegistered<ReelsController>()) {
+        _controller = Get.find<ReelsController>();
+      } else {
+        throw Exception('ReelsController not found');
+      }
+    }
+    return _controller!;
+  }
 
   /// Navegação para o ReelsView com um vídeo específico
   static void navigateToVideo(
@@ -140,21 +242,16 @@ class ReelsView extends GetView<ReelsController> {
       Navigator.of(context)
           .push(
         MaterialPageRoute(
-          builder: (context) => GetBuilder<ReelsController>(
-            tag: controllerTag,
-            builder: (controller) {
-              return ReelsView(
-                currentUser: currentUser,
-                autoplayOnLoad: true,
-              );
-            },
+          builder: (context) => ReelsView(
+            currentUser: currentUser,
+            autoplayOnLoad: true,
           ),
         ),
       )
           .then((_) {
         // Salvar o índice atual antes de fechar
-        lastViewedIndex = controller.currentVideoIndex.value;
-        print('ReelsView: Salvando último índice visto: $lastViewedIndex');
+        ReelsView.lastViewedIndex = controller.currentVideoIndex.value;
+        print('ReelsView: Salvando último índice visto: ${ReelsView.lastViewedIndex}');
 
         // Limpar recursos quando a tela for fechada
         if (Get.isRegistered<ReelsController>(tag: controllerTag)) {
@@ -182,7 +279,7 @@ class ReelsView extends GetView<ReelsController> {
         print(
             'ReelsView: Lista vazia no primeiro frame, forçando carregamento');
         controller.loadInitialVideos(forceRefresh: true);
-      } else if (autoplayOnLoad && controller.videos.isNotEmpty) {
+      } else if (widget.autoplayOnLoad && controller.videos.isNotEmpty) {
         print('ReelsView: Iniciando reprodução automática');
         controller.playCurrentVideo();
       }
@@ -191,8 +288,10 @@ class ReelsView extends GetView<ReelsController> {
     return WillPopScope(
       onWillPop: () async {
         print('ReelsView: Voltando, pausando todos os vídeos');
-        lastViewedIndex = controller.currentVideoIndex.value;
-        await controller.pauseAllVideos();
+        if (_controller != null) {
+          ReelsView.lastViewedIndex = _controller!.currentVideoIndex.value;
+          await _controller!.pauseAllVideos();
+        }
         return true;
       },
       child: Scaffold(
@@ -258,7 +357,7 @@ class ReelsView extends GetView<ReelsController> {
 
           // Inicializar PageController com o índice correto
           final initialPage =
-              lastViewedIndex ?? controller.currentVideoIndex.value;
+              ReelsView.lastViewedIndex ?? controller.currentVideoIndex.value;
 
           print(
               'ReelsView: Criando PageView com initialPage=$initialPage, total=${controller.videos.length} vídeos');
@@ -320,7 +419,7 @@ class ReelsView extends GetView<ReelsController> {
                 Get.put(
                   VideoInteractionsController(
                     video: video,
-                    currentUser: currentUser,
+                    currentUser: widget.currentUser,
                   ),
                   tag: tag,
                 );
@@ -333,7 +432,7 @@ class ReelsView extends GetView<ReelsController> {
                   index: index,
                   video: video,
                   tag: tag,
-                  currentUser: currentUser,
+                  currentUser: widget.currentUser,
                   isPrimary: true,
                 );
               } else {

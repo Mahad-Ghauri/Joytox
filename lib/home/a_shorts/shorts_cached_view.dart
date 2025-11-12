@@ -8,15 +8,103 @@ import 'package:trace/home/a_shorts/shorts_cached_controller.dart';
 import 'package:trace/models/UserModel.dart';
 import '../../controllers/video_interactions_controller.dart';
 import '../video/global_video_playeres.dart';
+import '../../main.dart';
 
-class ShortsCachedView extends StatelessWidget {
-  UserModel? currentUser;
-  final ShortsCachedController _controller =
-      Get.isRegistered<ShortsCachedController>()
-          ? Get.find<ShortsCachedController>()
-          : Get.put(ShortsCachedController());
+class ShortsCachedView extends StatefulWidget {
+  final UserModel? currentUser;
 
-  ShortsCachedView({this.currentUser, super.key});
+  const ShortsCachedView({this.currentUser, super.key});
+
+  @override
+  State<ShortsCachedView> createState() => _ShortsCachedViewState();
+}
+
+class _ShortsCachedViewState extends State<ShortsCachedView>
+    with RouteAware, WidgetsBindingObserver {
+  late ShortsCachedController _controller;
+  PageController? _pageController;
+  bool _isDisposed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = Get.isRegistered<ShortsCachedController>()
+        ? Get.find<ShortsCachedController>()
+        : Get.put(ShortsCachedController());
+    
+    WidgetsBinding.instance.addObserver(this);
+    
+    // Mark screen as visible
+    _controller.setScreenVisible(true);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    
+    // Subscribe to route observer after route is available
+    final route = ModalRoute.of(context);
+    if (route != null && route is PageRoute) {
+      routeObserver.subscribe(this, route);
+    }
+    
+    // Check if this route is still the current route
+    if (route != null && route.isCurrent) {
+      // Screen is visible
+      if (!_controller.isScreenVisible) {
+        _controller.setScreenVisible(true);
+      }
+    } else {
+      // Screen is not visible - pause videos
+      if (_controller.isScreenVisible) {
+        _controller.pauseAllVideosOnNavigation();
+      }
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.paused || 
+        state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.hidden) {
+      _controller.pauseAllVideosOnNavigation();
+    }
+  }
+
+  @override
+  void didPush() {
+    // Route was pushed onto navigator
+    _controller.setScreenVisible(true);
+  }
+
+  @override
+  void didPopNext() {
+    // Route was popped and this route is now on top
+    _controller.setScreenVisible(true);
+  }
+
+  @override
+  void didPushNext() {
+    // New route was pushed on top of this one
+    _controller.pauseAllVideosOnNavigation();
+  }
+
+  @override
+  void didPop() {
+    // This route was popped
+    _controller.pauseAllVideosOnNavigation();
+  }
+
+  @override
+  void dispose() {
+    _isDisposed = true;
+    WidgetsBinding.instance.removeObserver(this);
+    routeObserver.unsubscribe(this);
+    _controller.pauseAllVideosOnNavigation();
+    _pageController?.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -38,13 +126,15 @@ class ShortsCachedView extends StatelessWidget {
               ? _controller.lastSavedIndex.value
               : 0;
 
-      var pageController = PageController(
+      _pageController ??= PageController(
         initialPage: initialPage,
       );
 
       // Start playback after first frame
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _controller.playVideo(pageController.page?.toInt() ?? initialPage);
+        if (!_isDisposed && mounted) {
+          _controller.playVideo(_pageController!.page?.toInt() ?? initialPage);
+        }
       });
 
       final String tag =
@@ -53,7 +143,7 @@ class ShortsCachedView extends StatelessWidget {
         Get.put(
           VideoInteractionsController(
             video: _controller.shorts[initialPage],
-            currentUser: currentUser,
+            currentUser: widget.currentUser,
           ),
           tag: tag,
         );
@@ -62,6 +152,7 @@ class ShortsCachedView extends StatelessWidget {
       return WillPopScope(
         onWillPop: () async {
           _controller.saveLastIndex();
+          _controller.pauseAllVideosOnNavigation();
           return true;
         },
         child: Scaffold(
@@ -72,7 +163,7 @@ class ShortsCachedView extends StatelessWidget {
             },
             child: PageView.builder(
               itemCount: _controller.shorts.length,
-              controller: pageController,
+              controller: _pageController,
               scrollDirection: Axis.vertical,
               onPageChanged: (index) {
                 _controller.lastSavedIndex.value = index;
@@ -86,7 +177,7 @@ class ShortsCachedView extends StatelessWidget {
                   Get.put(
                     VideoInteractionsController(
                       video: _controller.shorts[index],
-                      currentUser: currentUser,
+                      currentUser: widget.currentUser,
                     ),
                     tag: newTag,
                   );
@@ -121,7 +212,7 @@ class ShortsCachedView extends StatelessWidget {
                 if (currentVideoController.value.isInitialized) {
                   return GlobalVideoPlayer(
                     video: _controller.shorts[index],
-                    currentUser: currentUser,
+                    currentUser: widget.currentUser,
                     externalController: currentVideoController,
                   );
                 }

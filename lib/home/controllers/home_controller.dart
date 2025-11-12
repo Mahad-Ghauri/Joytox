@@ -237,25 +237,40 @@ class HomeController extends GetxController {
     if (_isDisposed || selectedIndex.value == index) return;
 
     try {
-      // FIX: Handle leaving reels tab - pause videos
+      // FIX: Handle leaving reels/shorts tab (index 0) - pause videos
       if (selectedIndex.value == 0 && _reelsController != null) {
-        _reelsController!.pauseAllVideos();
+        print('HomeController: Leaving shorts tab, pausing all videos');
+        _reelsController!.pauseAllVideosOnNavigation();
+        _reelsController!.setScreenVisible(false);
       }
 
       selectedIndex.value = index;
 
-      // FIX: Handle entering reels tab - lazy load controller if needed
+      // FIX: Handle entering reels/shorts tab - lazy load controller if needed
       if (index == 0) {
         // Access reelsController getter to trigger lazy loading if needed
         print(
-            'HomeController: Switching to reels tab, ensuring controller is ready...');
+            'HomeController: Switching to shorts tab, ensuring controller is ready...');
         final controller = reelsController; // This will lazy load if needed
+
+        // Mark screen as visible
+        controller.setScreenVisible(true);
 
         // Resume playback if needed
         try {
-          controller.playCurrentVideo();
+          Future.delayed(Duration(milliseconds: 300), () {
+            if (!_isDisposed && selectedIndex.value == 0) {
+              controller.playCurrentVideo();
+            }
+          });
         } catch (e) {
           print('HomeController: Error resuming video playback: $e');
+        }
+      } else {
+        // When switching to any other tab, ensure shorts videos are paused
+        if (_reelsController != null) {
+          _reelsController!.pauseAllVideosOnNavigation();
+          _reelsController!.setScreenVisible(false);
         }
       }
 

@@ -30,6 +30,8 @@ class ShortsCachedController extends GetxController {
   // FIX: Add disposal state tracking to prevent buffer issues
   bool _isDisposed = false;
   bool _isInitializing = false;
+  // Track if screen is visible/active
+  bool _isScreenVisible = true;
 
   @override
   void onInit() {
@@ -41,6 +43,11 @@ class ShortsCachedController extends GetxController {
   void onClose() {
     // FIX: Comprehensive cleanup to prevent ImageReader buffer issues
     _isDisposed = true;
+    _isScreenVisible = false;
+    
+    // Pause all videos before disposal
+    pauseAllVideosOnNavigation();
+    
     disposeAllControllers();
 
     // Clear all lists to prevent memory leaks
@@ -383,6 +390,52 @@ class ShortsCachedController extends GetxController {
       print("ShortsCachedController: Error pausing all videos: $e");
     }
   }
+
+  /// Pause all videos when navigating away from the screen
+  /// This is called when the screen becomes inactive or user navigates away
+  Future<void> pauseAllVideosOnNavigation() async {
+    if (_isDisposed) return;
+    
+    print('ShortsCachedController: Pausing all videos on navigation');
+    _isScreenVisible = false;
+    
+    try {
+      // Pause all video controllers safely
+      for (int i = 0; i < videoControllers.length; i++) {
+        try {
+          final controller = videoControllers[i];
+          if (controller.value.isInitialized && controller.value.isPlaying) {
+            await controller.pause();
+            print('ShortsCachedController: Paused video at index $i');
+          }
+        } catch (e) {
+          print(
+              "ShortsCachedController: Error pausing video $i on navigation: $e");
+          // Continue with next controller
+        }
+      }
+
+      if (!_isDisposed) {
+        isPlaying.value = false;
+        userPaused.value = false; // Reset user pause state
+        showPlayPauseIcon.value = false;
+      }
+    } catch (e) {
+      print("ShortsCachedController: Error in pauseAllVideosOnNavigation: $e");
+    }
+  }
+
+  /// Set screen visibility state
+  void setScreenVisible(bool visible) {
+    _isScreenVisible = visible;
+    if (!visible && !_isDisposed) {
+      // Automatically pause when screen becomes invisible
+      pauseAllVideosOnNavigation();
+    }
+  }
+
+  /// Check if screen is currently visible
+  bool get isScreenVisible => _isScreenVisible;
 
   Future<void> pauseVideo(int index) async {
     try {

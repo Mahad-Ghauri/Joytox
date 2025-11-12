@@ -898,6 +898,11 @@ class ReelsController extends GetxController with WidgetsBindingObserver {
 
   @override
   void onClose() {
+    print('ReelsController: onClose called - pausing all videos and cleaning up');
+    
+    // Pause all videos first before cleanup
+    pauseAllVideos();
+    
     // Refresh user data and trigger setState when video is closed
     _refreshUserDataAndTriggerSetState();
 
@@ -915,6 +920,7 @@ class ReelsController extends GetxController with WidgetsBindingObserver {
     WidgetsBinding.instance.removeObserver(this);
 
     super.onClose();
+    print('ReelsController: onClose completed');
   }
 
   /// Refresh user data and trigger setState when video is closed to prevent "Usuario" issue
@@ -1129,15 +1135,25 @@ class ReelsController extends GetxController with WidgetsBindingObserver {
   /// Pausa todos os vídeos em execução
   Future<void> pauseAllVideos() async {
     try {
+      print('ReelsController: Pausing all videos');
+      
       // Pausar todos os controladores em execução
-      for (final controller in _videoControllers.values) {
-        if (controller.value.isPlaying) {
-          await controller.pause();
+      for (final entry in _videoControllers.entries) {
+        try {
+          final controller = entry.value;
+          if (controller.value.isInitialized && controller.value.isPlaying) {
+            await controller.pause();
+            print('ReelsController: Paused video at ${entry.key}');
+          }
+        } catch (e) {
+          print("ReelsController: Error pausing video ${entry.key}: $e");
+          // Continue with next controller
         }
       }
 
       // Atualizar estado de reprodução
       isPlaying.value = false;
+      print('ReelsController: All videos paused successfully');
     } catch (e) {
       print("ReelsController: Erro ao pausar todos os vídeos: $e");
     }

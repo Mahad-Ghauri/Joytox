@@ -104,6 +104,9 @@ import 'package:trace/home/notifications/firebase_debug_screen.dart';
 
 GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
+// Global RouteObserver for tracking navigation changes
+final RouteObserver<PageRoute> routeObserver = RouteObserver<PageRoute>();
+
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   // Initialize Firebase if not already initialized
   await Firebase.initializeApp();
@@ -491,6 +494,7 @@ class _AppState extends State<App> with WidgetsBindingObserver {
       localizationsDelegates: context.localizationDelegates,
       supportedLocales: context.supportedLocales,
       navigatorKey: navigatorKey,
+      navigatorObservers: [routeObserver],
       locale: context.locale,
       getPages: [
         // Video Editor Routes
