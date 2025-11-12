@@ -23,6 +23,7 @@ import 'package:zego_uikit_prebuilt_live_streaming/zego_uikit_prebuilt_live_stre
 import 'package:zego_uikit_signaling_plugin/zego_uikit_signaling_plugin.dart';
 import 'package:trace/home/streaming/internal/business/gift/gift_controller.dart';
 import 'package:trace/home/prebuild_live/pk_points_controller.dart';
+import 'package:trace/helpers/battle_points_manager.dart';
 
 import '../../app/constants.dart';
 import '../../helpers/quick_actions.dart';
@@ -105,6 +106,9 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
   Map<String, dynamic> giftSendersSowerList = {};
 
   Controller showGiftSendersController = Get.put(Controller());
+  
+  // Battle Points Manager - Single Source of Truth for PK points
+  late BattlePointsManager battlePointsManager;
 
   Timer? removeGiftTimer;
   int repeatPkTimes = 0;
@@ -217,10 +221,21 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
     showGiftSendersController.isBattleLive.value =
         widget.liveStreaming!.getBattle!;
     
+    // 🚀 Initialize BattlePointsManager - Single Source of Truth
+    battlePointsManager = BattlePointsManager();
+    
     // 🎯 Initialize PK battle points for viewers joining an active battle
     if (showGiftSendersController.isBattleLive.value && 
         widget.liveStreaming!.getBattleStatus == LiveStreamingModel.battleAlive) {
       
+      // Initialize manager with the CORRECT document (the host whose stream we joined)
+      debugPrint('[PK_BATTLE_SYNC] Viewer joining active battle - initializing BattlePointsManager');
+      battlePointsManager.initialize(widget.liveStreaming!);
+      
+      // Fetch fresh points immediately
+      battlePointsManager.fetchFreshPointsNow();
+      
+      // Keep legacy controller for Zego commands (receives updates from THIS room only)
       // Load current points from database immediately
       final initialMyPoints = widget.liveStreaming!.getMyBattlePoints ?? 0;
       final initialHisPoints = widget.liveStreaming!.getHisBattlePoints ?? 0;
@@ -470,6 +485,9 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
   }
 
   restartPkBattle() async {
+    // 🚀 Reset BattlePointsManager
+    battlePointsManager.resetPoints();
+    
     widget.liveStreaming!.setMyBattlePoints = 0;
     widget.liveStreaming!.setHisBattlePoints = 0;
     repeatPkTimes++;
@@ -487,6 +505,14 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
   }
 
   initiateBattleTimer() {
+    // 🚀 Initialize BattlePointsManager with the CORRECT document
+    // Safe to call multiple times - handles re-initialization
+    debugPrint('[PK_BATTLE_SYNC] Battle starting - (re)initializing BattlePointsManager');
+    battlePointsManager.initialize(widget.liveStreaming!);
+    
+    // Fetch fresh points from database
+    battlePointsManager.fetchFreshPointsNow();
+    
     // Load initial battle points from database
     showGiftSendersController.myBattlePoints.value =
         widget.liveStreaming!.getMyBattlePoints!;
@@ -526,6 +552,10 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
           onTimerUpdate: (remainingTimer) {
             showGiftSendersController.battleTimer.value = remainingTimer;
             if (showGiftSendersController.battleTimer.value == 0) {
+              // 🚀 Stop polling when battle ends
+              battlePointsManager.stopPolling();
+              debugPrint('[PK_BATTLE_SYNC] Battle ended - polling stopped');
+              
               showGiftSendersController.showBattleWinner.value = true;
               Future.delayed(Duration(seconds: 10)).then((value) {
                 showGiftSendersController.showBattleWinner.value = false;
@@ -769,6 +799,14 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
     showGiftSendersController.isPrivateLive.value = false;
     showGiftSendersController.isPrivateLive.value =
         widget.liveStreaming!.getPrivate!;
+    
+    // 🚀 Cleanup BattlePointsManager
+    try {
+      battlePointsManager.onClose();
+      debugPrint('[PK_BATTLE_SYNC] BattlePointsManager disposed');
+    } catch (e) {
+      debugPrint('[PK_BATTLE_SYNC] Error disposing BattlePointsManager: $e');
+    }
     
     // Dispose PointsController streams
     try {
@@ -2048,6 +2086,12 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
               final newMyPoints = result['my_points'] ?? 0;
               final newHisPoints = result['his_points'] ?? 0;
               
+              // 🚀 Update BattlePointsManager with cloud function results
+              battlePointsManager.updatePoints(
+                newMyPoints: newMyPoints,
+                newHisPoints: newHisPoints,
+              );
+              
               // Update local UI with cloud function results
               showGiftSendersController.myBattlePoints.value = newMyPoints;
               showGiftSendersController.hisBattlePoints.value = newHisPoints;
@@ -2181,6 +2225,12 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
       if (newUpdatedLive.getBattleStatus == LiveStreamingModel.battleAlive) {
         final dbMyPoints = newUpdatedLive.getMyBattlePoints ?? 0;
         final dbHisPoints = newUpdatedLive.getHisBattlePoints ?? 0;
+        
+        // 🚀 Update BattlePointsManager (it manages its own state)
+        battlePointsManager.updatePoints(
+          newMyPoints: dbMyPoints,
+          newHisPoints: dbHisPoints,
+        );
         
         showGiftSendersController.myBattlePoints.value = dbMyPoints;
         showGiftSendersController.hisBattlePoints.value = dbHisPoints;

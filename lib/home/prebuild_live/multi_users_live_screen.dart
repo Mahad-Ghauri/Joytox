@@ -21,6 +21,7 @@ import 'package:zego_uikit_prebuilt_live_streaming/zego_uikit_prebuilt_live_stre
 import 'package:zego_uikit_signaling_plugin/zego_uikit_signaling_plugin.dart';
 import 'package:trace/home/streaming/internal/business/gift/gift_controller.dart';
 import 'package:trace/home/prebuild_live/pk_points_controller.dart';
+import 'package:trace/helpers/battle_points_manager.dart';
 
 import '../../app/constants.dart';
 import '../../helpers/quick_actions.dart';
@@ -144,6 +145,16 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen>
       showGiftSendersController.selectedRoomTheme.value = '';
     }
 
+    // 🚀 Initialize BattlePointsManager - Single Source of Truth
+    battlePointsManager = BattlePointsManager();
+    
+    // Initialize with the CORRECT document (the host whose stream we joined)
+    debugPrint('[PK_BATTLE_SYNC] Multi-user screen - initializing BattlePointsManager');
+    battlePointsManager.initialize(widget.liveStreaming!);
+    
+    // Fetch fresh points immediately
+    battlePointsManager.fetchFreshPointsNow();
+
     // Initialize battle points from database
     showGiftSendersController.myBattlePoints.value =
         widget.liveStreaming!.getMyBattlePoints ?? 0;
@@ -199,6 +210,15 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen>
     showGiftSendersController.isPrivateLive.value = false;
     ZegoGiftManager().service.recvNotifier.removeListener(onGiftReceived);
     ZegoGiftManager().service.uninit();
+    
+    // 🚀 Cleanup BattlePointsManager
+    try {
+      battlePointsManager.onClose();
+      debugPrint('[PK_BATTLE_SYNC] BattlePointsManager disposed (multi-user)');
+    } catch (e) {
+      debugPrint('[PK_BATTLE_SYNC] Error disposing BattlePointsManager: $e');
+    }
+    
     PointsController.dispose(); // Clean up battle points listener
     _avatarWidgetsCache.clear();
   }
@@ -207,6 +227,10 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen>
       ValueNotifier<ZegoLiveStreamingState>(ZegoLiveStreamingState.idle);
 
   Controller showGiftSendersController = Get.put(Controller());
+  
+  // Battle Points Manager - Single Source of Truth for PK points
+  late BattlePointsManager battlePointsManager;
+  
   var coHostsList = [];
   var usersInRoom = [];
   Subscription? subscription;
@@ -1385,6 +1409,12 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen>
               final newMyPoints = result['my_points'] ?? 0;
               final newHisPoints = result['his_points'] ?? 0;
               
+              // 🚀 Update BattlePointsManager with cloud function results
+              battlePointsManager.updatePoints(
+                newMyPoints: newMyPoints,
+                newHisPoints: newHisPoints,
+              );
+              
               showGiftSendersController.myBattlePoints.value = newMyPoints;
               showGiftSendersController.hisBattlePoints.value = newHisPoints;
               
@@ -1519,6 +1549,12 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen>
       if (newUpdatedLive.getBattleStatus == LiveStreamingModel.battleAlive) {
         final dbMyPoints = newUpdatedLive.getMyBattlePoints ?? 0;
         final dbHisPoints = newUpdatedLive.getHisBattlePoints ?? 0;
+        
+        // 🚀 Update BattlePointsManager (it manages its own state)
+        battlePointsManager.updatePoints(
+          newMyPoints: dbMyPoints,
+          newHisPoints: dbHisPoints,
+        );
         
         showGiftSendersController.myBattlePoints.value = dbMyPoints;
         showGiftSendersController.hisBattlePoints.value = dbHisPoints;
