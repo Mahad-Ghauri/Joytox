@@ -264,6 +264,37 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
           showGiftSendersController.hisBattlePoints.value = hisPoints;
         },
       );
+      
+      // 🕒 Sync battle timer for viewer joining mid-battle
+      final battleStartTime = widget.liveStreaming!.getBattleStartTime ?? 0;
+      if (battleStartTime > 0) {
+        debugPrint('[PK_BATTLE_TIMER] Viewer syncing timer - Battle started at: $battleStartTime');
+        // Calculate remaining time
+        final currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+        final elapsedTime = currentTime - battleStartTime;
+        const battleDuration = 120; // 2 minutes
+        final remainingTime = battleDuration - elapsedTime;
+        
+        if (remainingTime > 0) {
+          // Start local timer with remaining time
+          TimerController.startTimer(
+            startTime: battleStartTime,
+            onTimerUpdate: (remaining) {
+              showGiftSendersController.battleTimer.value = remaining;
+              if (remaining == 0) {
+                showGiftSendersController.showBattleWinner.value = true;
+                Future.delayed(Duration(seconds: 10)).then((value) {
+                  showGiftSendersController.showBattleWinner.value = false;
+                });
+              }
+            },
+            battleDuration: battleDuration,
+          );
+          debugPrint('[PK_BATTLE_TIMER] Timer synced - Remaining: $remainingTime seconds');
+        } else {
+          debugPrint('[PK_BATTLE_TIMER] Battle already ended - Elapsed: ${elapsedTime}s');
+        }
+      }
     }
     
     ZegoGiftManager().cache.cacheAllFiles(giftItemList);
@@ -490,6 +521,7 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
     
     widget.liveStreaming!.setMyBattlePoints = 0;
     widget.liveStreaming!.setHisBattlePoints = 0;
+    widget.liveStreaming!.setBattleStartTime = 0; // 🕒 Reset timer
     repeatPkTimes++;
     await widget.liveStreaming!.save();
     QuickCloudCode.restartPKBattle(
@@ -499,9 +531,12 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
   }
 
   void updateLiveToBattle(String liveId) {
+    final currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
     widget.liveStreaming!.setBattleStatus = LiveStreamingModel.battleAlive;
     widget.liveStreaming!.setBattleLiveId = liveId;
+    widget.liveStreaming!.setBattleStartTime = currentTime; // 🕒 Save battle start time
     widget.liveStreaming!.save();
+    debugPrint('[PK_BATTLE_TIMER] Battle start time saved: $currentTime');
   }
 
   initiateBattleTimer() {
@@ -545,8 +580,14 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
     debugPrint('🎯 Initial - My Points: ${widget.liveStreaming!.getMyBattlePoints}, His Points: ${widget.liveStreaming!.getHisBattlePoints}');
     debugPrint('🎯 ==========================================');
 
-    Future.delayed(Duration(seconds: 3)).then((value) {
+    Future.delayed(Duration(seconds: 3)).then((value) async {
       final currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      
+      // 🕒 Save battle start time to database for viewer sync
+      widget.liveStreaming!.setBattleStartTime = currentTime;
+      await widget.liveStreaming!.save();
+      debugPrint('[PK_BATTLE_TIMER] Host saved battle start time: $currentTime');
+      
       sendSyncCommand(startTime: currentTime, duration: 120);
       TimerController.startLocalTimer(
           onTimerUpdate: (remainingTimer) {

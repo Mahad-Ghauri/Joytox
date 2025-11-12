@@ -183,6 +183,27 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen>
       },
     );
     
+    // 🕒 Sync battle timer if joining an active battle
+    if (widget.liveStreaming!.getBattleStatus == LiveStreamingModel.battleAlive) {
+      final battleStartTime = widget.liveStreaming!.getBattleStartTime ?? 0;
+      if (battleStartTime > 0) {
+        debugPrint('[PK_BATTLE_TIMER] Multi-user viewer syncing timer - Battle started at: $battleStartTime');
+        // Calculate remaining time
+        final currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+        final elapsedTime = currentTime - battleStartTime;
+        const battleDuration = 120; // 2 minutes
+        final remainingTime = battleDuration - elapsedTime;
+        
+        if (remainingTime > 0) {
+          // Start local timer with remaining time
+          showGiftSendersController.battleTimer.value = remainingTime;
+          debugPrint('[PK_BATTLE_TIMER] Multi-user timer synced - Remaining: $remainingTime seconds');
+        } else {
+          debugPrint('[PK_BATTLE_TIMER] Multi-user battle already ended - Elapsed: ${elapsedTime}s');
+        }
+      }
+    }
+    
     ZegoGiftManager().cache.cacheAllFiles(giftItemList);
 
     ZegoGiftManager().service.recvNotifier.addListener(onGiftReceived);

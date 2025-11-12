@@ -148,6 +148,8 @@ class LiveStreamingModel extends ParseObject implements ParseCloneable {
   static final String keyMyBattleVictory = "my_victories";
   static final String keyHisBattleVictory = "his_victories";
   static final String keyRepeatBattleTimes = "repeat_battle_times";
+  
+  static final String keyBattleStartTime = "battle_start_time"; // Unix timestamp in seconds
 
   int? get getRepeatBattleTimes {
     int? number = get<int>(keyRepeatBattleTimes);
@@ -237,6 +239,18 @@ class LiveStreamingModel extends ParseObject implements ParseCloneable {
 
   set setBattleStatus(String battleStatus) =>
       set<String>(keyBattleStatus, battleStatus);
+
+  int? get getBattleStartTime {
+    int? startTime = get<int>(keyBattleStartTime);
+    if (startTime != null) {
+      return startTime;
+    } else {
+      return 0;
+    }
+  }
+
+  set setBattleStartTime(int startTime) =>
+      set<int>(keyBattleStartTime, startTime);
 
   bool? get getBattle {
     bool? isBattle = get<bool>(keyBattle);
