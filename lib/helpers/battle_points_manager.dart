@@ -33,7 +33,18 @@ class BattlePointsManager extends GetxController {
   /// 
   /// Safe to call multiple times - will clean up and re-initialize
   void initialize(LiveStreamingModel streamingDoc) {
-    print('[PK_BATTLE_SYNC] BattlePointsManager initialized for channel: ${streamingDoc.getStreamingChannel}');
+    final docId = streamingDoc.objectId ?? 'unknown';
+    final authorName = streamingDoc.getAuthor?.getFullName ?? 'unknown';
+    final streamingChannel = streamingDoc.getStreamingChannel ?? 'unknown';
+    
+    print('[PK_BATTLE_SYNC] ═══════════════════════════════════════');
+    print('[PK_BATTLE_SYNC] 🚀 BattlePointsManager INITIALIZED');
+    print('[PK_BATTLE_SYNC] 📄 Document ID: $docId');
+    print('[PK_BATTLE_SYNC] 👤 Host: $authorName');
+    print('[PK_BATTLE_SYNC] 📡 Channel: $streamingChannel');
+    print('[PK_BATTLE_SYNC] 🎯 Initial My Points: ${streamingDoc.getMyBattlePoints ?? 0}');
+    print('[PK_BATTLE_SYNC] 🎯 Initial His Points: ${streamingDoc.getHisBattlePoints ?? 0}');
+    print('[PK_BATTLE_SYNC] ═══════════════════════════════════════');
     
     // Clean up any existing subscriptions/polling if re-initializing
     if (isPolling.value) {

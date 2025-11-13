@@ -9,10 +9,10 @@ import '../controller/controller.dart';
 Controller controller = Get.put(Controller());
 
 class TimerController {
-  static late StreamSubscription _subscription;
+  static StreamSubscription? _subscription;
   static Timer? _timer;
   static int _battleStartTime = 0;
-  //static int _remainingTime = 0;
+  static int _lastRemainingTime = -1; // Track to prevent duplicate logs
 
   static void initialize(
       {required String roomID, required Function(int) onTimerUpdate}) {
@@ -20,8 +20,19 @@ class TimerController {
   }
 
   static void dispose() {
-    _subscription.cancel();
+    _subscription?.cancel();
     _timer?.cancel();
+    _battleStartTime = 0;
+    _lastRemainingTime = -1;
+    debugPrint('[TIMER_CONTROLLER] 🛑 Disposed and reset');
+  }
+  
+  // Reset timer state (for restart scenarios)
+  static void reset() {
+    _timer?.cancel();
+    _battleStartTime = 0;
+    _lastRemainingTime = -1;
+    debugPrint('[TIMER_CONTROLLER] 🔄 Reset called - cleared old state');
   }
 
   static void _subscribeToCommands(
@@ -62,18 +73,44 @@ class TimerController {
     required Function(int) onTimerUpdate,
     required int battleDuration,
   }) {
+    debugPrint('[TIMER_CONTROLLER] 🚀 ========== STARTING TIMER ==========');
+    debugPrint('[TIMER_CONTROLLER] 📅 Start time: $startTime');
+    debugPrint('[TIMER_CONTROLLER] ⏱️  Duration: $battleDuration seconds');
+    
+    // Cancel any existing timer first
+    _timer?.cancel();
+    
+    // Set new start time
     _battleStartTime = startTime;
-    controller.battleTimer.value = _calculateRemainingTime(battleDuration);
-    debugPrint('Timer started with start time: $_battleStartTime');
+    
+    // Calculate and set initial remaining time
+    final initialRemaining = _calculateRemainingTime(battleDuration);
+    controller.battleTimer.value = initialRemaining;
+    _lastRemainingTime = initialRemaining;
+    
+    debugPrint('[TIMER_CONTROLLER] ⏰ Initial remaining: $initialRemaining seconds');
+    debugPrint('[TIMER_CONTROLLER] ✅ Timer initialized and running');
 
-    _timer?.cancel(); // Cancel any previous timer
+    // Start periodic timer
     _timer = Timer.periodic(Duration(seconds: 1), (timer) {
-      controller.battleTimer.value = _calculateRemainingTime(battleDuration);
-      debugPrint('Remaining Time: ${controller.battleTimer.value} seconds');
-      onTimerUpdate(controller.battleTimer.value);
-      if (controller.battleTimer.value <= 0) {
+      final remaining = _calculateRemainingTime(battleDuration);
+      controller.battleTimer.value = remaining;
+      
+      // Only log if time changed (prevent spam)
+      if (remaining != _lastRemainingTime) {
+        if (remaining % 10 == 0 || remaining <= 5) {
+          debugPrint('[TIMER_CONTROLLER] ⏱️  ${remaining}s remaining');
+        }
+        _lastRemainingTime = remaining;
+      }
+      
+      onTimerUpdate(remaining);
+      
+      if (remaining <= 0) {
         timer.cancel();
-        debugPrint('Timer finished');
+        debugPrint('[TIMER_CONTROLLER] 🏁 Timer finished - Battle ended');
+        _battleStartTime = 0;
+        _lastRemainingTime = -1;
       }
     });
   }
@@ -88,6 +125,8 @@ class TimerController {
   static void startLocalTimer(
       {required Function(int) onTimerUpdate, required int duration}) {
     final currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    debugPrint('[TIMER_CONTROLLER] 🎯 Starting LOCAL timer');
+    debugPrint('[TIMER_CONTROLLER] 🕐 Current timestamp: $currentTime');
     startTimer(
         startTime: currentTime,
         onTimerUpdate: onTimerUpdate,
