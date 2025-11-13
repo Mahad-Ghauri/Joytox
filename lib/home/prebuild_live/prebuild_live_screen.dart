@@ -185,13 +185,13 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
     }
   }
   
-  // Periodic refresh for viewers (every 5 seconds as safety net)
+  // Periodic refresh for viewers (every 2 seconds as safety net)
   void _startViewerPeriodicRefresh() {
     _viewerRefreshTimer?.cancel();
     
-    debugPrint('[PK_BATTLE_SYNC] 🔄 Starting viewer periodic refresh (every 5s)');
+    debugPrint('[PK_BATTLE_SYNC] 🔄 Starting viewer periodic refresh (every 2s)');
     
-    _viewerRefreshTimer = Timer.periodic(Duration(seconds: 5), (timer) async {
+    _viewerRefreshTimer = Timer.periodic(Duration(seconds: 2), (timer) async {
       // Only refresh during active battle
       if (showGiftSendersController.battleTimer.value > 0 && mounted) {
         debugPrint('[PK_BATTLE_SYNC] 🔄 Periodic refresh check...');
@@ -208,10 +208,18 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
             final dbMyPoints = freshDoc.getMyBattlePoints ?? 0;
             final dbHisPoints = freshDoc.getHisBattlePoints ?? 0;
             
-            // Only update if points are different
+            // Always update to force UI refresh (viewers need consistent state)
             if (dbMyPoints != _lastMyPoints || dbHisPoints != _lastHisPoints) {
               debugPrint('[PK_BATTLE_SYNC] 🔄 Periodic refresh found new points - My: $dbMyPoints, His: $dbHisPoints');
               _updatePointsWithDebounce(dbMyPoints, dbHisPoints, 'PERIODIC_REFRESH');
+            } else {
+              // Even if same, force UI update to ensure consistency
+              if (showGiftSendersController.myBattlePoints.value != dbMyPoints ||
+                  showGiftSendersController.hisBattlePoints.value != dbHisPoints) {
+                showGiftSendersController.myBattlePoints.value = dbMyPoints;
+                showGiftSendersController.hisBattlePoints.value = dbHisPoints;
+                debugPrint('[PK_BATTLE_SYNC] 🔄 Periodic refresh forced UI sync - My: $dbMyPoints, His: $dbHisPoints');
+              }
             }
           }
         } catch (e) {
@@ -327,10 +335,10 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
   void _updatePointsWithDebounce(int newMyPoints, int newHisPoints, String source) {
     final now = DateTime.now().millisecondsSinceEpoch;
     
-    // Prevent updates if points haven't changed and update was recent (within 500ms)
+    // Prevent updates if points haven't changed and update was recent (within 300ms)
     if (_lastMyPoints == newMyPoints && 
         _lastHisPoints == newHisPoints && 
-        (now - _lastUpdateTimestamp) < 500) {
+        (now - _lastUpdateTimestamp) < 300) {
       debugPrint('[PK_BATTLE_SYNC] 🚫 Skipping duplicate update from $source');
       return;
     }
@@ -836,11 +844,20 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
                 debugPrint('[PK_BATTLE_SYNC] ⏸️ Battle ended - polling stopped');
                 
                 showGiftSendersController.showBattleWinner.value = true;
+                
+                // Show winner for 10 seconds, then reset points to 0
                 Future.delayed(Duration(seconds: 10)).then((value) {
                   if (mounted) {
                     showGiftSendersController.showBattleWinner.value = false;
+                    
+                    // Reset points to 0 after winner display
+                    showGiftSendersController.myBattlePoints.value = 0;
+                    showGiftSendersController.hisBattlePoints.value = 0;
+                    battlePointsManager.resetPoints();
+                    debugPrint('[PK_BATTLE_SYNC] 🔄 Points reset to 0 after battle end');
                   }
                 });
+                
                 if (widget.isHost) {
                   updateVictories();
                   updateUserBattleData();
