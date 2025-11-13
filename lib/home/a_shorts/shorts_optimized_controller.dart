@@ -2,6 +2,7 @@
 // Fixes: Memory leaks, buffer overflows, lazy loading, smooth scrolling
 // Architecture: Smart controller lifecycle, true pagination, resource pooling
 
+import 'dart:async';
 import 'package:cached_video_player_plus/cached_video_player_plus.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/widgets.dart';
@@ -65,6 +66,12 @@ class ShortsOptimizedController extends GetxController {
   
   /// Prevent rapid-fire playVideo calls
   bool _isPlayingVideo = false;
+  
+  /// Track failed video indices to avoid retrying
+  final Set<int> _failedVideoIndices = {};
+  
+  /// Public getter for failed video indices
+  bool isVideoFailed(int index) => _failedVideoIndices.contains(index);
   
   // ═══════════════════════════════════════════════════════════
   // 🎬 INITIALIZATION
@@ -132,6 +139,9 @@ class ShortsOptimizedController extends GetxController {
         List<PostsModel> loadedVideos = 
             response.results!.map((e) => e as PostsModel).toList();
         
+        // 🔥 VALIDATION: Check video file sizes and log warnings
+        _validateVideoSizes(loadedVideos);
+        
         // 🔥 DEBUG: Log author data WITH DETAILS
         debugPrint('[SHORTS_OPT] 📊 Loaded ${loadedVideos.length} videos from Parse');
         for (var video in loadedVideos) {
@@ -165,15 +175,20 @@ class ShortsOptimizedController extends GetxController {
         
         debugPrint('[SHORTS_OPT] ✅ Videos loaded and author fetch initiated');
         
-        // 🔥 CRITICAL: Initialize first TWO videos for instant start
+        // 🔥 AGGRESSIVE PRELOADING: Initialize first THREE videos in parallel for instant start
         if (loadedVideos.isNotEmpty && !_isDisposed) {
           // Initialize first video (blocking - must be ready)
           await _initializeController(0);
           
-          // 🔥 Preload second video (non-blocking - for instant swipe)
+          // 🔥 Preload next TWO videos in parallel (non-blocking - for instant swipes)
           if (loadedVideos.length > 1) {
             _initializeController(1).then((_) {
               debugPrint('[SHORTS_OPT] ✅ Second video preloaded and ready');
+            });
+          }
+          if (loadedVideos.length > 2) {
+            _initializeController(2).then((_) {
+              debugPrint('[SHORTS_OPT] ✅ Third video preloaded and ready');
             });
           }
         }
@@ -214,6 +229,9 @@ class ShortsOptimizedController extends GetxController {
             response.results!.map((e) => e as PostsModel).toList();
         
         if (newVideos.isNotEmpty) {
+          // 🔥 VALIDATION: Check video sizes for new videos
+          _validateVideoSizes(newVideos);
+          
           shorts.addAll(newVideos);
           hasMoreVideos = newVideos.length >= pageSize;
           
@@ -251,6 +269,38 @@ class ShortsOptimizedController extends GetxController {
   // 🎮 CONTROLLER LIFECYCLE - Smart Management
   // ═══════════════════════════════════════════════════════════
   
+  /// Validate video file sizes and log warnings for optimization
+  void _validateVideoSizes(List<PostsModel> videos) {
+    const int maxRecommendedSize = 50 * 1024 * 1024; // 50 MB
+    const int warningSize = 30 * 1024 * 1024; // 30 MB
+    
+    for (var video in videos) {
+      final videoFile = video.getVideo;
+      if (videoFile != null) {
+        // Note: Parse doesn't always expose file size, but we can check URL length as a proxy
+        final url = videoFile.url ?? '';
+        
+        // Check if URL contains size metadata (some CDNs include it)
+        if (url.contains('size=')) {
+          final sizeMatch = RegExp(r'size=(\d+)').firstMatch(url);
+          if (sizeMatch != null) {
+            final size = int.tryParse(sizeMatch.group(1) ?? '0') ?? 0;
+            final sizeMB = (size / (1024 * 1024)).toStringAsFixed(1);
+            
+            if (size > maxRecommendedSize) {
+              debugPrint('[SHORTS_OPT] ⚠️  Video ${video.objectId} is ${sizeMB}MB - RECOMMEND COMPRESSION');
+              debugPrint('   💡 Ideal: < 30MB, Max: < 50MB for smooth playback');
+            } else if (size > warningSize) {
+              debugPrint('[SHORTS_OPT] ⚡ Video ${video.objectId} is ${sizeMB}MB - Consider compression');
+            } else {
+              debugPrint('[SHORTS_OPT] ✅ Video ${video.objectId} is ${sizeMB}MB - Optimal size');
+            }
+          }
+        }
+      }
+    }
+  }
+  
   /// Get controller for specific index (creates if needed)
   CachedVideoPlayerPlusController? getController(int index) {
     if (index < 0 || index >= shorts.length) return null;
@@ -261,9 +311,9 @@ class ShortsOptimizedController extends GetxController {
   Future<void> _initializeController(int index) async {
     if (_isDisposed || index < 0 || index >= shorts.length) return;
     
-    // Wait if another operation is in progress
+    // Wait if another operation is in progress (reduced wait time for faster init)
     while (_isControllerOperationInProgress) {
-      await Future.delayed(Duration(milliseconds: 50));
+      await Future.delayed(Duration(milliseconds: 10));
     }
     
     try {
@@ -272,6 +322,12 @@ class ShortsOptimizedController extends GetxController {
       // Skip if already initialized
       if (_activeControllers.containsKey(index)) {
         debugPrint('[SHORTS_OPT] ⏭️  Controller $index already exists');
+        return;
+      }
+      
+      // Skip if this video has already failed
+      if (_failedVideoIndices.contains(index)) {
+        debugPrint('[SHORTS_OPT] ⚠️  Skipping video $index - previously failed');
         return;
       }
       
@@ -286,53 +342,79 @@ class ShortsOptimizedController extends GetxController {
       // 🔥 INSTAGRAM-STYLE: Create controller with optimized streaming configuration
       final controller = CachedVideoPlayerPlusController.networkUrl(
         Uri.parse(videoUrl),
-        invalidateCacheIfOlderThan: const Duration(days: 2),
+        invalidateCacheIfOlderThan: const Duration(hours: 12), // 🔥 Shorter cache for fresher content
         videoPlayerOptions: VideoPlayerOptions(
           // 🔥 Optimized for fast streaming
           allowBackgroundPlayback: false,
           mixWithOthers: false,
         ),
         httpHeaders: {
-          // 🔥 Request partial content for faster streaming
-          'Range': 'bytes=0-',
-          'Cache-Control': 'no-cache',
+          // 🔥 CRITICAL: HTTP optimizations for faster streaming
+          'Connection': 'keep-alive', // Reuse TCP connections
+          'Accept-Encoding': 'gzip, deflate, br', // Compress data (added brotli)
+          'Cache-Control': 'public, max-age=3600, stale-while-revalidate=86400', // Cache + background refresh
+          'Range': 'bytes=0-524288', // Request first 512KB only (faster initial load)
+          'Priority': 'u=1, i', // High priority request
+          'DNT': '1', // Reduce tracking overhead
         },
       );
 
-      // 🔥 INSTAGRAM-STYLE: Initialize with timeout to prevent hanging
-      await controller.initialize().timeout(
-        const Duration(seconds: 10),
-        onTimeout: () {
-          debugPrint('[SHORTS_OPT] ⏰ Init timeout for $index, continuing anyway');
-          // Continue even if timeout - video might still work
-        },
-      );
-      
-      // 🔥🔥🔥 IMMEDIATELY pause and mute right after init (before any other config)
-      // This prevents ANY chance of auto-play
-      await controller.setVolume(0.0);
-      await controller.pause();
+      // 🔥 FAST TIMEOUT: Fail if video doesn't load in 8 seconds
+      try {
+        await controller.initialize().timeout(
+          const Duration(seconds: 8),
+          onTimeout: () {
+            debugPrint('[SHORTS_OPT] ⏰ Init timeout for $index after 8s - FAILING');
+            throw TimeoutException('Video initialization timed out');
+          },
+        );
+        debugPrint('[SHORTS_OPT] ✅ Controller $index initialized successfully');
+      } catch (e) {
+        debugPrint('[SHORTS_OPT] ❌ Init failed for $index: $e');
+        _failedVideoIndices.add(index);
+        // Don't add failed controller to map
+        try {
+          await controller.dispose();
+        } catch (_) {}
+        
+        // If this is the current video, auto-skip to next
+        if (index == currentVideoIndex.value && !_isDisposed) {
+          debugPrint('[SHORTS_OPT] ⏭️  Auto-skipping failed video $index to next');
+          Future.delayed(Duration(milliseconds: 500), () {
+            if (index == currentVideoIndex.value && index < shorts.length - 1) {
+              playVideo(index + 1);
+            }
+          });
+        }
+        return;
+      }
       
       if (!_isDisposed) {
-        // 🔥 Configure for optimal streaming
-        // Only enable looping if this is the current video
+        // 🔥 MINIMAL CONFIG: Just mute/pause, skip redundant operations
+        await controller.setVolume(0.0);
+        await controller.pause();
+        
+        // Only enable looping for current video
         if (index == currentVideoIndex.value) {
           await controller.setLooping(true);
-        } else {
-          await controller.setLooping(false); // Don't loop preloaded videos
         }
-        
-        // 🔥🔥 Double-check: Ensure video is still MUTED and PAUSED
-        await controller.setVolume(0.0);
-        if (controller.value.isPlaying) {
-          await controller.pause();
-        }
-        
-        // 🔥 CRITICAL: Set playback speed to reduce buffer pressure
-        // This prevents the ImageReader buffer overflow
-        await controller.setPlaybackSpeed(1.0);
         
         _activeControllers[index] = controller;
+        
+        // 🔥 AUTO-PLAY: If this is the current video and we're waiting for it, play immediately
+        if (index == currentVideoIndex.value && !_isPlayingVideo) {
+          Future.delayed(Duration(milliseconds: 50), () {
+            if (!_isDisposed && currentVideoIndex.value == index && !controller.value.isPlaying) {
+              controller.setLooping(true);
+              controller.setVolume(1.0);
+              controller.play();
+              isPlaying.value = true;
+              userPaused.value = false;
+              debugPrint('[SHORTS_OPT] ✅ Video $index auto-played after late init');
+            }
+          });
+        }
+        
         debugPrint('[SHORTS_OPT] ✅ Controller $index ready (streaming, MUTED, PAUSED, looping=${index == currentVideoIndex.value})');
       } else {
         // Disposed during initialization
@@ -347,11 +429,11 @@ class ShortsOptimizedController extends GetxController {
   }
   
   /// Manage controllers based on current position
-  /// 🔥 INSTAGRAM-STYLE PRELOADING: Keep current + prev + next for instant switching
+  /// 🔥 OPTIMIZED: Keep 3 controllers (prev, current, next) to prevent buffer overflow
   Future<void> _manageControllers(int currentIndex) async {
     if (_isDisposed) return;
 
-    // 🔥 INSTAGRAM-STYLE: Keep current, previous, and next for zero-lag scrolling
+    // 🔥 Keep only 3 controllers active to avoid ImageReader buffer overflow
     final shouldKeep = <int>{
       if (currentIndex > 0) currentIndex - 1, // Preload previous
       currentIndex, // Current (always keep)
@@ -365,12 +447,12 @@ class ShortsOptimizedController extends GetxController {
     
     debugPrint('[SHORTS_OPT] 🗑️  Disposing ${toDispose.length} old controllers, keeping: $shouldKeep');
     
-    // 🔥 NON-BLOCKING DISPOSAL: Dispose in background to prevent UI lag
+    // 🔥 FAST DISPOSAL: Dispose in background to maintain smooth scrolling
+    // Reduced to 3 controllers (prev/current/next) prevents buffer overflow
     if (toDispose.isNotEmpty) {
       for (final index in toDispose) {
         final controller = _activeControllers[index];
         if (controller != null) {
-          // Remove from map immediately
           _activeControllers.remove(index);
           
           // Dispose in background (fire and forget)
@@ -379,11 +461,11 @@ class ShortsOptimizedController extends GetxController {
               if (controller.value.isInitialized) {
                 await controller.setVolume(0.0);
                 await controller.pause();
-                // 🔥 CRITICAL: Wait for MediaCodec to release buffers (prevents BufferQueueProducer warnings)
-                await Future.delayed(const Duration(milliseconds: 150));
+                await Future.delayed(const Duration(milliseconds: 100));
               }
               await controller.dispose();
-              debugPrint('[SHORTS_OPT] ✅ Controller $index disposed (background)');
+              await Future.delayed(const Duration(milliseconds: 50));
+              debugPrint('[SHORTS_OPT] ✅ Controller $index disposed');
             } catch (e) {
               debugPrint('[SHORTS_OPT] ⚠️  Error disposing $index: $e');
             }
@@ -392,24 +474,38 @@ class ShortsOptimizedController extends GetxController {
       }
     }
     
-    // Initialize current controller if needed (blocking - must be ready)
+    // Initialize current controller AFTER disposal completes
     if (!_activeControllers.containsKey(currentIndex)) {
       await _initializeController(currentIndex);
     }
 
-    // 🔥 INSTAGRAM-STYLE: Preload PREVIOUS video in background (non-blocking)
+    // 🔥 PARALLEL PRELOAD: Load prev AND next simultaneously for instant switching
+    final preloadFutures = <Future>[];
+    
     if (currentIndex > 0 && !_activeControllers.containsKey(currentIndex - 1)) {
-      _initializeController(currentIndex - 1).then((_) {
-        debugPrint('[SHORTS_OPT] ✅ Preloaded previous video (${currentIndex - 1})');
-      });
+      preloadFutures.add(
+        _initializeController(currentIndex - 1).then((_) {
+          debugPrint('[SHORTS_OPT] ✅ Preloaded previous video (${currentIndex - 1})');
+        }).catchError((e) {
+          debugPrint('[SHORTS_OPT] ⚠️  Failed to preload previous: $e');
+        })
+      );
     }
 
-    // 🔥 INSTAGRAM-STYLE: Preload NEXT video in background (non-blocking)
     if (currentIndex < shorts.length - 1 &&
         !_activeControllers.containsKey(currentIndex + 1)) {
-      _initializeController(currentIndex + 1).then((_) {
-        debugPrint('[SHORTS_OPT] ✅ Preloaded next video (${currentIndex + 1})');
-      });
+      preloadFutures.add(
+        _initializeController(currentIndex + 1).then((_) {
+          debugPrint('[SHORTS_OPT] ✅ Preloaded next video (${currentIndex + 1})');
+        }).catchError((e) {
+          debugPrint('[SHORTS_OPT] ⚠️  Failed to preload next: $e');
+        })
+      );
+    }
+    
+    // Fire and forget - don't wait for preloads
+    if (preloadFutures.isNotEmpty) {
+      Future.wait(preloadFutures);
     }
     
     debugPrint('[SHORTS_OPT] 🎮 Active: ${_activeControllers.keys.toList()}, Target: $shouldKeep');
@@ -439,9 +535,36 @@ class ShortsOptimizedController extends GetxController {
   // ▶️ PLAYBACK CONTROL
   // ═══════════════════════════════════════════════════════════
   
+  /// Find next valid (non-failed) video index
+  int? _findNextValidVideo(int startIndex) {
+    for (int i = startIndex + 1; i < shorts.length; i++) {
+      if (!_failedVideoIndices.contains(i)) {
+        return i;
+      }
+    }
+    return null; // No valid videos found
+  }
+  
   /// Play video at specific index
   Future<void> playVideo(int index) async {
     if (index < 0 || index >= shorts.length || _isDisposed || !_isScreenVisible) {
+      return;
+    }
+    
+    // 🔥 AUTO-SKIP: If this video has failed, find next valid video
+    if (_failedVideoIndices.contains(index)) {
+      final nextValid = _findNextValidVideo(index);
+      if (nextValid != null) {
+        debugPrint('[SHORTS_OPT] ⏭️  Video $index failed, jumping to $nextValid');
+        Future.delayed(Duration(milliseconds: 500), () {
+          if (currentVideoIndex.value == index) {
+            playVideo(nextValid);
+          }
+        });
+      } else {
+        debugPrint('[SHORTS_OPT] ⚠️  No more valid videos to play');
+      }
+      currentVideoIndex.value = index; // Still update index for UI
       return;
     }
     
@@ -473,6 +596,8 @@ class ShortsOptimizedController extends GetxController {
       
       // Play ONLY current video
       final controller = _activeControllers[index];
+      debugPrint('[SHORTS_OPT] 🔍 Controller $index state: exists=${controller != null}, initialized=${controller?.value.isInitialized}, playing=${controller?.value.isPlaying}');
+      
       if (controller != null && controller.value.isInitialized) {
         // 🔥 Enable looping for current video
         await controller.setLooping(true);
@@ -482,9 +607,25 @@ class ShortsOptimizedController extends GetxController {
         isPlaying.value = true;
         userPaused.value = false;
         debugPrint('[SHORTS_OPT] ✅ Video $index playing with audio (looping enabled)');
+      } else if (controller == null) {
+        debugPrint('[SHORTS_OPT] ⏳ Video $index still initializing, will auto-play when ready');
+        // Controller is initializing in background, wait and retry
+        Future.delayed(Duration(milliseconds: 100), () {
+          if (!_isDisposed && currentVideoIndex.value == index) {
+            final ctrl = _activeControllers[index];
+            if (ctrl != null && ctrl.value.isInitialized && !ctrl.value.isPlaying) {
+              ctrl.setLooping(true);
+              ctrl.setVolume(1.0);
+              ctrl.play();
+              isPlaying.value = true;
+              userPaused.value = false;
+              debugPrint('[SHORTS_OPT] ✅ Video $index auto-played after init');
+            }
+          }
+        });
       } else {
-        debugPrint('[SHORTS_OPT] ⏳ Video $index not ready, initializing...');
-        // Controller not ready yet, will auto-play when initialized
+        debugPrint('[SHORTS_OPT] ⚠️  Video $index controller exists but not initialized yet');
+        // Controller exists but not ready, will auto-play when initialized
       }
       
       // Check if we need to load more videos

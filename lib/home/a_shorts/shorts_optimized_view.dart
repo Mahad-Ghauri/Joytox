@@ -337,6 +337,9 @@ class _ShortsOptimizedViewState extends State<ShortsOptimizedView>
   }
   
   Widget _buildLoadingVideo(PostsModel video) {
+    final index = _controller.shorts.indexOf(video);
+    final hasFailed = _controller.isVideoFailed(index);
+    
     return Container(
       color: Colors.black,
       child: Stack(
@@ -361,23 +364,50 @@ class _ShortsOptimizedViewState extends State<ShortsOptimizedView>
           else
             _buildPlaceholder(),
           
-          // 🔥 Subtle loading indicator (like Instagram)
+          // 🔥 Show error message if video failed, otherwise loading indicator
           Center(
-            child: Container(
-              padding: EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.black26,
-                shape: BoxShape.circle,
-              ),
-              child: SizedBox(
-                width: 32,
-                height: 32,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white70),
-                ),
-              ),
-            ),
+            child: hasFailed
+                ? Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.error_outline,
+                        size: 48,
+                        color: Colors.white70,
+                      ),
+                      SizedBox(height: 12),
+                      Text(
+                        'Video failed to load',
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: 16,
+                        ),
+                      ),
+                      SizedBox(height: 8),
+                      Text(
+                        'Swipe to next video',
+                        style: TextStyle(
+                          color: Colors.white54,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  )
+                : Container(
+                    padding: EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.black26,
+                      shape: BoxShape.circle,
+                    ),
+                    child: SizedBox(
+                      width: 32,
+                      height: 32,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white70),
+                      ),
+                    ),
+                  ),
           ),
         ],
       ),

@@ -29,15 +29,18 @@ class MainActivity : FlutterActivity() {
             // 🔥 Disable tunneling - it causes buffer issues on some devices
             System.setProperty("exoplayer.video.tunneling.enabled", "false")
             
-            // 🔥 NEW: Reduce ExoPlayer's internal buffer sizes to prevent overflow
-            // These properties limit how much ExoPlayer buffers ahead
-            System.setProperty("exoplayer.loadcontrol.minbufferms", "2500")  // Min 2.5s (down from default 50s)
-            System.setProperty("exoplayer.loadcontrol.maxbufferms", "5000")  // Max 5s (down from default 50s)
-            System.setProperty("exoplayer.loadcontrol.bufferforplaybackms", "1000")  // 1s to start (down from 2.5s)
-            System.setProperty("exoplayer.loadcontrol.bufferforplaybackafterrebufferms", "1500")  // 1.5s after rebuffer
+            // 🔥 OPTIMIZED: Reduce buffers for faster initial playback (Instagram-style)
+            System.setProperty("exoplayer.loadcontrol.minbufferms", "1500")  // Min 1.5s (faster start)
+            System.setProperty("exoplayer.loadcontrol.maxbufferms", "4000")  // Max 4s (reduced)
+            System.setProperty("exoplayer.loadcontrol.bufferforplaybackms", "500")  // 0.5s to start (very fast)
+            System.setProperty("exoplayer.loadcontrol.bufferforplaybackafterrebufferms", "1000")  // 1s after rebuffer
             
-            // 🔥 NEW: Reduce ImageReader max images (limits concurrent frame decoding)
-            System.setProperty("android.media.mediacodec.video.max-output-buffers", "3")  // Down from default 4+
+            // 🔥 Reduce ImageReader max images (limits concurrent frame decoding)
+            System.setProperty("android.media.mediacodec.video.max-output-buffers", "3")
+            
+            // 🔥 NEW: Enable fast seeking and reduce latency
+            System.setProperty("exoplayer.video.enable-seek-preview", "false") // Faster seeks
+            System.setProperty("exoplayer.video.max-preload-ms", "2000") // Limit preload
             
             android.util.Log.i("MainActivity", "ExoPlayer buffer configuration applied successfully")
         } catch (e: Exception) {
