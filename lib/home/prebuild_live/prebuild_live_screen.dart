@@ -140,8 +140,56 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
       debugPrint(
           '[PK_BATTLE_SYNC] 🚀 Viewer joining ACTIVE battle - fetching fresh data');
 
-      // STEP 1: Fetch absolutely fresh data from database FIRST
-      await _fetchFreshBattleData();
+      // STEP 1: Call cloud function to get authoritative battle state
+      try {
+        debugPrint('[PK_BATTLE_SYNC] 🔍 Calling getBattleState cloud function...');
+        
+        ParseResponse battleStateResponse = await QuickCloudCode.getBattleState(
+          liveChannel: widget.liveStreaming!.getStreamingChannel!,
+        );
+
+        if (battleStateResponse.success && battleStateResponse.result != null) {
+          final state = battleStateResponse.result as Map<String, dynamic>;
+          
+          if (state['battleActive'] == true) {
+            final serverMyPoints = state['my_points'] ?? 0;
+            final serverHisPoints = state['his_points'] ?? 0;
+            final battleStartTime = state['battle_start_time'] ?? 0;
+            final opponentChannel = state['opponent_channel'] ?? '';
+            
+            debugPrint('[PK_BATTLE_SYNC] ✅ Server battle state:');
+            debugPrint('[PK_BATTLE_SYNC]    My: $serverMyPoints, His: $serverHisPoints');
+            debugPrint('[PK_BATTLE_SYNC]    Start: $battleStartTime, Opponent: $opponentChannel');
+            
+            // Update local document with authoritative server values
+            widget.liveStreaming!.setMyBattlePoints = serverMyPoints;
+            widget.liveStreaming!.setHisBattlePoints = serverHisPoints;
+            widget.liveStreaming!.setBattleStartTime = battleStartTime;
+            
+            // 🎯 CRITICAL: Update UI controllers immediately
+            showGiftSendersController.myBattlePoints.value = serverMyPoints;
+            showGiftSendersController.hisBattlePoints.value = serverHisPoints;
+            
+            // 🚨 CRITICAL: Set battle UI visibility flag
+            showGiftSendersController.isBattleLive.value = true;
+            
+            debugPrint('[PK_BATTLE_SYNC] ✅ UI controllers updated with server values');
+            debugPrint('[PK_BATTLE_SYNC] ✅ Battle UI visibility enabled');
+            
+          } else {
+            debugPrint('[PK_BATTLE_SYNC] ⚠️ Battle not active on server');
+            return;
+          }
+        } else {
+          debugPrint('[PK_BATTLE_SYNC] ⚠️ getBattleState failed, using local fetch: ${battleStateResponse.error?.message}');
+          // Fallback to database fetch
+          await _fetchFreshBattleData();
+        }
+      } catch (e) {
+        debugPrint('[PK_BATTLE_SYNC] ❌ getBattleState error: $e, using local fetch');
+        // Fallback to database fetch
+        await _fetchFreshBattleData();
+      }
 
       if (!mounted) return;
 
@@ -184,47 +232,73 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
       // STEP 6: 🕒 Sync battle timer for viewer joining mid-battle
       await _syncBattleTimer();
 
-      // STEP 7: 🔄 Start periodic refresh for viewers (safety net)
-      if (!widget.isHost) {
-        _startViewerPeriodicRefresh();
-      }
+      // STEP 7: 🔄 Start periodic refresh for everyone (safety net)
+      _startViewerPeriodicRefresh();
     }
   }
 
-  // Periodic refresh for viewers (every 5 seconds as safety net)
+  // Periodic refresh for everyone (every 1.5 seconds as safety net)
   void _startViewerPeriodicRefresh() {
     _viewerRefreshTimer?.cancel();
 
     debugPrint(
-        '[PK_BATTLE_SYNC] 🔄 Starting viewer periodic refresh (every 5s)');
+        '[PK_BATTLE_SYNC] 🔄 Starting periodic refresh for everyone (every 1.5s)');
 
-    _viewerRefreshTimer = Timer.periodic(Duration(seconds: 5), (timer) async {
+    _viewerRefreshTimer = Timer.periodic(Duration(milliseconds: 1500), (timer) async {
       // Only refresh during active battle
       if (showGiftSendersController.battleTimer.value > 0 && mounted) {
-        debugPrint('[PK_BATTLE_SYNC] 🔄 Periodic refresh check...');
+        debugPrint('[PK_BATTLE_SYNC] 🔄 ═══ Periodic refresh executing ═══');
+        debugPrint('[PK_BATTLE_SYNC] Timer value: ${showGiftSendersController.battleTimer.value}');
+        debugPrint('[PK_BATTLE_SYNC] Current UI: My=${showGiftSendersController.myBattlePoints.value}, His=${showGiftSendersController.hisBattlePoints.value}');
 
         try {
-          // Quick fetch from database
-          QueryBuilder<LiveStreamingModel> query =
-              QueryBuilder<LiveStreamingModel>(LiveStreamingModel());
-          query.whereEqualTo(
-              LiveStreamingModel.keyObjectId, widget.liveStreaming!.objectId);
+          // Use cloud function for authoritative state (more reliable than direct DB query)
+          ParseResponse battleStateResponse = await QuickCloudCode.getBattleState(
+            liveChannel: widget.liveStreaming!.getStreamingChannel!,
+          );
 
-          final response = await query.query();
+          debugPrint('[PK_BATTLE_SYNC] 📥 getBattleState response: success=${battleStateResponse.success}, hasResult=${battleStateResponse.result != null}');
+          
+          if (battleStateResponse.result != null) {
+            debugPrint('[PK_BATTLE_SYNC] 📥 Response data: ${battleStateResponse.result}');
+          }
 
-          if (response.success &&
-              response.results != null &&
-              response.results!.isNotEmpty) {
-            final freshDoc = response.results!.first as LiveStreamingModel;
-            final dbMyPoints = freshDoc.getMyBattlePoints ?? 0;
-            final dbHisPoints = freshDoc.getHisBattlePoints ?? 0;
+          if (battleStateResponse.success && battleStateResponse.result != null) {
+            final state = battleStateResponse.result as Map<String, dynamic>;
+            
+            if (state['battleActive'] == true) {
+              final serverMyPoints = state['my_points'] ?? 0;
+              final serverHisPoints = state['his_points'] ?? 0;
 
-            // Only update if points are different
-            if (dbMyPoints != _lastMyPoints || dbHisPoints != _lastHisPoints) {
               debugPrint(
-                  '[PK_BATTLE_SYNC] 🔄 Periodic refresh found new points - My: $dbMyPoints, His: $dbHisPoints');
-              _updatePointsWithDebounce(
-                  dbMyPoints, dbHisPoints, 'PERIODIC_REFRESH');
+                  '[PK_BATTLE_SYNC] 🔄 Periodic refresh - Server: My=$serverMyPoints, His=$serverHisPoints | Current UI: My=${showGiftSendersController.myBattlePoints.value}, His=${showGiftSendersController.hisBattlePoints.value}');
+
+              // ALWAYS update UI controllers with fresh server data
+              showGiftSendersController.myBattlePoints.value = serverMyPoints;
+              showGiftSendersController.hisBattlePoints.value = serverHisPoints;
+              
+              // Update tracking variables
+              _lastMyPoints = serverMyPoints;
+              _lastHisPoints = serverHisPoints;
+              
+              debugPrint(
+                  '[PK_BATTLE_SYNC] ✅ UI updated - My: $serverMyPoints, His: $serverHisPoints');
+            } else {
+              // Battle ended - preserve final scores!
+              if (state['battleEnded'] == true) {
+                final finalMyPoints = state['my_points'] ?? 0;
+                final finalHisPoints = state['his_points'] ?? 0;
+                
+                debugPrint(
+                    '[PK_BATTLE_SYNC] 🏁 Battle ended - preserving final scores: My=$finalMyPoints, His=$finalHisPoints');
+                
+                // Update UI with FINAL scores
+                showGiftSendersController.myBattlePoints.value = finalMyPoints;
+                showGiftSendersController.hisBattlePoints.value = finalHisPoints;
+              }
+              
+              debugPrint('[PK_BATTLE_SYNC] 🛑 Battle ended (periodic check)');
+              timer.cancel();
             }
           }
         } catch (e) {
@@ -509,8 +583,13 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
         .contains(widget.liveStreaming!.getAuthorId);
     showGiftSendersController.diamondsCounter.value =
         widget.liveStreaming!.getDiamonds!.toString();
+    
+    // 🎯 CRITICAL: Check if battle is ACTIVE, not just if feature is enabled
     showGiftSendersController.isBattleLive.value =
-        widget.liveStreaming!.getBattle!;
+        widget.liveStreaming!.getBattleStatus == LiveStreamingModel.battleAlive;
+    
+    debugPrint('[PK_BATTLE_INIT] Battle status: ${widget.liveStreaming!.getBattleStatus}');
+    debugPrint('[PK_BATTLE_INIT] isBattleLive set to: ${showGiftSendersController.isBattleLive.value}');
 
     // 🚀 Initialize BattlePointsManager - Single Source of Truth
     battlePointsManager = BattlePointsManager();
@@ -813,25 +892,62 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
     debugPrint('[PK_BATTLE_RESTART] ✅ ========== RESTART COMPLETE ==========');
   }
 
-  void updateLiveToBattle(String liveId) {
+  void updateLiveToBattle(String liveId) async {
     final currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
 
     debugPrint('[PK_BATTLE_START] 🏁 ========== BATTLE ACCEPTED ==========');
     debugPrint('[PK_BATTLE_START] 📅 Current time: $currentTime');
     debugPrint('[PK_BATTLE_START] 🎮 Opponent Live ID: $liveId');
+    debugPrint('[PK_BATTLE_START] 📍 My Channel: ${widget.liveStreaming!.getStreamingChannel}');
 
-    widget.liveStreaming!.setBattleStatus = LiveStreamingModel.battleAlive;
-    widget.liveStreaming!.setBattleLiveId = liveId;
-    widget.liveStreaming!.setBattleStartTime =
-        currentTime; // 🕒 Save battle start time
-    widget.liveStreaming!.setMyBattlePoints = 0;
-    widget.liveStreaming!.setHisBattlePoints = 0;
+    // 🚨 CRITICAL: Use cloud function to set up BOTH sides of the battle
+    try {
+      ParseResponse response = await QuickCloudCode.initializeBattle(
+        myChannel: widget.liveStreaming!.getStreamingChannel!,
+        opponentChannel: liveId,
+      );
 
-    widget.liveStreaming!.save();
+      if (response.success && response.result != null) {
+        final result = response.result as Map<String, dynamic>;
+        final battleStartTime = result['battleStartTime'] ?? currentTime;
+        
+        debugPrint('[PK_BATTLE_START] ✅ Cloud function initialized both sides');
+        debugPrint('[PK_BATTLE_START] ⏰ Battle start time: $battleStartTime');
+        
+        // Update local document with server values
+        widget.liveStreaming!.setBattleStatus = LiveStreamingModel.battleAlive;
+        widget.liveStreaming!.setBattleLiveId = liveId;
+        widget.liveStreaming!.setBattleStartTime = battleStartTime;
+        widget.liveStreaming!.setMyBattlePoints = 0;
+        widget.liveStreaming!.setHisBattlePoints = 0;
+        
+        // Refetch to ensure we have latest data
+        await widget.liveStreaming!.fetch();
+        
+        debugPrint('[PK_BATTLE_START] ✅ Battle metadata synchronized');
+      } else {
+        debugPrint('[PK_BATTLE_START] ⚠️ Cloud function failed, using local save: ${response.error?.message}');
+        
+        // Fallback to local save (old method)
+        widget.liveStreaming!.setBattleStatus = LiveStreamingModel.battleAlive;
+        widget.liveStreaming!.setBattleLiveId = liveId;
+        widget.liveStreaming!.setBattleStartTime = currentTime;
+        widget.liveStreaming!.setMyBattlePoints = 0;
+        widget.liveStreaming!.setHisBattlePoints = 0;
+        await widget.liveStreaming!.save();
+      }
+    } catch (e) {
+      debugPrint('[PK_BATTLE_START] ❌ Error: $e, using local save');
+      
+      // Fallback to local save
+      widget.liveStreaming!.setBattleStatus = LiveStreamingModel.battleAlive;
+      widget.liveStreaming!.setBattleLiveId = liveId;
+      widget.liveStreaming!.setBattleStartTime = currentTime;
+      widget.liveStreaming!.setMyBattlePoints = 0;
+      widget.liveStreaming!.setHisBattlePoints = 0;
+      await widget.liveStreaming!.save();
+    }
 
-    debugPrint('[PK_BATTLE_START] ✅ Battle metadata saved to database');
-    debugPrint(
-        '[PK_BATTLE_START] 📍 My Channel: ${widget.liveStreaming!.getStreamingChannel}');
     debugPrint('[PK_BATTLE_START] ✅ ========================================');
   }
 
@@ -2483,93 +2599,71 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
           // 3. Sync opponent's my_points back to my his_points
           // This prevents double-increment bug!
 
+          // ⚡ ATOMIC: Call new cloud function with retry logic and version control
           try {
+            debugPrint(
+                "⚡ [ATOMIC] Calling addPKPoints - Points: $battlePoints");
+
             ParseResponse cloudResponse =
                 await QuickCloudCode.saveHisBattlePoints(
-              points: battlePoints, // Send increment to cloud function
-              liveChannel: widget.liveStreaming!
-                  .getStreamingChannel!, // ✅ Use streaming_channel from database
+              points: battlePoints,
+              liveChannel: widget.liveStreaming!.getStreamingChannel!,
             );
 
-            debugPrint("🔍 Cloud response - Success: ${cloudResponse.success}");
-            debugPrint(
-                "🔍 Using streaming_channel: ${widget.liveStreaming!.getStreamingChannel}");
-
-            // Parse Server cloud functions return data in 'result' not 'results'
             if (cloudResponse.success && cloudResponse.result != null) {
               final result = cloudResponse.result as Map<String, dynamic>;
-              debugPrint("🔍 Result data: $result");
-
               final newMyPoints = result['my_points'] ?? 0;
               final newHisPoints = result['his_points'] ?? 0;
+              final attempt = result['attempt'] ?? 1;
 
-              // 🚀 ATOMIC UPDATE - Update all systems at once
-              // Update local document reference
+              debugPrint(
+                  "✅ [ATOMIC] Success (attempt $attempt) - My: $newMyPoints, His: $newHisPoints");
+
+              // Update local state instantly
               widget.liveStreaming!.setMyBattlePoints = newMyPoints;
               widget.liveStreaming!.setHisBattlePoints = newHisPoints;
 
-              // Update BattlePointsManager
-              battlePointsManager.updatePoints(
-                newMyPoints: newMyPoints,
-                newHisPoints: newHisPoints,
-              );
+              // 🎯 Update UI controllers IMMEDIATELY (before debounce)
+              showGiftSendersController.myBattlePoints.value = newMyPoints;
+              showGiftSendersController.hisBattlePoints.value = newHisPoints;
 
-              // Update UI with debouncing
+              // Update UI immediately
               _updatePointsWithDebounce(
                   newMyPoints, newHisPoints, 'CLOUD_FUNCTION');
 
-              // Update PointsController state
-              PointsController.updateLocalPoints(newMyPoints, (my, his) {
-                // Already handled by debounce
-              });
-
-              debugPrint(
-                  "💾 ✅ Atomic update complete - My: $newMyPoints, His: $newHisPoints");
-
-              // 🎯 Send real-time command AFTER all updates complete
-              // Small delay to ensure DB write completes
-              await Future.delayed(Duration(milliseconds: 50));
-
+              // Send real-time update to viewers
               PointsController.sendPointsUpdateToMyRoom(
                 currentRoomID: widget.liveID,
                 myTotalPoints: newMyPoints,
                 senderHostID: widget.liveStreaming!.getAuthorId!,
               );
-              debugPrint("🎯 📤 Real-time command sent - Points: $newMyPoints");
             } else {
-              // Fallback: Manual update if cloud function fails
               debugPrint(
-                  "⚠️ Cloud function failed - Success: ${cloudResponse.success}, Error: ${cloudResponse.error?.message}, Code: ${cloudResponse.error?.code}");
+                  "⚠️ [ATOMIC] Cloud function failed: ${cloudResponse.error?.message}");
+              // Fallback to manual update
               widget.liveStreaming!.addMyBattlePoints = battlePoints;
               final totalMyPoints = widget.liveStreaming!.getMyBattlePoints!;
               showGiftSendersController.myBattlePoints.value = totalMyPoints;
               await widget.liveStreaming!.save();
 
-              // Send command with fallback value
               PointsController.sendPointsUpdateToMyRoom(
                 currentRoomID: widget.liveID,
                 myTotalPoints: totalMyPoints,
                 senderHostID: widget.liveStreaming!.getAuthorId!,
               );
-              debugPrint(
-                  "🎯 📤 Real-time command sent (fallback) - Points: $totalMyPoints");
             }
           } catch (e) {
-            debugPrint("❌ Cloud function exception: $e - Using fallback");
-            // Fallback: Manual update
+            debugPrint("❌ [ATOMIC] Exception: $e - Using fallback");
             widget.liveStreaming!.addMyBattlePoints = battlePoints;
             final totalMyPoints = widget.liveStreaming!.getMyBattlePoints!;
             showGiftSendersController.myBattlePoints.value = totalMyPoints;
             await widget.liveStreaming!.save();
 
-            // Send command with fallback value
             PointsController.sendPointsUpdateToMyRoom(
               currentRoomID: widget.liveID,
               myTotalPoints: totalMyPoints,
               senderHostID: widget.liveStreaming!.getAuthorId!,
             );
-            debugPrint(
-                "🎯 📤 Real-time command sent (exception fallback) - Points: $totalMyPoints");
           }
         } else {
           await widget.liveStreaming!.save();

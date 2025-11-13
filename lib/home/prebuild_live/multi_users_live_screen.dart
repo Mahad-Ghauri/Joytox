@@ -163,6 +163,34 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen>
     
     debugPrint('🎯 [Multi INIT] Initial points from database - My: ${widget.liveStreaming!.getMyBattlePoints}, His: ${widget.liveStreaming!.getHisBattlePoints}');
     
+    // Fetch fresh battle state from server if battle is active
+    if (widget.liveStreaming!.getBattleStatus == LiveStreamingModel.battleAlive) {
+      QuickCloudCode.getBattleState(
+        liveChannel: widget.liveStreaming!.getStreamingChannel!,
+      ).then((response) {
+        if (response.success && response.result != null) {
+          final state = response.result as Map<String, dynamic>;
+          if (state['battleActive'] == true) {
+            final serverMyPoints = state['my_points'] ?? 0;
+            final serverHisPoints = state['his_points'] ?? 0;
+            
+            debugPrint('🎯 [Multi INIT] Fresh battle state from server - My: $serverMyPoints, His: $serverHisPoints');
+            
+            // Update UI immediately
+            showGiftSendersController.myBattlePoints.value = serverMyPoints;
+            showGiftSendersController.hisBattlePoints.value = serverHisPoints;
+            
+            // 🚨 CRITICAL: Enable battle UI visibility
+            showGiftSendersController.isBattleLive.value = true;
+            
+            // Update local document
+            widget.liveStreaming!.setMyBattlePoints = serverMyPoints;
+            widget.liveStreaming!.setHisBattlePoints = serverHisPoints;
+          }
+        }
+      });
+    }
+    
     // Initialize PointsController to receive cross-room updates
     PointsController.initialize(
       widget.liveID,

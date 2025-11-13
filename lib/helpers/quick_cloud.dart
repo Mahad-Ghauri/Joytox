@@ -23,11 +23,37 @@ class QuickCloudCode {
 
   static Future<ParseResponse> saveHisBattlePoints(
       {required int points, required String liveChannel}) async {
+    // Use new atomic cloud function with retry logic
     ParseCloudFunction function =
-        ParseCloudFunction(CloudParams.saveHisBattlePoints);
+        ParseCloudFunction(CloudParams.addPKPoints);
     Map<String, dynamic> params = <String, dynamic>{
       CloudParams.points: points,
       CloudParams.liveChannel: liveChannel,
+    };
+
+    return await function.execute(parameters: params);
+  }
+
+  static Future<ParseResponse> getBattleState(
+      {required String liveChannel}) async {
+    // Get current battle state for late joiners
+    ParseCloudFunction function =
+        ParseCloudFunction(CloudParams.getBattleState);
+    Map<String, dynamic> params = <String, dynamic>{
+      CloudParams.liveChannel: liveChannel,
+    };
+
+    return await function.execute(parameters: params);
+  }
+
+  static Future<ParseResponse> initializeBattle(
+      {required String myChannel, required String opponentChannel}) async {
+    // Initialize battle with bidirectional linking
+    ParseCloudFunction function =
+        ParseCloudFunction(CloudParams.initializeBattle);
+    Map<String, dynamic> params = <String, dynamic>{
+      CloudParams.myChannel: myChannel,
+      CloudParams.opponentChannel: opponentChannel,
     };
 
     return await function.execute(parameters: params);

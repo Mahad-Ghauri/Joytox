@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:get/get.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import 'package:trace/models/LiveStreamingModel.dart';
+import 'package:trace/home/controller/controller.dart';
 
 /// BattlePointsManager - Single Source of Truth for PK Battle Points
 /// 
@@ -77,6 +78,16 @@ class BattlePointsManager extends GetxController {
     
     myPoints.value = newMyPoints;
     hisPoints.value = newHisPoints;
+    
+    // 🚨 CRITICAL: Also update showGiftSendersController so UI reflects changes
+    try {
+      final Controller controller = Get.find<Controller>();
+      controller.myBattlePoints.value = newMyPoints;
+      controller.hisBattlePoints.value = newHisPoints;
+      print('[PK_BATTLE_SYNC] ✅ UI Controller updated - My: $newMyPoints, His: $newHisPoints');
+    } catch (e) {
+      print('[PK_BATTLE_SYNC] ⚠️ Could not update UI controller: $e');
+    }
   }
   
   /// Setup LiveQuery to listen for database updates

@@ -7,6 +7,11 @@ class CloudParams {
   static final String followUserParam = "follow_user";
   static final String unFollowUserParam = "unfollow_user";
   static final String saveHisBattlePoints = "save_hisBattle_points";
+  static final String addPKPoints = "addPKPoints";
+  static final String getBattleState = "getBattleState";
+  static final String initializeBattle = "initializeBattle";
+  static final String myChannel = "myChannel";
+  static final String opponentChannel = "opponentChannel"; // New atomic version
   static final String restartPkBattle = "restartPkBattle";
   static final String sendGiftParam = "send_gift";
   static final String sendAgencyParam = "send_agency";
