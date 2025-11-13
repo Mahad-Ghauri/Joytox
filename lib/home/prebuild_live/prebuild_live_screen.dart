@@ -335,11 +335,27 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
   void _updatePointsWithDebounce(int newMyPoints, int newHisPoints, String source) {
     final now = DateTime.now().millisecondsSinceEpoch;
     
-    // Prevent updates if points haven't changed and update was recent (within 300ms)
+    // INSTANT update for cloud function responses (no delay for sender/host)
+    if (source == 'CLOUD_FUNCTION' && widget.isHost) {
+      if (mounted) {
+        showGiftSendersController.myBattlePoints.value = newMyPoints;
+        showGiftSendersController.hisBattlePoints.value = newHisPoints;
+        _lastMyPoints = newMyPoints;
+        _lastHisPoints = newHisPoints;
+        _lastUpdateTimestamp = now;
+        debugPrint('[PK_BATTLE_SYNC] ⚡ INSTANT update from CLOUD_FUNCTION - My: $newMyPoints, His: $newHisPoints');
+      }
+      return;
+    }
+    
+    // For viewers: More aggressive debounce to prevent flickering
+    final debounceWindow = widget.isHost ? 200 : 400;  // Viewers: 400ms, Hosts: 200ms
+    
+    // For other sources, prevent updates if points haven't changed and update was recent
     if (_lastMyPoints == newMyPoints && 
         _lastHisPoints == newHisPoints && 
-        (now - _lastUpdateTimestamp) < 300) {
-      debugPrint('[PK_BATTLE_SYNC] 🚫 Skipping duplicate update from $source');
+        (now - _lastUpdateTimestamp) < debounceWindow) {
+      debugPrint('[PK_BATTLE_SYNC] 🚫 Skipping duplicate update from $source (within ${debounceWindow}ms)');
       return;
     }
     
@@ -350,8 +366,10 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
     // Cancel existing debouncer
     _pointsUpdateDebouncer?.cancel();
     
-    // Set new debouncer (100ms delay)
-    _pointsUpdateDebouncer = Timer(Duration(milliseconds: 100), () {
+    // Viewers get longer debounce delay to accumulate all sources
+    final debounceDelay = widget.isHost ? 50 : 150;  // Viewers: 150ms, Hosts: 50ms
+    
+    _pointsUpdateDebouncer = Timer(Duration(milliseconds: debounceDelay), () {
       if (mounted) {
         showGiftSendersController.myBattlePoints.value = newMyPoints;
         showGiftSendersController.hisBattlePoints.value = newHisPoints;
@@ -727,14 +745,27 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
       debugPrint('[PK_BATTLE_RESTART] ⚠️ Cloud function error: $e');
     }
     
-    // STEP 7: Wait for database to propagate
-    await Future.delayed(Duration(milliseconds: 500));
+    // STEP 7: Wait longer for database to propagate (increased from 500ms to 1s)
+    await Future.delayed(Duration(milliseconds: 1000));
     
-    // STEP 8: Refetch fresh data to ensure clean state
+    // STEP 8: Force UI points to 0 before refetch
+    showGiftSendersController.myBattlePoints.value = 0;
+    showGiftSendersController.hisBattlePoints.value = 0;
+    debugPrint('[PK_BATTLE_RESTART] 🔄 UI points forced to 0');
+    
+    // STEP 9: Refetch fresh data to ensure clean state
     await _fetchFreshBattleData();
-    debugPrint('[PK_BATTLE_RESTART] 🔄 Fresh data fetched after reset');
+    debugPrint('[PK_BATTLE_RESTART] 🔄 Fresh data fetched - My: ${widget.liveStreaming!.getMyBattlePoints}, His: ${widget.liveStreaming!.getHisBattlePoints}');
     
-    // STEP 9: Now start new battle timer
+    // STEP 10: Verify points are 0, if not refetch again
+    if (widget.liveStreaming!.getMyBattlePoints != 0 || widget.liveStreaming!.getHisBattlePoints != 0) {
+      debugPrint('[PK_BATTLE_RESTART] ⚠️ Points not zero, refetching...');
+      await Future.delayed(Duration(milliseconds: 500));
+      await _fetchFreshBattleData();
+      debugPrint('[PK_BATTLE_RESTART] 🔄 Second fetch - My: ${widget.liveStreaming!.getMyBattlePoints}, His: ${widget.liveStreaming!.getHisBattlePoints}');
+    }
+    
+    // STEP 11: Now start new battle timer
     debugPrint('[PK_BATTLE_RESTART] 🚀 Starting new battle timer...');
     initiateBattleTimer();
     
@@ -1339,13 +1370,16 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
     );
 
     return SafeArea(
-      child: ZegoUIKitPrebuiltLiveStreaming(
-          appID: Setup.zegoLiveStreamAppID,
-          appSign: Setup.zegoLiveStreamAppSign,
-          userID: widget.currentUser!.objectId!,
-          userName: widget.currentUser!.getFullName!,
-          liveID: widget.liveID,
-          events: widget.isHost ? hostEvents : audienceEvents,
+      child: Builder(
+        builder: (context) {
+          try {
+            return ZegoUIKitPrebuiltLiveStreaming(
+                appID: Setup.zegoLiveStreamAppID,
+                appSign: Setup.zegoLiveStreamAppSign,
+                userID: widget.currentUser!.objectId!,
+                userName: widget.currentUser!.getFullName!,
+                liveID: widget.liveID,
+                events: widget.isHost ? hostEvents : audienceEvents,
           config: (widget.isHost ? hostConfig : audienceConfig)
             ..audioVideoView.useVideoViewAspectFill = true
             ..mediaPlayer.supportTransparent = true
@@ -1582,7 +1616,23 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
           /// message attributes example
           //..inRoomMessage.attributes = userLevelsAttributes
           //..inRoomMessage.avatarLeadingBuilder = userLevelBuilder,
-          ),
+            );
+          } catch (e) {
+            debugPrint('❌ ZEGO Error: $e');
+            // Return a fallback widget if ZEGO fails
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.error_outline, size: 48, color: Colors.red),
+                  SizedBox(height: 16),
+                  Text('Live stream error. Please restart.'),
+                ],
+              ),
+            );
+          }
+        },
+      ),
     );
   }
 
