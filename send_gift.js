@@ -77,52 +77,9 @@ Parse.Cloud.define("send_gift", async (request) => {
       )}`
     );
 
-    // 🎯 PK Battle Handling - NEW ATOMIC VERSION
-    try {
-      const battlePoints = Math.floor(totalCredits / 5);
-      if (battlePoints > 0) {
-        const Streaming = Parse.Object.extend("Streaming");
-        const pkQuery = new Parse.Query(Streaming);
-        pkQuery.equalTo("AuthorId", receiverId);
-        pkQuery.equalTo("battle_status", "battle_alive");
-        pkQuery.exists("battle_liveID");
-        pkQuery.exists("streaming_channel");
-
-        const streamerPK = await pkQuery.first({ useMasterKey: true });
-        if (streamerPK) {
-          const currentRoomID = streamerPK.get("streaming_channel");
-          const opponentRoomID = streamerPK.get("battle_liveID");
-          const authorId = streamerPK.get("AuthorId");
-
-          if (currentRoomID && opponentRoomID && currentRoomID !== opponentRoomID) {
-            console.log(`🎯 Active PK detected → Adding ${battlePoints} points via atomic function...`);
-
-            try {
-              // ⚡ NEW: Call atomic addPKPoints function with user session
-              const atomicResult = await Parse.Cloud.run(
-                "addPKPoints",
-                { points: battlePoints, liveChannel: currentRoomID },
-                { sessionToken: request.user?.getSessionToken() }
-              );
-
-              if (atomicResult?.success) {
-                console.log(`✅ [ATOMIC] PK points synced | My: ${atomicResult.my_points}, His: ${atomicResult.his_points}`);
-              } else {
-                console.warn("⚠️ Atomic PK function failed:", JSON.stringify(atomicResult));
-              }
-            } catch (err) {
-              console.error(`❌ PK atomic function error: ${err.message}`);
-            }
-          } else {
-            console.log(`⚠️ Invalid PK linkage in Streaming for ${authorId}`);
-          }
-        } else {
-          console.log("ℹ️ No active PK battle found for receiver (streamer).");
-        }
-      }
-    } catch (err) {
-      console.error("❌ PK detection error (ignored):", err.message);
-    }
+    // 🎯 PK Battle Handling - DISABLED (Flutter app calls addPKPoints directly to prevent double-increment)
+    // The Flutter app explicitly calls saveHisBattlePoints/addPKPoints when needed
+    // Removing automatic handling here prevents double point addition
 
     // 🧾 Gift log (no object relations, only IDs)
     try {

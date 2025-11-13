@@ -845,10 +845,11 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
     widget.liveStreaming!.setHisBattleVictory = 0;
     widget.liveStreaming!.setRepeatBattleTimes =
         repeatPkTimes; // Save the new count
+    widget.liveStreaming!.setBattleStatus = LiveStreamingModel.battleAlive; // ✅ Set status back to alive
 
     await widget.liveStreaming!.save();
     debugPrint(
-        '[PK_BATTLE_RESTART] 💾 Database reset saved with repeatPkTimes: $repeatPkTimes');
+        '[PK_BATTLE_RESTART] 💾 Database reset saved with repeatPkTimes: $repeatPkTimes | Status: battle_alive');
 
     // STEP 6: Call cloud function to reset opponent's document
     try {
@@ -1039,10 +1040,21 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
                 debugPrint(
                     '[PK_BATTLE_SYNC] ⏸️ Battle ended - polling stopped');
 
+                // 🏁 Update battle status to battle_ended and keep final scores
+                widget.liveStreaming!.setBattleStatus = LiveStreamingModel.battleEnded;
+                widget.liveStreaming!.save();
+                debugPrint('[PK_BATTLE_END] ✅ Battle status set to battle_ended | Final scores: My=${showGiftSendersController.myBattlePoints.value}, His=${showGiftSendersController.hisBattlePoints.value}');
+
                 showGiftSendersController.showBattleWinner.value = true;
                 Future.delayed(Duration(seconds: 10)).then((value) {
                   if (mounted) {
                     showGiftSendersController.showBattleWinner.value = false;
+                    
+                    // 🧹 Clear points from database after winner display (keep UI showing final scores)
+                    widget.liveStreaming!.setMyBattlePoints = 0;
+                    widget.liveStreaming!.setHisBattlePoints = 0;
+                    widget.liveStreaming!.save();
+                    debugPrint('[PK_BATTLE_END] 🧹 Database points cleared after winner display');
                   }
                 });
                 if (widget.isHost) {
@@ -1067,7 +1079,10 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
       } else if (hisPoints > myPoints) {
         widget.liveStreaming!.addHisBattleVictory = 1;
       }
+      // Ensure battle status is ended before saving victories
+      widget.liveStreaming!.setBattleStatus = LiveStreamingModel.battleEnded;
       widget.liveStreaming!.save();
+      debugPrint('[PK_BATTLE_END] ✅ Victories updated and battle ended');
     }
   }
 
