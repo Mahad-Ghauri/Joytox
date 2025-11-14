@@ -219,7 +219,7 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen>
         // Calculate remaining time
         final currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
         final elapsedTime = currentTime - battleStartTime;
-        const battleDuration = 120; // 2 minutes
+        const battleDuration = 300; // 5 minutes
         final remainingTime = battleDuration - elapsedTime;
         
         if (remainingTime > 0) {

@@ -375,7 +375,7 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
     // Calculate remaining time
     final currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
     final elapsedTime = currentTime - battleStartTime;
-    const battleDuration = 120; // 2 minutes
+    const battleDuration = 300; // 5 minutes
     final remainingTime = battleDuration - elapsedTime;
 
     debugPrint(
@@ -996,9 +996,9 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
         '[PK_BATTLE_SYNC] 🎯 ========== INITIATING BATTLE TIMER ==========');
     debugPrint('[PK_BATTLE_SYNC] ⏰ Battle starting - initializing systems...');
 
-    // STEP 0: Reset UI timer to 120 immediately (prevent showing old time)
-    showGiftSendersController.battleTimer.value = 120;
-    debugPrint('[PK_BATTLE_SYNC] 🔄 UI timer set to 120 seconds');
+    // STEP 0: Reset UI timer to 300 immediately (prevent showing old time)
+    showGiftSendersController.battleTimer.value = 300;
+    debugPrint('[PK_BATTLE_SYNC] 🔄 UI timer set to 300 seconds');
 
     // STEP 1: Fetch absolutely fresh data
     await _fetchFreshBattleData();
@@ -1058,10 +1058,10 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
 
       // Send sync command to room
       debugPrint('[PK_BATTLE_TIMER] 📡 Sending sync command to room...');
-      sendSyncCommand(startTime: currentTime, duration: 120);
+      sendSyncCommand(startTime: currentTime, duration: 300);
 
       // Start local timer
-      debugPrint('[PK_BATTLE_TIMER] 🎯 Starting local countdown from 120s...');
+      debugPrint('[PK_BATTLE_TIMER] 🎯 Starting local countdown from 300s...');
       TimerController.startLocalTimer(
           onTimerUpdate: (remainingTimer) {
             if (mounted) {
@@ -1106,7 +1106,7 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
               }
             }
           },
-          duration: 120);
+          duration: 300);
 
       debugPrint('[PK_BATTLE_TIMER] ✅ Timer started successfully');
     });
