@@ -1,5 +1,7 @@
 // ignore_for_file: must_be_immutable, deprecated_member_use
 
+import 'dart:async';
+
 import 'package:auto_size_text/auto_size_text.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
@@ -63,6 +65,11 @@ class TabProfileScreen extends StatefulWidget {
 class _TabProfileScreenState extends State<TabProfileScreen> {
   final CarouselController _controller = CarouselController();
   int current = 0;
+
+  // Real-time credits update system
+  Subscription? _userSubscription;
+  LiveQuery _userLiveQuery = LiveQuery();
+  Timer? _creditsPollingTimer;
 
   var numbersCaptions = [
     "tab_profile.followings_".tr(),
@@ -184,6 +191,120 @@ class _TabProfileScreenState extends State<TabProfileScreen> {
   void initState() {
     super.initState();
     loadAgencyGroup();
+    setupUserCreditsLiveQuery();
+    startCreditsPolling();
+  }
+
+  @override
+  void dispose() {
+    disposeUserCreditsLiveQuery();
+    stopCreditsPolling();
+    super.dispose();
+  }
+
+  // ========================================
+  // Real-time Credits Update System
+  // ========================================
+  void setupUserCreditsLiveQuery() async {
+    if (widget.currentUser == null || widget.currentUser!.objectId == null) {
+      return;
+    }
+
+    try {
+      QueryBuilder<UserModel> userQuery =
+          QueryBuilder<UserModel>(UserModel.forQuery());
+      userQuery.whereEqualTo(
+          UserModel.keyObjectId, widget.currentUser!.objectId);
+
+      _userSubscription = await _userLiveQuery.client.subscribe(userQuery);
+
+      _userSubscription!.on(LiveQueryEvent.update,
+          (UserModel updatedUser) async {
+        debugPrint(
+            '💰 [CREDITS_UPDATE] LiveQuery - Credits updated: ${updatedUser.getCredits}');
+        if (!mounted) return;
+
+        // Fetch fresh data to ensure we have latest credits (bypass cache)
+        try {
+          await updatedUser.fetch();
+          if (mounted) {
+            setState(() {
+              widget.currentUser = updatedUser;
+            });
+          }
+        } catch (e) {
+          debugPrint('💰 [CREDITS_UPDATE] Error fetching fresh user data: $e');
+          // Fallback to using the updated user from LiveQuery
+          if (mounted) {
+            setState(() {
+              widget.currentUser = updatedUser;
+            });
+          }
+        }
+      });
+
+      debugPrint(
+          '💰 [CREDITS_UPDATE] LiveQuery subscription active for user credits');
+    } catch (e) {
+      debugPrint('💰 [CREDITS_UPDATE] Error setting up LiveQuery: $e');
+    }
+  }
+
+  void disposeUserCreditsLiveQuery() {
+    if (_userSubscription != null) {
+      _userLiveQuery.client.unSubscribe(_userSubscription!);
+      _userSubscription = null;
+    }
+  }
+
+  void startCreditsPolling() {
+    _creditsPollingTimer?.cancel();
+    _creditsPollingTimer = Timer.periodic(Duration(seconds: 1), (timer) async {
+      if (!mounted ||
+          widget.currentUser == null ||
+          widget.currentUser!.objectId == null) {
+        return;
+      }
+
+      try {
+        // Fetch fresh data directly from database, bypassing cache
+        QueryBuilder<UserModel> userQuery =
+            QueryBuilder<UserModel>(UserModel.forQuery());
+        userQuery.whereEqualTo(
+            UserModel.keyObjectId, widget.currentUser!.objectId);
+        // Use query() which fetches fresh from DB (no cache)
+        ParseResponse response = await userQuery.query();
+
+        if (response.success &&
+            response.results != null &&
+            response.results!.isNotEmpty) {
+          UserModel updatedUser = response.results!.first as UserModel;
+          final freshCredits = updatedUser.getCredits ?? 0;
+          final currentCredits = widget.currentUser!.getCredits ?? 0;
+
+          if (freshCredits != currentCredits) {
+            debugPrint(
+                '💰 [CREDITS_UPDATE] Polling - Credits changed: $currentCredits -> $freshCredits');
+            if (mounted) {
+              setState(() {
+                widget.currentUser = updatedUser;
+              });
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint('💰 [CREDITS_UPDATE] Polling error: $e');
+      }
+    });
+
+    debugPrint(
+        '💰 [CREDITS_UPDATE] Polling started (every 3 seconds) - fetching fresh from DB');
+  }
+
+  void stopCreditsPolling() {
+    _creditsPollingTimer?.cancel();
+    _creditsPollingTimer = null;
+    debugPrint('💰 [CREDITS_UPDATE] Polling stopped');
   }
 
   showTemporaryAlert() {
@@ -452,11 +573,11 @@ class _TabProfileScreenState extends State<TabProfileScreen> {
               IconButton(
                 onPressed: () async {
                   UserModel? user =
-                  await QuickHelp.goToNavigatorScreenForResult(
-                      context,
-                      SettingsScreen(
-                        currentUser: widget.currentUser,
-                      ));
+                      await QuickHelp.goToNavigatorScreenForResult(
+                          context,
+                          SettingsScreen(
+                            currentUser: widget.currentUser,
+                          ));
                   if (user != null) {
                     debugPrint("user: ${user}");
                     setState(() {
@@ -473,7 +594,7 @@ class _TabProfileScreenState extends State<TabProfileScreen> {
             ],
           ),
           body: ListView(
-            padding: EdgeInsets.only(left: 15, top: 30 ,right: 15),
+            padding: EdgeInsets.only(left: 15, top: 30, right: 15),
             children: [
               Stack(
                 children: [
@@ -565,7 +686,7 @@ class _TabProfileScreenState extends State<TabProfileScreen> {
                         mainAxisAlignment: MainAxisAlignment.spaceAround,
                         children: List.generate(
                           numbersCaptions.length,
-                              (index) => captionAndNumber(
+                          (index) => captionAndNumber(
                             caption: numbersCaptions[index],
                             screenToGo: numbersCaptionsScreens[index],
                             number: numbers[index],
@@ -592,7 +713,7 @@ class _TabProfileScreenState extends State<TabProfileScreen> {
                     TextButton(
                       onPressed: () async {
                         UserModel? user =
-                        await QuickHelp.goToNavigatorScreenForResult(
+                            await QuickHelp.goToNavigatorScreenForResult(
                           context,
                           WalletScreen(
                             currentUser: widget.currentUser,
@@ -624,7 +745,7 @@ class _TabProfileScreenState extends State<TabProfileScreen> {
                               TextWithTap(
                                 QuickHelp.checkFundsWithString(
                                     amount:
-                                    "${widget.currentUser!.getCredits}"),
+                                        "${widget.currentUser!.getCredits}"),
                                 marginLeft: 8,
                                 fontSize: 13,
                               ),
@@ -665,8 +786,7 @@ class _TabProfileScreenState extends State<TabProfileScreen> {
                               ),
                               TextWithTap(
                                 QuickHelp.checkFundsWithString(
-                                  amount:
-                                  "${widget.currentUser!.getDiamonds}",
+                                  amount: "${widget.currentUser!.getDiamonds}",
                                 ),
                                 marginLeft: 8,
                                 fontSize: 13,
@@ -695,7 +815,7 @@ class _TabProfileScreenState extends State<TabProfileScreen> {
                   physics: NeverScrollableScrollPhysics(),
                   children: List.generate(
                     personalTitle.length,
-                        (index) {
+                    (index) {
                       return options(
                         caption: personalTitle[index],
                         screenTogo: firstOptionsScreens[index],
@@ -725,7 +845,7 @@ class _TabProfileScreenState extends State<TabProfileScreen> {
                   physics: NeverScrollableScrollPhysics(),
                   children: List.generate(
                     privilegesTitle.length,
-                        (index) {
+                    (index) {
                       return options(
                         caption: privilegesTitle[index],
                         screenTogo: agentOptionsScreens[index],
@@ -745,31 +865,32 @@ class _TabProfileScreenState extends State<TabProfileScreen> {
                 marginTop: 10,
                 fontWeight: FontWeight.w900,
               ),
-              if(widget.currentUser!.getAgencyRole == UserModel.agencyNoRole)
-              ContainerCorner(
-                color: isDark ? kContentColorLightTheme : Colors.white,
-                borderRadius: 10,
-                width: size.width,
-                height: 65 ,
-                marginTop: 10,
-                padding: EdgeInsets.all(4),
-                child: GridView.count(
-                  crossAxisCount: 4,
-                  physics: NeverScrollableScrollPhysics(),
-                  children: List.generate(
-                    secondOptionsCaption.length,
-                        (index) {
-                      return secondOptions(
-                        caption: secondOptionsCaption[index],
-                        screenTogo: secondOptionsScreens[index],
-                        iconURL: secondOptionsLightIcons[index],
-                      );
-                    },
+              if (widget.currentUser!.getAgencyRole == UserModel.agencyNoRole)
+                ContainerCorner(
+                  color: isDark ? kContentColorLightTheme : Colors.white,
+                  borderRadius: 10,
+                  width: size.width,
+                  height: 65,
+                  marginTop: 10,
+                  padding: EdgeInsets.all(4),
+                  child: GridView.count(
+                    crossAxisCount: 4,
+                    physics: NeverScrollableScrollPhysics(),
+                    children: List.generate(
+                      secondOptionsCaption.length,
+                      (index) {
+                        return secondOptions(
+                          caption: secondOptionsCaption[index],
+                          screenTogo: secondOptionsScreens[index],
+                          iconURL: secondOptionsLightIcons[index],
+                        );
+                      },
+                    ),
                   ),
                 ),
-              ),
               Visibility(
-                visible: widget.currentUser!.getAgencyRole == UserModel.agencyAgentRole,
+                visible: widget.currentUser!.getAgencyRole ==
+                    UserModel.agencyAgentRole,
                 child: ContainerCorner(
                   color: isDark ? kContentColorLightTheme : Colors.white,
                   borderRadius: 10,
@@ -782,7 +903,7 @@ class _TabProfileScreenState extends State<TabProfileScreen> {
                     physics: NeverScrollableScrollPhysics(),
                     children: List.generate(
                       agentOptionsCaption.length,
-                          (index) {
+                      (index) {
                         return options(
                           caption: agentOptionsCaption[index],
                           screenTogo: agencyOptionsScreens[index],
@@ -799,49 +920,49 @@ class _TabProfileScreenState extends State<TabProfileScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: List.generate(
                     listMenuTitle.length,
-                        (index) => Padding(
-                      padding: const EdgeInsets.only(bottom: 2),
-                      child: ButtonWidget(
-                        onTap: () => QuickHelp.goToNavigatorScreen(
-                          context, listMenuScreens[index],
-                        ),
-                        child: Row(
-                          mainAxisAlignment:
-                          MainAxisAlignment.spaceBetween,
-                          children: [
-                            TextWithTap(
-                              listMenuTitle[index],
-                              marginBottom: 16,
-                              fontSize: size.width / 23,
-                              color: isDark
-                                  ? Colors.white
-                                  : kContentColorLightTheme,
+                    (index) => Padding(
+                          padding: const EdgeInsets.only(bottom: 2),
+                          child: ButtonWidget(
+                            onTap: () => QuickHelp.goToNavigatorScreen(
+                              context,
+                              listMenuScreens[index],
                             ),
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Visibility(
-                                  visible: index == 4,
-                                  child: Image.asset(
-                                    "assets/images/im_service_icon.png",
-                                    height: 16,
-                                    width: 16,
-                                  ),
+                                TextWithTap(
+                                  listMenuTitle[index],
+                                  marginBottom: 16,
+                                  fontSize: size.width / 23,
+                                  color: isDark
+                                      ? Colors.white
+                                      : kContentColorLightTheme,
                                 ),
-                                SizedBox(
-                                  width: 5,
-                                ),
-                                Icon(
-                                  Icons.arrow_forward_ios,
-                                  size: 14,
-                                  color: kGrayColor,
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Visibility(
+                                      visible: index == 4,
+                                      child: Image.asset(
+                                        "assets/images/im_service_icon.png",
+                                        height: 16,
+                                        width: 16,
+                                      ),
+                                    ),
+                                    SizedBox(
+                                      width: 5,
+                                    ),
+                                    Icon(
+                                      Icons.arrow_forward_ios,
+                                      size: 14,
+                                      color: kGrayColor,
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
-                          ],
-                        ),
-                      ),
-                    )),
+                          ),
+                        )),
               ),
               SizedBox(
                 height: 20,
@@ -855,10 +976,9 @@ class _TabProfileScreenState extends State<TabProfileScreen> {
           child: IgnorePointer(
             child: ContainerCorner(
               fit: BoxFit.fill,
-              imageDecoration:
-             QuickHelp.levelVipCover(
+              imageDecoration: QuickHelp.levelVipCover(
                 currentCredit: widget.currentUser!.getCredits!.toDouble(),
-               user: widget.currentUser!,
+                user: widget.currentUser!,
               ),
               width: size.width,
               height: size.height - kToolbarHeight,
@@ -1407,7 +1527,7 @@ class _TabProfileScreenState extends State<TabProfileScreen> {
       child: CarouselView(
         itemExtent: double.infinity,
         controller: _controller,
-        children: List.generate(slideBanner.length, (index){
+        children: List.generate(slideBanner.length, (index) {
           return ContainerCorner(
             width: size.width,
             borderRadius: 8,

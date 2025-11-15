@@ -1,5 +1,6 @@
 // ignore_for_file: must_be_immutable, deprecated_member_use
 
+import 'dart:async';
 import 'dart:io';
 
 import 'package:easy_localization/easy_localization.dart';
@@ -89,6 +90,9 @@ class _AllLivesScreenState extends State<AllLivesScreen>
 
   Subscription? subscription;
   LiveQuery liveQuery = LiveQuery();
+  Subscription? userSubscription;
+  LiveQuery userLiveQuery = LiveQuery();
+  Timer? _creditsPollingTimer;
   final selectedGiftItemNotifier = ValueNotifier<GiftsModel?>(null);
 
   @override
@@ -117,6 +121,8 @@ class _AllLivesScreenState extends State<AllLivesScreen>
       });
     QuickHelp.saveCurrentRoute(route: AllLivesScreen.route);
     updateLives();
+    setupUserCreditsLiveQuery();
+    startCreditsPolling();
   }
 
   @override
@@ -126,6 +132,8 @@ class _AllLivesScreenState extends State<AllLivesScreen>
     tagsTabControl.dispose();
 
     disposeLiveQuery();
+    disposeUserCreditsLiveQuery();
+    stopCreditsPolling();
   }
 
   updateLives() {
@@ -137,6 +145,111 @@ class _AllLivesScreenState extends State<AllLivesScreen>
       liveQuery.client.unSubscribe(subscription!);
       subscription = null;
     }
+  }
+
+  // ========================================
+  // Real-time Credits Update System
+  // ========================================
+  void setupUserCreditsLiveQuery() async {
+    if (widget.currentUser == null || widget.currentUser!.objectId == null) {
+      return;
+    }
+
+    try {
+      QueryBuilder<UserModel> userQuery =
+          QueryBuilder<UserModel>(UserModel.forQuery());
+      userQuery.whereEqualTo(
+          UserModel.keyObjectId, widget.currentUser!.objectId);
+
+      userSubscription = await userLiveQuery.client.subscribe(userQuery);
+
+      userSubscription!.on(LiveQueryEvent.update,
+          (UserModel updatedUser) async {
+        debugPrint(
+            '💰 [CREDITS_UPDATE] LiveQuery - Credits updated: ${updatedUser.getCredits}');
+        if (!mounted) return;
+
+        // Fetch fresh data to ensure we have latest credits (bypass cache)
+        try {
+          await updatedUser.fetch();
+          if (mounted) {
+            setState(() {
+              widget.currentUser = updatedUser;
+            });
+          }
+        } catch (e) {
+          debugPrint('💰 [CREDITS_UPDATE] Error fetching fresh user data: $e');
+          // Fallback to using the updated user from LiveQuery
+          if (mounted) {
+            setState(() {
+              widget.currentUser = updatedUser;
+            });
+          }
+        }
+      });
+
+      debugPrint(
+          '💰 [CREDITS_UPDATE] LiveQuery subscription active for user credits');
+    } catch (e) {
+      debugPrint('💰 [CREDITS_UPDATE] Error setting up LiveQuery: $e');
+    }
+  }
+
+  void disposeUserCreditsLiveQuery() {
+    if (userSubscription != null) {
+      userLiveQuery.client.unSubscribe(userSubscription!);
+      userSubscription = null;
+    }
+  }
+
+  void startCreditsPolling() {
+    _creditsPollingTimer?.cancel();
+    _creditsPollingTimer = Timer.periodic(Duration(seconds: 1), (timer) async {
+      if (!mounted ||
+          widget.currentUser == null ||
+          widget.currentUser!.objectId == null) {
+        return;
+      }
+
+      try {
+        // Fetch fresh data directly from database, bypassing cache
+        QueryBuilder<UserModel> userQuery =
+            QueryBuilder<UserModel>(UserModel.forQuery());
+        userQuery.whereEqualTo(
+            UserModel.keyObjectId, widget.currentUser!.objectId);
+        // Use query() which fetches fresh from DB (no cache)
+        ParseResponse response = await userQuery.query();
+
+        if (response.success &&
+            response.results != null &&
+            response.results!.isNotEmpty) {
+          UserModel updatedUser = response.results!.first as UserModel;
+          final freshCredits = updatedUser.getCredits ?? 0;
+          final currentCredits = widget.currentUser!.getCredits ?? 0;
+
+          if (freshCredits != currentCredits) {
+            debugPrint(
+                '💰 [CREDITS_UPDATE] Polling - Credits changed: $currentCredits -> $freshCredits');
+            if (mounted) {
+              setState(() {
+                widget.currentUser = updatedUser;
+              });
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint('💰 [CREDITS_UPDATE] Polling error: $e');
+      }
+    });
+
+    debugPrint(
+        '💰 [CREDITS_UPDATE] Polling started (every 3 seconds) - fetching fresh from DB');
+  }
+
+  void stopCreditsPolling() {
+    _creditsPollingTimer?.cancel();
+    _creditsPollingTimer = null;
+    debugPrint('💰 [CREDITS_UPDATE] Polling stopped');
   }
 
   setupLiveQuery() async {
