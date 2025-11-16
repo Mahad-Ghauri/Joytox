@@ -133,134 +133,108 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
 
   // Async initialization for viewers joining active battles
   Future<void> _initializeBattleAsync() async {
-    // 🎯 ALWAYS check server state first - don't rely on potentially stale local data
-    // This is critical for users entering streams after battle restarts
-    debugPrint(
-        '[PK_BATTLE_SYNC] 🔍 Checking server battle state (ignoring local cache)...');
-
-    // STEP 1: Call cloud function to get authoritative battle state FIRST
-    try {
+    // 🎯 Initialize PK battle points for viewers joining an active battle
+    if (showGiftSendersController.isBattleLive.value &&
+        widget.liveStreaming!.getBattleStatus ==
+            LiveStreamingModel.battleAlive) {
       debugPrint(
-          '[PK_BATTLE_SYNC] 🔍 Calling getBattleState cloud function...');
+          '[PK_BATTLE_SYNC] 🚀 Viewer joining ACTIVE battle - fetching fresh data');
 
-      ParseResponse battleStateResponse = await QuickCloudCode.getBattleState(
-        liveChannel: widget.liveStreaming!.getStreamingChannel!,
+      // STEP 1: Call cloud function to get authoritative battle state
+      try {
+        debugPrint('[PK_BATTLE_SYNC] 🔍 Calling getBattleState cloud function...');
+        
+        ParseResponse battleStateResponse = await QuickCloudCode.getBattleState(
+          liveChannel: widget.liveStreaming!.getStreamingChannel!,
+        );
+
+        if (battleStateResponse.success && battleStateResponse.result != null) {
+          final state = battleStateResponse.result as Map<String, dynamic>;
+          
+          if (state['battleActive'] == true) {
+            final serverMyPoints = state['my_points'] ?? 0;
+            final serverHisPoints = state['his_points'] ?? 0;
+            final battleStartTime = state['battle_start_time'] ?? 0;
+            final opponentChannel = state['opponent_channel'] ?? '';
+            
+            debugPrint('[PK_BATTLE_SYNC] ✅ Server battle state:');
+            debugPrint('[PK_BATTLE_SYNC]    My: $serverMyPoints, His: $serverHisPoints');
+            debugPrint('[PK_BATTLE_SYNC]    Start: $battleStartTime, Opponent: $opponentChannel');
+            
+            // Update local document with authoritative server values
+            widget.liveStreaming!.setMyBattlePoints = serverMyPoints;
+            widget.liveStreaming!.setHisBattlePoints = serverHisPoints;
+            widget.liveStreaming!.setBattleStartTime = battleStartTime;
+            
+            // 🎯 CRITICAL: Update UI controllers immediately
+            showGiftSendersController.myBattlePoints.value = serverMyPoints;
+            showGiftSendersController.hisBattlePoints.value = serverHisPoints;
+            
+            // 🚨 CRITICAL: Set battle UI visibility flag
+            showGiftSendersController.isBattleLive.value = true;
+            
+            debugPrint('[PK_BATTLE_SYNC] ✅ UI controllers updated with server values');
+            debugPrint('[PK_BATTLE_SYNC] ✅ Battle UI visibility enabled');
+            
+          } else {
+            debugPrint('[PK_BATTLE_SYNC] ⚠️ Battle not active on server');
+            return;
+          }
+        } else {
+          debugPrint('[PK_BATTLE_SYNC] ⚠️ getBattleState failed, using local fetch: ${battleStateResponse.error?.message}');
+          // Fallback to database fetch
+          await _fetchFreshBattleData();
+        }
+      } catch (e) {
+        debugPrint('[PK_BATTLE_SYNC] ❌ getBattleState error: $e, using local fetch');
+        // Fallback to database fetch
+        await _fetchFreshBattleData();
+      }
+
+      if (!mounted) return;
+
+      // STEP 2: Initialize manager with the CORRECT document (the host whose stream we joined)
+      debugPrint(
+          '[PK_BATTLE_SYNC] Initializing BattlePointsManager for channel: ${widget.liveStreaming!.getStreamingChannel}');
+      battlePointsManager.initialize(widget.liveStreaming!);
+
+      // STEP 3: Load points with debouncing
+      final initialMyPoints = widget.liveStreaming!.getMyBattlePoints ?? 0;
+      final initialHisPoints = widget.liveStreaming!.getHisBattlePoints ?? 0;
+
+      _updatePointsWithDebounce(
+          initialMyPoints, initialHisPoints, 'VIEWER_JOIN');
+
+      debugPrint(
+          '[PK_BATTLE_SYNC] ✅ Fresh points loaded - My: $initialMyPoints, His: $initialHisPoints');
+      debugPrint(
+          '[PK_BATTLE_SYNC] 📍 Watching document: ${widget.liveStreaming!.objectId} (${widget.liveStreaming!.getAuthor?.getFullName})');
+
+      // STEP 4: Initialize PointsController with debounced updates
+      PointsController.initialize(
+        widget.liveID,
+        (myPoints, hisPoints) {
+          _updatePointsWithDebounce(myPoints, hisPoints, 'ZEGO_COMMAND');
+          debugPrint(
+              '🎯 [VIEWER] Points updated via command - My: $myPoints, His: $hisPoints');
+        },
       );
 
-      if (battleStateResponse.success && battleStateResponse.result != null) {
-        final state = battleStateResponse.result as Map<String, dynamic>;
+      // STEP 5: Load initial points into PointsController
+      PointsController.loadInitialPoints(
+        initialMyPoints,
+        initialHisPoints,
+        (myPoints, hisPoints) {
+          // Already handled by debounce above
+        },
+      );
 
-        if (state['battleActive'] == true) {
-          final serverMyPoints = state['my_points'] ?? 0;
-          final serverHisPoints = state['his_points'] ?? 0;
-          final battleStartTime = state['battle_start_time'] ?? 0;
-          final opponentChannel = state['opponent_channel'] ?? '';
+      // STEP 6: 🕒 Sync battle timer for viewer joining mid-battle
+      await _syncBattleTimer();
 
-          debugPrint('[PK_BATTLE_SYNC] ✅ Server battle state: ACTIVE');
-          debugPrint(
-              '[PK_BATTLE_SYNC]    My: $serverMyPoints, His: $serverHisPoints');
-          debugPrint(
-              '[PK_BATTLE_SYNC]    Start: $battleStartTime, Opponent: $opponentChannel');
-
-          // Update local document with authoritative server values
-          widget.liveStreaming!.setMyBattlePoints = serverMyPoints;
-          widget.liveStreaming!.setHisBattlePoints = serverHisPoints;
-          widget.liveStreaming!.setBattleStartTime = battleStartTime;
-          widget.liveStreaming!.setBattleStatus =
-              LiveStreamingModel.battleAlive; // ✅ CRITICAL: Update status
-
-          // 🎯 CRITICAL: Update UI controllers immediately
-          showGiftSendersController.myBattlePoints.value = serverMyPoints;
-          showGiftSendersController.hisBattlePoints.value = serverHisPoints;
-
-          // 🚨 CRITICAL: Set battle UI visibility flag based on SERVER state
-          showGiftSendersController.isBattleLive.value = true;
-
-          debugPrint(
-              '[PK_BATTLE_SYNC] ✅ UI controllers updated with server values');
-          debugPrint('[PK_BATTLE_SYNC] ✅ Battle UI visibility enabled');
-        } else {
-          debugPrint('[PK_BATTLE_SYNC] ⚠️ Battle not active on server');
-          // Update local state to match server
-          showGiftSendersController.isBattleLive.value = false;
-          return;
-        }
-      } else {
-        debugPrint(
-            '[PK_BATTLE_SYNC] ⚠️ getBattleState failed, using local fetch: ${battleStateResponse.error?.message}');
-        // Fallback: check local data if server check fails
-        if (widget.liveStreaming!.getBattleStatus ==
-            LiveStreamingModel.battleAlive) {
-          showGiftSendersController.isBattleLive.value = true;
-          await _fetchFreshBattleData();
-        } else {
-          showGiftSendersController.isBattleLive.value = false;
-          return;
-        }
-      }
-    } catch (e) {
-      debugPrint(
-          '[PK_BATTLE_SYNC] ❌ getBattleState error: $e, using local fetch');
-      // Fallback: check local data if server check fails
-      if (widget.liveStreaming!.getBattleStatus ==
-          LiveStreamingModel.battleAlive) {
-        showGiftSendersController.isBattleLive.value = true;
-        await _fetchFreshBattleData();
-      } else {
-        showGiftSendersController.isBattleLive.value = false;
-        return;
-      }
+      // STEP 7: 🔄 Start periodic refresh for everyone (safety net)
+      _startViewerPeriodicRefresh();
     }
-
-    // Only proceed if battle is active (now verified from server)
-    if (!showGiftSendersController.isBattleLive.value) {
-      debugPrint(
-          '[PK_BATTLE_SYNC] ⚠️ Battle not active, skipping initialization');
-      return;
-    }
-
-    if (!mounted) return;
-
-    // STEP 2: Initialize manager with the CORRECT document (the host whose stream we joined)
-    debugPrint(
-        '[PK_BATTLE_SYNC] Initializing BattlePointsManager for channel: ${widget.liveStreaming!.getStreamingChannel}');
-    battlePointsManager.initialize(widget.liveStreaming!);
-
-    // STEP 3: Load points with debouncing
-    final initialMyPoints = widget.liveStreaming!.getMyBattlePoints ?? 0;
-    final initialHisPoints = widget.liveStreaming!.getHisBattlePoints ?? 0;
-
-    _updatePointsWithDebounce(initialMyPoints, initialHisPoints, 'VIEWER_JOIN');
-
-    debugPrint(
-        '[PK_BATTLE_SYNC] ✅ Fresh points loaded - My: $initialMyPoints, His: $initialHisPoints');
-    debugPrint(
-        '[PK_BATTLE_SYNC] 📍 Watching document: ${widget.liveStreaming!.objectId} (${widget.liveStreaming!.getAuthor?.getFullName})');
-
-    // STEP 4: Initialize PointsController with debounced updates
-    PointsController.initialize(
-      widget.liveID,
-      (myPoints, hisPoints) {
-        _updatePointsWithDebounce(myPoints, hisPoints, 'ZEGO_COMMAND');
-        debugPrint(
-            '🎯 [VIEWER] Points updated via command - My: $myPoints, His: $hisPoints');
-      },
-    );
-
-    // STEP 5: Load initial points into PointsController
-    PointsController.loadInitialPoints(
-      initialMyPoints,
-      initialHisPoints,
-      (myPoints, hisPoints) {
-        // Already handled by debounce above
-      },
-    );
-
-    // STEP 6: 🕒 Sync battle timer for viewer joining mid-battle
-    await _syncBattleTimer();
-
-    // STEP 7: 🔄 Start periodic refresh for everyone (safety net)
-    _startViewerPeriodicRefresh();
   }
 
   // Periodic refresh for everyone (every 1.5 seconds as safety net)
@@ -270,35 +244,28 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
     debugPrint(
         '[PK_BATTLE_SYNC] 🔄 Starting periodic refresh for everyone (every 1.5s)');
 
-    _viewerRefreshTimer =
-        Timer.periodic(Duration(milliseconds: 1500), (timer) async {
+    _viewerRefreshTimer = Timer.periodic(Duration(milliseconds: 1500), (timer) async {
       // Only refresh during active battle
       if (showGiftSendersController.battleTimer.value > 0 && mounted) {
         debugPrint('[PK_BATTLE_SYNC] 🔄 ═══ Periodic refresh executing ═══');
-        debugPrint(
-            '[PK_BATTLE_SYNC] Timer value: ${showGiftSendersController.battleTimer.value}');
-        debugPrint(
-            '[PK_BATTLE_SYNC] Current UI: My=${showGiftSendersController.myBattlePoints.value}, His=${showGiftSendersController.hisBattlePoints.value}');
+        debugPrint('[PK_BATTLE_SYNC] Timer value: ${showGiftSendersController.battleTimer.value}');
+        debugPrint('[PK_BATTLE_SYNC] Current UI: My=${showGiftSendersController.myBattlePoints.value}, His=${showGiftSendersController.hisBattlePoints.value}');
 
         try {
           // Use cloud function for authoritative state (more reliable than direct DB query)
-          ParseResponse battleStateResponse =
-              await QuickCloudCode.getBattleState(
+          ParseResponse battleStateResponse = await QuickCloudCode.getBattleState(
             liveChannel: widget.liveStreaming!.getStreamingChannel!,
           );
 
-          debugPrint(
-              '[PK_BATTLE_SYNC] 📥 getBattleState response: success=${battleStateResponse.success}, hasResult=${battleStateResponse.result != null}');
-
+          debugPrint('[PK_BATTLE_SYNC] 📥 getBattleState response: success=${battleStateResponse.success}, hasResult=${battleStateResponse.result != null}');
+          
           if (battleStateResponse.result != null) {
-            debugPrint(
-                '[PK_BATTLE_SYNC] 📥 Response data: ${battleStateResponse.result}');
+            debugPrint('[PK_BATTLE_SYNC] 📥 Response data: ${battleStateResponse.result}');
           }
 
-          if (battleStateResponse.success &&
-              battleStateResponse.result != null) {
+          if (battleStateResponse.success && battleStateResponse.result != null) {
             final state = battleStateResponse.result as Map<String, dynamic>;
-
+            
             if (state['battleActive'] == true) {
               final serverMyPoints = state['my_points'] ?? 0;
               final serverHisPoints = state['his_points'] ?? 0;
@@ -309,11 +276,11 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
               // ALWAYS update UI controllers with fresh server data
               showGiftSendersController.myBattlePoints.value = serverMyPoints;
               showGiftSendersController.hisBattlePoints.value = serverHisPoints;
-
+              
               // Update tracking variables
               _lastMyPoints = serverMyPoints;
               _lastHisPoints = serverHisPoints;
-
+              
               debugPrint(
                   '[PK_BATTLE_SYNC] ✅ UI updated - My: $serverMyPoints, His: $serverHisPoints');
             } else {
@@ -321,16 +288,15 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
               if (state['battleEnded'] == true) {
                 final finalMyPoints = state['my_points'] ?? 0;
                 final finalHisPoints = state['his_points'] ?? 0;
-
+                
                 debugPrint(
                     '[PK_BATTLE_SYNC] 🏁 Battle ended - preserving final scores: My=$finalMyPoints, His=$finalHisPoints');
-
+                
                 // Update UI with FINAL scores
                 showGiftSendersController.myBattlePoints.value = finalMyPoints;
-                showGiftSendersController.hisBattlePoints.value =
-                    finalHisPoints;
+                showGiftSendersController.hisBattlePoints.value = finalHisPoints;
               }
-
+              
               debugPrint('[PK_BATTLE_SYNC] 🛑 Battle ended (periodic check)');
               timer.cancel();
             }
@@ -617,15 +583,13 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
         .contains(widget.liveStreaming!.getAuthorId);
     showGiftSendersController.diamondsCounter.value =
         widget.liveStreaming!.getDiamonds!.toString();
-
+    
     // 🎯 CRITICAL: Check if battle is ACTIVE, not just if feature is enabled
     showGiftSendersController.isBattleLive.value =
         widget.liveStreaming!.getBattleStatus == LiveStreamingModel.battleAlive;
-
-    debugPrint(
-        '[PK_BATTLE_INIT] Battle status: ${widget.liveStreaming!.getBattleStatus}');
-    debugPrint(
-        '[PK_BATTLE_INIT] isBattleLive set to: ${showGiftSendersController.isBattleLive.value}');
+    
+    debugPrint('[PK_BATTLE_INIT] Battle status: ${widget.liveStreaming!.getBattleStatus}');
+    debugPrint('[PK_BATTLE_INIT] isBattleLive set to: ${showGiftSendersController.isBattleLive.value}');
 
     // 🚀 Initialize BattlePointsManager - Single Source of Truth
     battlePointsManager = BattlePointsManager();
@@ -881,8 +845,7 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
     widget.liveStreaming!.setHisBattleVictory = 0;
     widget.liveStreaming!.setRepeatBattleTimes =
         repeatPkTimes; // Save the new count
-    widget.liveStreaming!.setBattleStatus =
-        LiveStreamingModel.battleAlive; // ✅ Set status back to alive
+    widget.liveStreaming!.setBattleStatus = LiveStreamingModel.battleAlive; // ✅ Set status back to alive
 
     await widget.liveStreaming!.save();
     debugPrint(
@@ -936,8 +899,7 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
     debugPrint('[PK_BATTLE_START] 🏁 ========== BATTLE ACCEPTED ==========');
     debugPrint('[PK_BATTLE_START] 📅 Current time: $currentTime');
     debugPrint('[PK_BATTLE_START] 🎮 Opponent Live ID: $liveId');
-    debugPrint(
-        '[PK_BATTLE_START] 📍 My Channel: ${widget.liveStreaming!.getStreamingChannel}');
+    debugPrint('[PK_BATTLE_START] 📍 My Channel: ${widget.liveStreaming!.getStreamingChannel}');
 
     // 🚨 CRITICAL: Use cloud function to set up BOTH sides of the battle
     try {
@@ -949,25 +911,24 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
       if (response.success && response.result != null) {
         final result = response.result as Map<String, dynamic>;
         final battleStartTime = result['battleStartTime'] ?? currentTime;
-
+        
         debugPrint('[PK_BATTLE_START] ✅ Cloud function initialized both sides');
         debugPrint('[PK_BATTLE_START] ⏰ Battle start time: $battleStartTime');
-
+        
         // Update local document with server values
         widget.liveStreaming!.setBattleStatus = LiveStreamingModel.battleAlive;
         widget.liveStreaming!.setBattleLiveId = liveId;
         widget.liveStreaming!.setBattleStartTime = battleStartTime;
         widget.liveStreaming!.setMyBattlePoints = 0;
         widget.liveStreaming!.setHisBattlePoints = 0;
-
+        
         // Refetch to ensure we have latest data
         await widget.liveStreaming!.fetch();
-
+        
         debugPrint('[PK_BATTLE_START] ✅ Battle metadata synchronized');
       } else {
-        debugPrint(
-            '[PK_BATTLE_START] ⚠️ Cloud function failed, using local save: ${response.error?.message}');
-
+        debugPrint('[PK_BATTLE_START] ⚠️ Cloud function failed, using local save: ${response.error?.message}');
+        
         // Fallback to local save (old method)
         widget.liveStreaming!.setBattleStatus = LiveStreamingModel.battleAlive;
         widget.liveStreaming!.setBattleLiveId = liveId;
@@ -978,7 +939,7 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
       }
     } catch (e) {
       debugPrint('[PK_BATTLE_START] ❌ Error: $e, using local save');
-
+      
       // Fallback to local save
       widget.liveStreaming!.setBattleStatus = LiveStreamingModel.battleAlive;
       widget.liveStreaming!.setBattleLiveId = liveId;
@@ -1080,23 +1041,20 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
                     '[PK_BATTLE_SYNC] ⏸️ Battle ended - polling stopped');
 
                 // 🏁 Update battle status to battle_ended and keep final scores
-                widget.liveStreaming!.setBattleStatus =
-                    LiveStreamingModel.battleEnded;
+                widget.liveStreaming!.setBattleStatus = LiveStreamingModel.battleEnded;
                 widget.liveStreaming!.save();
-                debugPrint(
-                    '[PK_BATTLE_END] ✅ Battle status set to battle_ended | Final scores: My=${showGiftSendersController.myBattlePoints.value}, His=${showGiftSendersController.hisBattlePoints.value}');
+                debugPrint('[PK_BATTLE_END] ✅ Battle status set to battle_ended | Final scores: My=${showGiftSendersController.myBattlePoints.value}, His=${showGiftSendersController.hisBattlePoints.value}');
 
                 showGiftSendersController.showBattleWinner.value = true;
                 Future.delayed(Duration(seconds: 10)).then((value) {
                   if (mounted) {
                     showGiftSendersController.showBattleWinner.value = false;
-
+                    
                     // 🧹 Clear points from database after winner display (keep UI showing final scores)
                     widget.liveStreaming!.setMyBattlePoints = 0;
                     widget.liveStreaming!.setHisBattlePoints = 0;
                     widget.liveStreaming!.save();
-                    debugPrint(
-                        '[PK_BATTLE_END] 🧹 Database points cleared after winner display');
+                    debugPrint('[PK_BATTLE_END] 🧹 Database points cleared after winner display');
                   }
                 });
                 if (widget.isHost) {
@@ -2139,23 +2097,23 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
                       );
                     } else if (ZegoLiveStreamingState.inPKBattle == state &&
                         imLiveInviter) {
-                      // return Obx(() {
-                      //   return Visibility(
-                      //     visible: widget.isHost &&
-                      //         showGiftSendersController.battleTimer.value == 0,
-                      //     child: Positioned(
-                      //       right: 15,
-                      //       bottom: 50,
-                      //       child: IconButton(
-                      //         onPressed: () => restartPkBattle(),
-                      //         icon: Lottie.asset(
-                      //           "assets/lotties/pk_restart.json",
-                      //           height: 40,
-                      //         ),
-                      //       ),
-                      //     ),
-                      //   );
-                      // });
+                      return Obx(() {
+                        return Visibility(
+                          visible: widget.isHost &&
+                              showGiftSendersController.battleTimer.value == 0,
+                          child: Positioned(
+                            right: 15,
+                            bottom: 50,
+                            child: IconButton(
+                              onPressed: () => restartPkBattle(),
+                              icon: Lottie.asset(
+                                "assets/lotties/pk_restart.json",
+                                height: 40,
+                              ),
+                            ),
+                          ),
+                        );
+                      });
                     }
                     return SizedBox();
                   },
@@ -2853,8 +2811,7 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
         initiateBattleTimer();
       }
 
-      showGiftSendersController.isBattleLive.value =
-          newUpdatedLive.getBattleStatus == LiveStreamingModel.battleAlive;
+      showGiftSendersController.isBattleLive.value = newUpdatedLive.getBattle!;
       if (!newUpdatedLive.getStreaming! && !widget.isHost) {
         QuickHelp.goToNavigatorScreen(
             context,

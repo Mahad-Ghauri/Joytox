@@ -15,7 +15,11 @@ if (localPropertiesFile.exists()) {
     }
 }
 
+<<<<<<< HEAD
 def flutterVersionCode = localProperties.getProperty('flutter.versionCode') ?: '72'
+=======
+def flutterVersionCode = localProperties.getProperty('flutter.versionCode') ?: '66'
+>>>>>>> parent of fbd586c (Update Flutter version code and project configuration; enhance battle state synchronization logic)
 def flutterVersionName = localProperties.getProperty('flutter.versionName') ?: '3.0.0'
 
 def keystoreProperties = new Properties()
