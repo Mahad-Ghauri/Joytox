@@ -253,12 +253,14 @@ Parse.Cloud.define("initializeBattle", async (request) => {
     
     // Set battle metadata on BOTH documents
     myStream.set("battle_status", "battle_alive");
+    myStream.set("is_battle", true); // ✅ Set is_battle field
     myStream.set("battle_liveID", opponentChannel);
     myStream.set("battle_start_time", currentTime);
     myStream.set("my_points", 0);
     myStream.set("his_points", 0);
     
     opponentStream.set("battle_status", "battle_alive");
+    opponentStream.set("is_battle", true); // ✅ Set is_battle field
     opponentStream.set("battle_liveID", myChannel);
     opponentStream.set("battle_start_time", currentTime);
     opponentStream.set("my_points", 0);

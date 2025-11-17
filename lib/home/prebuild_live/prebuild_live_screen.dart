@@ -168,6 +168,11 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
           widget.liveStreaming!.setBattleStartTime = battleStartTime;
           widget.liveStreaming!.setBattleStatus =
               LiveStreamingModel.battleAlive; // ✅ CRITICAL: Update status
+          widget.liveStreaming!.setBattle =
+              true; // ✅ Set is_battle field in database
+
+          // Save to database
+          await widget.liveStreaming!.save();
 
           // 🎯 CRITICAL: Update UI controllers immediately
           showGiftSendersController.myBattlePoints.value = serverMyPoints;
@@ -182,6 +187,8 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
         } else {
           debugPrint('[PK_BATTLE_SYNC] ⚠️ Battle not active on server');
           // Update local state to match server
+          widget.liveStreaming!.setBattle = false; // ✅ Set is_battle to false
+          await widget.liveStreaming!.save();
           showGiftSendersController.isBattleLive.value = false;
           return;
         }
@@ -272,8 +279,14 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
 
     _viewerRefreshTimer =
         Timer.periodic(Duration(milliseconds: 1500), (timer) async {
-      // Only refresh during active battle
-      if (showGiftSendersController.battleTimer.value > 0 && mounted) {
+      // Refresh if battle is active (check timer OR is_battle field)
+      // This ensures periodic refresh runs even if timer isn't initialized yet
+      final battleTimerActive = showGiftSendersController.battleTimer.value > 0;
+      final isBattleFieldActive = widget.liveStreaming!.getBattle == true;
+      final shouldRefresh =
+          (battleTimerActive || isBattleFieldActive) && mounted;
+
+      if (shouldRefresh) {
         debugPrint('[PK_BATTLE_SYNC] 🔄 ═══ Periodic refresh executing ═══');
         debugPrint(
             '[PK_BATTLE_SYNC] Timer value: ${showGiftSendersController.battleTimer.value}');
@@ -306,6 +319,14 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
               debugPrint(
                   '[PK_BATTLE_SYNC] 🔄 Periodic refresh - Server: My=$serverMyPoints, His=$serverHisPoints | Current UI: My=${showGiftSendersController.myBattlePoints.value}, His=${showGiftSendersController.hisBattlePoints.value}');
 
+              // 🚨 CRITICAL: Ensure isBattleLive is true when battle is active
+              // This ensures the battle UI appears even if _initializeBattleAsync() hasn't completed yet
+              if (!showGiftSendersController.isBattleLive.value) {
+                debugPrint(
+                    '[PK_BATTLE_SYNC] 🔄 Periodic refresh: Enabling battle UI (battleActive detected)');
+                showGiftSendersController.isBattleLive.value = true;
+              }
+
               // ALWAYS update UI controllers with fresh server data
               showGiftSendersController.myBattlePoints.value = serverMyPoints;
               showGiftSendersController.hisBattlePoints.value = serverHisPoints;
@@ -317,6 +338,13 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
               debugPrint(
                   '[PK_BATTLE_SYNC] ✅ UI updated - My: $serverMyPoints, His: $serverHisPoints');
             } else {
+              // Fallback: Check is_battle field if cloud function says battle is not active
+              // This handles cases where cloud function is slow or returns incorrect state
+              if (widget.liveStreaming!.getBattle == true) {
+                debugPrint(
+                    '[PK_BATTLE_SYNC] 🔄 Periodic refresh: Cloud function says no battle, but is_battle=true, enabling battle UI');
+                showGiftSendersController.isBattleLive.value = true;
+              }
               // Battle ended - preserve final scores!
               if (state['battleEnded'] == true) {
                 final finalMyPoints = state['my_points'] ?? 0;
@@ -329,16 +357,33 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
                 showGiftSendersController.myBattlePoints.value = finalMyPoints;
                 showGiftSendersController.hisBattlePoints.value =
                     finalHisPoints;
+
+                // Update database
+                widget.liveStreaming!.setBattle =
+                    false; // ✅ Set is_battle to false
+                widget.liveStreaming!.setBattleStatus =
+                    LiveStreamingModel.battleEnded;
+                await widget.liveStreaming!.save();
               }
 
               debugPrint('[PK_BATTLE_SYNC] 🛑 Battle ended (periodic check)');
+              showGiftSendersController.isBattleLive.value =
+                  false; // ✅ Disable battle UI
               timer.cancel();
             }
           }
         } catch (e) {
           debugPrint('[PK_BATTLE_SYNC] ⚠️ Periodic refresh error: $e');
+          // Fallback: If getBattleState fails but is_battle is true, enable battle UI
+          if (widget.liveStreaming!.getBattle == true &&
+              !showGiftSendersController.isBattleLive.value) {
+            debugPrint(
+                '[PK_BATTLE_SYNC] 🔄 Periodic refresh: Error occurred, but is_battle=true, enabling battle UI as fallback');
+            showGiftSendersController.isBattleLive.value = true;
+          }
         }
-      } else if (showGiftSendersController.battleTimer.value == 0) {
+      } else if (showGiftSendersController.battleTimer.value == 0 &&
+          widget.liveStreaming!.getBattle != true) {
         // Battle ended, stop periodic refresh
         debugPrint(
             '[PK_BATTLE_SYNC] 🛑 Battle ended, stopping periodic refresh');
@@ -618,9 +663,16 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
     showGiftSendersController.diamondsCounter.value =
         widget.liveStreaming!.getDiamonds!.toString();
 
-    // 🎯 CRITICAL: Check if battle is ACTIVE, not just if feature is enabled
-    showGiftSendersController.isBattleLive.value =
+    // 🎯 CRITICAL: Check if battle is ACTIVE using both battle_status and is_battle field
+    // This ensures we catch battles even if battle_status is stale
+    final battleStatusActive =
         widget.liveStreaming!.getBattleStatus == LiveStreamingModel.battleAlive;
+    final isBattleFieldActive = widget.liveStreaming!.getBattle == true;
+    showGiftSendersController.isBattleLive.value =
+        battleStatusActive || isBattleFieldActive;
+
+    debugPrint('[PK_BATTLE_INIT] battle_status check: $battleStatusActive');
+    debugPrint('[PK_BATTLE_INIT] is_battle field check: $isBattleFieldActive');
 
     debugPrint(
         '[PK_BATTLE_INIT] Battle status: ${widget.liveStreaming!.getBattleStatus}');
@@ -955,6 +1007,8 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
 
         // Update local document with server values
         widget.liveStreaming!.setBattleStatus = LiveStreamingModel.battleAlive;
+        widget.liveStreaming!.setBattle =
+            true; // ✅ Set is_battle to true when battle starts
         widget.liveStreaming!.setBattleLiveId = liveId;
         widget.liveStreaming!.setBattleStartTime = battleStartTime;
         widget.liveStreaming!.setMyBattlePoints = 0;
@@ -1082,6 +1136,8 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
                 // 🏁 Update battle status to battle_ended and keep final scores
                 widget.liveStreaming!.setBattleStatus =
                     LiveStreamingModel.battleEnded;
+                widget.liveStreaming!.setBattle =
+                    false; // ✅ Set is_battle to false when battle ends
                 widget.liveStreaming!.save();
                 debugPrint(
                     '[PK_BATTLE_END] ✅ Battle status set to battle_ended | Final scores: My=${showGiftSendersController.myBattlePoints.value}, His=${showGiftSendersController.hisBattlePoints.value}');
@@ -1123,6 +1179,8 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
       }
       // Ensure battle status is ended before saving victories
       widget.liveStreaming!.setBattleStatus = LiveStreamingModel.battleEnded;
+      widget.liveStreaming!.setBattle =
+          false; // ✅ Set is_battle to false when battle ends
       widget.liveStreaming!.save();
       debugPrint('[PK_BATTLE_END] ✅ Victories updated and battle ended');
     }
@@ -1586,260 +1644,279 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
       child: Builder(
         builder: (context) {
           try {
-            return ZegoUIKitPrebuiltLiveStreaming(
-                appID: Setup.zegoLiveStreamAppID,
-                appSign: Setup.zegoLiveStreamAppSign,
-                userID: widget.currentUser!.objectId!,
-                userName: widget.currentUser!.getFullName!,
-                liveID: widget.liveID,
-                events: widget.isHost ? hostEvents : audienceEvents,
-                config: (widget.isHost ? hostConfig : audienceConfig)
-                  ..audioVideoView.useVideoViewAspectFill = true
-                  ..mediaPlayer.supportTransparent = true
-                  ..pkBattle = pkConfig(
-                    liveId: widget.liveID,
-                    pointsWidget: pointsWidget(),
-                    showWinnerAndLoser: Obx(() {
-                      return Visibility(
-                        visible:
-                            showGiftSendersController.showBattleWinner.value,
-                        child: winnerWidget(),
-                      );
-                    }),
-                    victoryWidget: victoryWidget(),
-                  )
-                  ..audioVideoView.backgroundBuilder = (BuildContext context,
-                      Size size, ZegoUIKitUser? user, Map extraInfo) {
-                    return user != null
-                        ? Image.asset(
-                            "assets/images/audio_bg_start.png",
-                            height: size.height,
-                            width: size.width,
-                            fit: BoxFit.fill,
-                          )
-                        : const SizedBox();
-                  }
-                  ..topMenuBar.hostAvatarBuilder = (ZegoUIKitUser? user) {
-                    return user != null
-                        ? Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              ContainerCorner(
-                                height: 37,
-                                borderRadius: 50,
-                                colors: [kVioletColor, earnCashColor],
-                                onTap: () {
-                                  if (user.id != widget.currentUser!.objectId) {
-                                    showUserProfileBottomSheet(
-                                      currentUser: widget.currentUser!,
-                                      userId: user.id,
-                                      context: context,
-                                    );
-                                  }
-                                },
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        ContainerCorner(
-                                          marginRight: 5,
-                                          color: Colors.black.withOpacity(0.5),
-                                          child: QuickActions.avatarWidget(
-                                            widget.liveStreaming!.getAuthor!,
-                                            width: double.infinity,
-                                            height: double.infinity,
-                                          ),
-                                          borderRadius: 50,
-                                          height: 30,
-                                          width: 30,
-                                          borderWidth: 0,
-                                        ),
-                                        Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            ContainerCorner(
-                                              width: 65,
-                                              child: TextScroll(
-                                                widget.liveStreaming!.getAuthor!
-                                                    .getFullName!,
-                                                mode: TextScrollMode.endless,
-                                                velocity: Velocity(
-                                                    pixelsPerSecond:
-                                                        Offset(30, 0)),
-                                                delayBefore:
-                                                    Duration(seconds: 1),
-                                                pauseBetween:
-                                                    Duration(milliseconds: 150),
-                                                style: TextStyle(
-                                                  color: Colors.white,
-                                                  fontSize: 10,
-                                                ),
-                                                textAlign: TextAlign.left,
-                                                selectable: true,
-                                                intervalSpaces: 5,
-                                                numberOfReps: 9999,
-                                              ),
-                                            ),
-                                            ContainerCorner(
-                                              width: 65,
-                                              child: Row(
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: [
-                                                  Padding(
-                                                    padding:
-                                                        const EdgeInsets.only(
-                                                            left: 5),
-                                                    child: Image.asset(
-                                                      "assets/images/grade_welfare.png",
-                                                      height: 12,
-                                                      width: 12,
-                                                    ),
-                                                  ),
-                                                  Obx(() {
-                                                    return TextWithTap(
-                                                      QuickHelp
-                                                          .checkFundsWithString(
-                                                        amount:
-                                                            showGiftSendersController
-                                                                .diamondsCounter
-                                                                .value,
-                                                      ),
-                                                      marginLeft: 5,
-                                                      marginRight: 5,
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                      fontSize: 12,
-                                                      color: Colors.white,
-                                                    );
-                                                  }),
-                                                ],
-                                              ),
-                                            ),
-                                          ],
-                                        )
-                                      ],
-                                    ),
-                                    ContainerCorner(
-                                      marginLeft: 10,
-                                      marginRight: 6,
-                                      color: Colors.white.withOpacity(0.2),
-                                      borderRadius: 50,
-                                      height: 23,
-                                      width: 23,
-                                      child: Padding(
-                                        padding: const EdgeInsets.all(3.0),
-                                        child: Lottie.asset(
-                                            "assets/lotties/ic_live_animation.json"),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              if (!widget.isHost)
+            return Obx(() {
+              // Access isBattleLive.value directly so Obx can track it
+              final isBattleActive =
+                  showGiftSendersController.isBattleLive.value;
+
+              // Create base config
+              final baseConfig = (widget.isHost ? hostConfig : audienceConfig)
+                ..audioVideoView.useVideoViewAspectFill = true
+                ..mediaPlayer.supportTransparent = true;
+
+              // Only set pkBattle when battle is actually active (based on isBattleLive.value)
+              // isBattleLive.value is set by:
+              // 1. initState() - from local battle_status field
+              // 2. _initializeBattleAsync() - from getBattleState cloud function (state['battleActive'])
+              // 3. Periodic refresh - when it detects battleActive: true
+              if (isBattleActive) {
+                baseConfig.pkBattle = pkConfig(
+                  liveId: widget.liveID,
+                  pointsWidget: pointsWidget(),
+                  showWinnerAndLoser: Obx(() {
+                    return Visibility(
+                      visible: showGiftSendersController.showBattleWinner.value,
+                      child: winnerWidget(),
+                    );
+                  }),
+                  victoryWidget: victoryWidget(),
+                );
+              }
+
+              return ZegoUIKitPrebuiltLiveStreaming(
+                  appID: Setup.zegoLiveStreamAppID,
+                  appSign: Setup.zegoLiveStreamAppSign,
+                  userID: widget.currentUser!.objectId!,
+                  userName: widget.currentUser!.getFullName!,
+                  liveID: widget.liveID,
+                  events: widget.isHost ? hostEvents : audienceEvents,
+                  config: baseConfig
+                    ..audioVideoView.backgroundBuilder = (BuildContext context,
+                        Size size, ZegoUIKitUser? user, Map extraInfo) {
+                      return user != null
+                          ? Image.asset(
+                              "assets/images/audio_bg_start.png",
+                              height: size.height,
+                              width: size.width,
+                              fit: BoxFit.fill,
+                            )
+                          : const SizedBox();
+                    }
+                    ..topMenuBar.hostAvatarBuilder = (ZegoUIKitUser? user) {
+                      return user != null
+                          ? Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
                                 ContainerCorner(
-                                  marginLeft: 5,
-                                  height: 30,
-                                  width: 30,
-                                  color: following
-                                      ? Colors.blueAccent
-                                      : kVioletColor,
-                                  child: ContainerCorner(
-                                    color: kTransparentColor,
-                                    height: 30,
-                                    width: 30,
-                                    child: Center(
-                                      child: Icon(
-                                        following ? Icons.done : Icons.add,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                  ),
+                                  height: 37,
                                   borderRadius: 50,
+                                  colors: [kVioletColor, earnCashColor],
                                   onTap: () {
-                                    if (!following) {
-                                      followOrUnfollow();
-                                      //ZegoInRoomMessage.fromBroadcastMessage("")
+                                    if (user.id !=
+                                        widget.currentUser!.objectId) {
+                                      showUserProfileBottomSheet(
+                                        currentUser: widget.currentUser!,
+                                        userId: user.id,
+                                        context: context,
+                                      );
                                     }
                                   },
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          ContainerCorner(
+                                            marginRight: 5,
+                                            color:
+                                                Colors.black.withOpacity(0.5),
+                                            child: QuickActions.avatarWidget(
+                                              widget.liveStreaming!.getAuthor!,
+                                              width: double.infinity,
+                                              height: double.infinity,
+                                            ),
+                                            borderRadius: 50,
+                                            height: 30,
+                                            width: 30,
+                                            borderWidth: 0,
+                                          ),
+                                          Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              ContainerCorner(
+                                                width: 65,
+                                                child: TextScroll(
+                                                  widget.liveStreaming!
+                                                      .getAuthor!.getFullName!,
+                                                  mode: TextScrollMode.endless,
+                                                  velocity: Velocity(
+                                                      pixelsPerSecond:
+                                                          Offset(30, 0)),
+                                                  delayBefore:
+                                                      Duration(seconds: 1),
+                                                  pauseBetween: Duration(
+                                                      milliseconds: 150),
+                                                  style: TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 10,
+                                                  ),
+                                                  textAlign: TextAlign.left,
+                                                  selectable: true,
+                                                  intervalSpaces: 5,
+                                                  numberOfReps: 9999,
+                                                ),
+                                              ),
+                                              ContainerCorner(
+                                                width: 65,
+                                                child: Row(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  children: [
+                                                    Padding(
+                                                      padding:
+                                                          const EdgeInsets.only(
+                                                              left: 5),
+                                                      child: Image.asset(
+                                                        "assets/images/grade_welfare.png",
+                                                        height: 12,
+                                                        width: 12,
+                                                      ),
+                                                    ),
+                                                    Obx(() {
+                                                      return TextWithTap(
+                                                        QuickHelp
+                                                            .checkFundsWithString(
+                                                          amount:
+                                                              showGiftSendersController
+                                                                  .diamondsCounter
+                                                                  .value,
+                                                        ),
+                                                        marginLeft: 5,
+                                                        marginRight: 5,
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        fontSize: 12,
+                                                        color: Colors.white,
+                                                      );
+                                                    }),
+                                                  ],
+                                                ),
+                                              ),
+                                            ],
+                                          )
+                                        ],
+                                      ),
+                                      ContainerCorner(
+                                        marginLeft: 10,
+                                        marginRight: 6,
+                                        color: Colors.white.withOpacity(0.2),
+                                        borderRadius: 50,
+                                        height: 23,
+                                        width: 23,
+                                        child: Padding(
+                                          padding: const EdgeInsets.all(3.0),
+                                          child: Lottie.asset(
+                                              "assets/lotties/ic_live_animation.json"),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                            ],
-                          )
-                        : const SizedBox();
-                  }
-                  ..memberButton.builder = (number) {
-                    return ContainerCorner(
-                      width: 70,
-                      height: 40,
-                      marginRight: 5,
-                      child: Stack(
-                        alignment: Alignment.centerRight,
-                        clipBehavior: Clip.none,
-                        children: [
-                          getTopGifters(),
-                          Positioned(
-                            right: -7,
-                            child: ContainerCorner(
-                              color: Colors.black38,
-                              borderRadius: 50,
-                              child: TextWithTap(
-                                QuickHelp.convertToK(number),
-                                color: Colors.white,
-                                fontWeight: FontWeight.w900,
-                                marginLeft: 3,
-                                marginRight: 3,
-                                fontSize: 10,
+                                if (!widget.isHost)
+                                  ContainerCorner(
+                                    marginLeft: 5,
+                                    height: 30,
+                                    width: 30,
+                                    color: following
+                                        ? Colors.blueAccent
+                                        : kVioletColor,
+                                    child: ContainerCorner(
+                                      color: kTransparentColor,
+                                      height: 30,
+                                      width: 30,
+                                      child: Center(
+                                        child: Icon(
+                                          following ? Icons.done : Icons.add,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ),
+                                    borderRadius: 50,
+                                    onTap: () {
+                                      if (!following) {
+                                        followOrUnfollow();
+                                        //ZegoInRoomMessage.fromBroadcastMessage("")
+                                      }
+                                    },
+                                  ),
+                              ],
+                            )
+                          : const SizedBox();
+                    }
+                    ..memberButton.builder = (number) {
+                      return ContainerCorner(
+                        width: 70,
+                        height: 40,
+                        marginRight: 5,
+                        child: Stack(
+                          alignment: Alignment.centerRight,
+                          clipBehavior: Clip.none,
+                          children: [
+                            getTopGifters(),
+                            Positioned(
+                              right: -7,
+                              child: ContainerCorner(
+                                color: Colors.black38,
+                                borderRadius: 50,
+                                child: TextWithTap(
+                                  QuickHelp.convertToK(number),
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w900,
+                                  marginLeft: 3,
+                                  marginRight: 3,
+                                  fontSize: 10,
+                                ),
                               ),
                             ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }
-                  ..topMenuBar.showCloseButton = !widget.isHost
-                  ..topMenuBar.margin =
-                      EdgeInsets.only(right: widget.isHost ? 30 : 0)
+                          ],
+                        ),
+                      );
+                    }
+                    ..topMenuBar.showCloseButton = !widget.isHost
+                    ..topMenuBar.margin =
+                        EdgeInsets.only(right: widget.isHost ? 30 : 0)
 
-                  /// support minimizing
-                  ..topMenuBar.buttons = [
-                    ZegoLiveStreamingMenuBarButtonName.minimizingButton,
-                  ]
+                    /// support minimizing
+                    ..topMenuBar.buttons = [
+                      ZegoLiveStreamingMenuBarButtonName.minimizingButton,
+                    ]
 
-                  /// custom avatar
-                  ..avatarBuilder = (BuildContext context, Size size,
-                      ZegoUIKitUser? user, Map extraInfo) {
-                    if (user == null) return const SizedBox();
+                    /// custom avatar
+                    ..avatarBuilder = (BuildContext context, Size size,
+                        ZegoUIKitUser? user, Map extraInfo) {
+                      if (user == null) return const SizedBox();
 
-                    return FutureBuilder<String?>(
-                      future: avatarService.fetchUserAvatar(user.id),
-                      builder: (context, snapshot) {
-                        if (user == null) return const SizedBox();
+                      return FutureBuilder<String?>(
+                        future: avatarService.fetchUserAvatar(user.id),
+                        builder: (context, snapshot) {
+                          if (user == null) return const SizedBox();
 
-                        return _getOrCreateAvatarWidget(user.id, size);
-                      },
-                    );
-                  }
-                  ..audioVideoView.showUserNameOnView = true
-                  ..inRoomMessage.notifyUserJoin = true
-                  ..inRoomMessage.notifyUserLeave = true
-                  ..inRoomMessage.showAvatar = true
+                          return _getOrCreateAvatarWidget(user.id, size);
+                        },
+                      );
+                    }
+                    ..audioVideoView.showUserNameOnView = true
+                    ..inRoomMessage.notifyUserJoin = true
+                    ..inRoomMessage.notifyUserLeave = true
+                    ..inRoomMessage.showAvatar = true
 
-                  //Add your UI component here
-                  ..foreground = customUiComponents()
-                  ..background = Image.asset(
-                    "assets/images/live_bg.png",
-                    fit: BoxFit.fill,
-                  )
+                    //Add your UI component here
+                    ..foreground = customUiComponents()
+                    ..background = Image.asset(
+                      "assets/images/live_bg.png",
+                      fit: BoxFit.fill,
+                    )
 
-                /// message attributes example
-                //..inRoomMessage.attributes = userLevelsAttributes
-                //..inRoomMessage.avatarLeadingBuilder = userLevelBuilder,
-                );
+                  /// message attributes example
+                  //..inRoomMessage.attributes = userLevelsAttributes
+                  //..inRoomMessage.avatarLeadingBuilder = userLevelBuilder,
+                  );
+            });
           } catch (e) {
             debugPrint('❌ ZEGO Error: $e');
             // Return a fallback widget if ZEGO fails
