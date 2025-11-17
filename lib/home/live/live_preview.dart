@@ -24,6 +24,7 @@ import '../prebuild_live/multi_users_live_screen.dart';
 import '../prebuild_live/prebuild_live_screen.dart';
 import '../upload_live_photo/upload_live_photo_screen.dart';
 import 'package:flutter/cupertino.dart' as cupertino;
+import 'package:uuid/uuid.dart';
 
 class LivePreviewScreen extends StatefulWidget {
   UserModel? currentUser;
@@ -1049,8 +1050,10 @@ class _LivePreviewScreenState extends State<LivePreviewScreen>
   createLiveFinish() async {
     LiveStreamingModel streamingModel = LiveStreamingModel();
     if (Setup.isDebug) print("Check live 1");
+    final uuid = Uuid();
     streamingModel.setStreamingChannel = widget.currentUser!.objectId! +
         widget.currentUser!.getUid!.toString() +
+        '_${uuid.v4()}' +
         LiveStreamingModel.livePrefixLive;
     if (Setup.isDebug) print("Check live 2");
     streamingModel.setAuthor = widget.currentUser!;
@@ -1198,8 +1201,10 @@ class _LivePreviewScreenState extends State<LivePreviewScreen>
   createLivePartyFinish() async {
     int numberOfChairs = 0;
     LiveStreamingModel streamingModel = LiveStreamingModel();
+    final uuid = Uuid();
     streamingModel.setStreamingChannel = widget.currentUser!.objectId! +
         widget.currentUser!.getUid!.toString() +
+        '_${uuid.v4()}' +
         LiveStreamingModel.livePrefixParty;
 
     streamingModel.setAuthor = widget.currentUser!;

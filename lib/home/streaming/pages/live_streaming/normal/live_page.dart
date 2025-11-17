@@ -29,6 +29,7 @@ import '../../../../../utils/colors.dart';
 import '../../../components/components.dart';
 import '../../../utils/zegocloud_token.dart';
 import '../../../zego_live_streaming_manager.dart';
+import 'package:uuid/uuid.dart';
 // import '../../../zego_sdk_key_center.dart';
 import 'package:zego_uikit_prebuilt_live_streaming/zego_uikit_prebuilt_live_streaming.dart'
     as prebuilt show ZegoUIKitPrebuiltLiveStreamingController;
@@ -845,8 +846,11 @@ class ZegoNormalLivePageState extends State<ZegoNormalLivePage> {
   createLiveFinish() async {
     LiveStreamingModel streamingModel = LiveStreamingModel();
     if (Setup.isDebug) print("Check live 1");
+    final uuid = Uuid();
     streamingModel.setStreamingChannel =
-        widget.currentUser!.objectId! + widget.currentUser!.getUid!.toString();
+        widget.currentUser!.objectId! + 
+        widget.currentUser!.getUid!.toString() + 
+        '_${uuid.v4()}';
     if (Setup.isDebug) print("Check live 2");
     streamingModel.setAuthor = widget.currentUser!;
     if (Setup.isDebug) print("Check live 3");
