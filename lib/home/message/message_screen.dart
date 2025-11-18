@@ -2673,7 +2673,6 @@ class _MessageScreenState extends State<MessageScreen> {
 
   _checkAndSendGift(GiftsModel gift) async {
     if (currentUser!.getCredits! >= gift.getCoins!) {
-      currentUser!.removeCredit = gift.getCoins!;
       ParseResponse saved = await currentUser!.save();
 
       if (saved.success) {
