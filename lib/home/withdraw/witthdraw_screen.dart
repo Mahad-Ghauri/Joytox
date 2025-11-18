@@ -32,7 +32,7 @@ class _WithDrawScreenState extends State<WithDrawScreen> {
   int pCoinPercent = 30;
   int pointPercent = 70;
 
-  int minimumAmountWithdrawal = 100000;
+  int minimumAmountWithdrawal = 10;
   int exchangeRatio = 300;
 
   double pCoinAvailable = 0.0;
@@ -545,7 +545,10 @@ class _WithDrawScreenState extends State<WithDrawScreen> {
                           marginLeft: 20,
                           fontWeight: FontWeight.bold,
                         ),
-                        onPressed: () {
+                        onPressed: () async {
+                          // Close the confirmation dialog first
+                          Navigator.of(context).pop();
+
                           if (widget.currentUser!.getDiamonds! <
                               minimumAmountWithdrawal) {
                             QuickHelp.showAppNotificationAdvanced(
@@ -559,9 +562,8 @@ class _WithDrawScreenState extends State<WithDrawScreen> {
                               }),
                             );
                           } else {
-                            withdrawMoney();
+                            await withdrawMoney();
                           }
-                          QuickHelp.hideLoadingDialog(context);
                         },
                       ),
                     ],
@@ -703,44 +705,160 @@ class _WithDrawScreenState extends State<WithDrawScreen> {
   withdrawMoney() async {
     QuickHelp.showLoadingDialog(context);
 
-    WithdrawModel withdraw = WithdrawModel();
-
-    withdraw.setAuthor = widget.currentUser!;
-    withdraw.setStatus = WithdrawModel.PENDING;
-
-    withdraw.setCompleted = false;
-    withdraw.setMethod = widget.currentUser!.getSelectedPaymentMethod!;
-    withdraw.setDiamonds = widget.currentUser!.getDiamonds!;
-    withdraw.setCredit = widget.currentUser!.getDiamonds! + 0.0;
-    withdraw.setCurrency = WithdrawModel.CURRENCY;
-
-    if (widget.currentUser!.getSelectedPaymentMethod ==
-        WithdrawModel.BnbSmartChain) {
-      withdraw.setWalletAddress = widget.currentUser!.getWalletAddress!;
-    } else if (widget.currentUser!.getSelectedPaymentMethod ==
-        WithdrawModel.PAYPAL) {
-      withdraw.setPayPalName = widget.currentUser!.getPayPalName!;
-      withdraw.setPayPalEmail = widget.currentUser!.getPayPalEmail!;
-    } else if (widget.currentUser!.getSelectedPaymentMethod ==
-        WithdrawModel.USDT) {
-      withdraw.setAddress = widget.currentUser!.getUsdtContactAddress!;
-    } else if (widget.currentUser!.getSelectedPaymentMethod ==
-        WithdrawModel.PAYONEER) {
-      withdraw.setPayoneerName = widget.currentUser!.getPayoneerName!;
-      withdraw.setPayoneerEmail = widget.currentUser!.getPayoneerEmail!;
-    }
-
-    widget.currentUser!.removeDiamonds = widget.currentUser!.getDiamonds!;
-    await widget.currentUser!.save().then((value) async {
-      ParseResponse response = await withdraw.save();
-
-      if (response.success) {
-        setState(() {
-          widget.currentUser = value.results!.first! as UserModel;
-        });
-        QuickHelp.hideLoadingDialog(context, result: widget.currentUser);
-        Navigator.of(context).pop(widget.currentUser);
+    try {
+      // Validate payment method is selected
+      String? selectedMethodNullable =
+          widget.currentUser!.getSelectedPaymentMethod;
+      if (selectedMethodNullable == null) {
+        QuickHelp.hideLoadingDialog(context);
+        QuickHelp.showAppNotificationAdvanced(
+          context: context,
+          title: "error".tr(),
+          message: "Please select a payment method first",
+        );
+        return;
       }
-    });
+
+      // After null check, we know it's not null
+      String selectedMethod = selectedMethodNullable;
+      String? walletAddress;
+      String? paypalEmail;
+      String? paypalName;
+      String? usdtAddress;
+      String? payoneerEmail;
+      String? payoneerName;
+
+      if (selectedMethod == WithdrawModel.BnbSmartChain) {
+        walletAddress = widget.currentUser!.getWalletAddress;
+        if (walletAddress == null || walletAddress.isEmpty) {
+          QuickHelp.hideLoadingDialog(context);
+          QuickHelp.showAppNotificationAdvanced(
+            context: context,
+            title: "error".tr(),
+            message: "Please add your BNB Smart Chain wallet address",
+          );
+          return;
+        }
+      } else if (selectedMethod == WithdrawModel.PAYPAL) {
+        paypalEmail = widget.currentUser!.getPayPalEmail;
+        paypalName = widget.currentUser!.getPayPalName;
+        if (paypalEmail == null || paypalEmail.isEmpty) {
+          QuickHelp.hideLoadingDialog(context);
+          QuickHelp.showAppNotificationAdvanced(
+            context: context,
+            title: "error".tr(),
+            message: "Please add your PayPal email address",
+          );
+          return;
+        }
+      } else if (selectedMethod == WithdrawModel.USDT) {
+        usdtAddress = widget.currentUser!.getUsdtContactAddress;
+        if (usdtAddress == null || usdtAddress.isEmpty) {
+          QuickHelp.hideLoadingDialog(context);
+          QuickHelp.showAppNotificationAdvanced(
+            context: context,
+            title: "error".tr(),
+            message: "Please add your USDT contact address",
+          );
+          return;
+        }
+      } else if (selectedMethod == WithdrawModel.PAYONEER) {
+        payoneerEmail = widget.currentUser!.getPayoneerEmail;
+        payoneerName = widget.currentUser!.getPayoneerName;
+        if (payoneerEmail == null || payoneerEmail.isEmpty) {
+          QuickHelp.hideLoadingDialog(context);
+          QuickHelp.showAppNotificationAdvanced(
+            context: context,
+            title: "error".tr(),
+            message: "Please add your Payoneer email address",
+          );
+          return;
+        }
+      }
+
+      // Validate diamonds
+      int? diamonds = widget.currentUser!.getDiamonds;
+      if (diamonds == null || diamonds < minimumAmountWithdrawal) {
+        QuickHelp.hideLoadingDialog(context);
+        QuickHelp.showAppNotificationAdvanced(
+          context: context,
+          title: "error".tr(),
+          message: "Insufficient diamonds for withdrawal",
+        );
+        return;
+      }
+
+      WithdrawModel withdraw = WithdrawModel();
+
+      withdraw.setAuthor = widget.currentUser!;
+      withdraw.setStatus = WithdrawModel.PENDING;
+      withdraw.setCompleted = false;
+      withdraw.setMethod = selectedMethod;
+      withdraw.setDiamonds = diamonds;
+      withdraw.setCredit = diamonds + 0.0;
+      withdraw.setCurrency = WithdrawModel.CURRENCY;
+
+      // Set payment method specific fields (using validated values)
+      if (selectedMethod == WithdrawModel.BnbSmartChain) {
+        withdraw.setWalletAddress = walletAddress!;
+      } else if (selectedMethod == WithdrawModel.PAYPAL) {
+        withdraw.setPayPalName = paypalName ?? "";
+        withdraw.setPayPalEmail = paypalEmail!;
+      } else if (selectedMethod == WithdrawModel.USDT) {
+        withdraw.setAddress = usdtAddress!;
+      } else if (selectedMethod == WithdrawModel.PAYONEER) {
+        withdraw.setPayoneerName = payoneerName ?? "";
+        withdraw.setPayoneerEmail = payoneerEmail!;
+      }
+
+      widget.currentUser!.removeDiamonds = diamonds;
+      ParseResponse userSaveResponse = await widget.currentUser!.save();
+
+      if (!userSaveResponse.success) {
+        QuickHelp.hideLoadingDialog(context);
+        QuickHelp.showAppNotificationAdvanced(
+          context: context,
+          title: "error".tr(),
+          message: userSaveResponse.error?.message ??
+              "Failed to update user balance",
+        );
+        return;
+      }
+
+      ParseResponse withdrawResponse = await withdraw.save();
+
+      if (withdrawResponse.success) {
+        // Safely get the updated user from response
+        if (userSaveResponse.results != null &&
+            userSaveResponse.results!.isNotEmpty) {
+          setState(() {
+            widget.currentUser = userSaveResponse.results!.first as UserModel;
+          });
+        }
+        QuickHelp.hideLoadingDialog(context);
+        QuickHelp.showAppNotificationAdvanced(
+          context: context,
+          title: "success".tr(),
+          message: "Withdrawal request submitted successfully",
+          isError: false,
+        );
+        Navigator.of(context).pop(widget.currentUser);
+      } else {
+        QuickHelp.hideLoadingDialog(context);
+        QuickHelp.showAppNotificationAdvanced(
+          context: context,
+          title: "error".tr(),
+          message: withdrawResponse.error?.message ??
+              "Failed to submit withdrawal request",
+        );
+      }
+    } catch (e) {
+      QuickHelp.hideLoadingDialog(context);
+      QuickHelp.showAppNotificationAdvanced(
+        context: context,
+        title: "error".tr(),
+        message: "An error occurred: ${e.toString()}",
+      );
+    }
   }
 }

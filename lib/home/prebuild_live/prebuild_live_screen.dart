@@ -1150,6 +1150,7 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
                     // 🧹 Clear points from database after winner display (keep UI showing final scores)
                     widget.liveStreaming!.setMyBattlePoints = 0;
                     widget.liveStreaming!.setHisBattlePoints = 0;
+                    widget.liveStreaming!.setBattleLiveId = "";
                     widget.liveStreaming!.save();
                     debugPrint(
                         '[PK_BATTLE_END] 🧹 Database points cleared after winner display');
