@@ -4,6 +4,15 @@
 // This replaces save_hisBattle_points.js and broadcastPKPoints.js
 // Uses atomic operations with version control to prevent race conditions
 
+const makeStateToken = (channel, stream) => {
+  if (!stream) {
+    return `${channel || "unknown"}_0_0`;
+  }
+  const battleStart = stream.get("battle_start_time") || 0;
+  const version = stream.get("version") || 0;
+  return `${channel}_${battleStart}_${version}`;
+};
+
 Parse.Cloud.define("addPKPoints", async (request) => {
   const { points, liveChannel } = request.params;
   const currentUser = request.user;
@@ -159,12 +168,14 @@ Parse.Cloud.define("addPKPoints", async (request) => {
 
         console.log(`🎉 [ATOMIC] Transaction complete! Returning success.`);
 
+        const stateToken = makeStateToken(liveChannel, myStream);
         return {
           success: true,
           my_points: actualMyPoints,
           his_points: opponentMyPoints,
           attempt: attempt,
           message: "PK points synced atomically",
+          stateToken,
         };
         
       } catch (saveError) {
@@ -187,6 +198,19 @@ Parse.Cloud.define("addPKPoints", async (request) => {
       await new Promise(resolve => setTimeout(resolve, 100 * attempt));
     }
   }
+});
+
+// Legacy compatibility: redirect old clients to the atomic implementation
+Parse.Cloud.define("save_hisBattle_points", async (request) => {
+  console.log(
+    "⚠️ [LEGACY] save_hisBattle_points called, redirecting to addPKPoints",
+  );
+  console.log(`📋 [LEGACY] Params: ${JSON.stringify(request.params)}`);
+  return Parse.Cloud.run(
+    "addPKPoints",
+    request.params,
+    { sessionToken: request.user?.getSessionToken() },
+  );
 });
 
 // ========================================
@@ -252,22 +276,98 @@ Parse.Cloud.define("initializeBattle", async (request) => {
     console.log(`✅ [INIT_BATTLE] Found both streams - My: ${myStream.id}, Opponent: ${opponentStream.id}`);
     
     // Set battle metadata on BOTH documents
+    console.log(`📝 [INIT_BATTLE] Setting fields on MY stream (${myStream.id})...`);
     myStream.set("battle_status", "battle_alive");
     myStream.set("is_battle", true); // ✅ Set is_battle field
     myStream.set("battle_liveID", opponentChannel);
     myStream.set("battle_start_time", currentTime);
     myStream.set("my_points", 0);
     myStream.set("his_points", 0);
+    // Initialize version if not present
+    if (!myStream.get("version")) {
+      myStream.set("version", 1);
+    }
     
+    console.log(`📝 [INIT_BATTLE] Setting fields on OPPONENT stream (${opponentStream.id})...`);
     opponentStream.set("battle_status", "battle_alive");
     opponentStream.set("is_battle", true); // ✅ Set is_battle field
     opponentStream.set("battle_liveID", myChannel);
     opponentStream.set("battle_start_time", currentTime);
     opponentStream.set("my_points", 0);
     opponentStream.set("his_points", 0);
+    // Initialize version if not present
+    if (!opponentStream.get("version")) {
+      opponentStream.set("version", 1);
+    }
+    
+    console.log(`💾 [INIT_BATTLE] Saving both documents atomically...`);
+    console.log(`   MY stream fields before save:`, {
+      battle_status: myStream.get("battle_status"),
+      is_battle: myStream.get("is_battle"),
+      battle_liveID: myStream.get("battle_liveID"),
+      battle_start_time: myStream.get("battle_start_time"),
+      my_points: myStream.get("my_points"),
+      his_points: myStream.get("his_points")
+    });
+    console.log(`   OPPONENT stream fields before save:`, {
+      battle_status: opponentStream.get("battle_status"),
+      is_battle: opponentStream.get("is_battle"),
+      battle_liveID: opponentStream.get("battle_liveID"),
+      battle_start_time: opponentStream.get("battle_start_time"),
+      my_points: opponentStream.get("my_points"),
+      his_points: opponentStream.get("his_points")
+    });
     
     // Save both documents atomically
-    await Parse.Object.saveAll([myStream, opponentStream], { useMasterKey: true });
+    try {
+      await Parse.Object.saveAll([myStream, opponentStream], { useMasterKey: true });
+      console.log(`✅ [INIT_BATTLE] saveAll completed successfully`);
+    } catch (saveError) {
+      console.error(`❌ [INIT_BATTLE] saveAll failed: ${saveError.message}`);
+      console.error(`❌ [INIT_BATTLE] Error code: ${saveError.code}`);
+      console.error(`❌ [INIT_BATTLE] Error stack: ${saveError.stack}`);
+      
+      // Try saving individually as fallback
+      console.log(`🔄 [INIT_BATTLE] Attempting individual saves as fallback...`);
+      try {
+        await myStream.save(null, { useMasterKey: true });
+        console.log(`✅ [INIT_BATTLE] MY stream saved individually`);
+      } catch (myError) {
+        console.error(`❌ [INIT_BATTLE] Failed to save MY stream: ${myError.message}`);
+        throw myError;
+      }
+      
+      try {
+        await opponentStream.save(null, { useMasterKey: true });
+        console.log(`✅ [INIT_BATTLE] OPPONENT stream saved individually`);
+      } catch (oppError) {
+        console.error(`❌ [INIT_BATTLE] Failed to save OPPONENT stream: ${oppError.message}`);
+        throw oppError;
+      }
+    }
+    
+    console.log(`✅ [INIT_BATTLE] Save completed, refetching to verify...`);
+    
+    // Refetch to verify the save was successful
+    await myStream.fetch({ useMasterKey: true });
+    await opponentStream.fetch({ useMasterKey: true });
+    
+    console.log(`✅ [INIT_BATTLE] Verification - MY stream fields after save:`, {
+      battle_status: myStream.get("battle_status"),
+      is_battle: myStream.get("is_battle"),
+      battle_liveID: myStream.get("battle_liveID"),
+      battle_start_time: myStream.get("battle_start_time"),
+      my_points: myStream.get("my_points"),
+      his_points: myStream.get("his_points")
+    });
+    console.log(`✅ [INIT_BATTLE] Verification - OPPONENT stream fields after save:`, {
+      battle_status: opponentStream.get("battle_status"),
+      is_battle: opponentStream.get("is_battle"),
+      battle_liveID: opponentStream.get("battle_liveID"),
+      battle_start_time: opponentStream.get("battle_start_time"),
+      my_points: opponentStream.get("my_points"),
+      his_points: opponentStream.get("his_points")
+    });
     
     console.log(`✅ [INIT_BATTLE] Battle initialized successfully`);
     console.log(`   My: ${myChannel} -> Opponent: ${opponentChannel}`);
@@ -312,20 +412,26 @@ Parse.Cloud.define("getBattleState", async (request) => {
       return { success: false, error: "Stream not found" };
     }
     
-    // Check if battle is active
+    // Check if battle is active - use BOTH battle_status AND is_battle field
+    // This ensures we catch battles even if battle_status is stale
     const battleStatus = myStream.get("battle_status");
-    if (battleStatus !== "battle_alive") {
+    const isBattle = myStream.get("is_battle") === true;
+    const isBattleActive = battleStatus === "battle_alive" || isBattle;
+    
+    if (!isBattleActive) {
       // Battle ended - return FINAL scores, not zeros!
       const finalMyPoints = myStream.get("my_points") || 0;
       const finalHisPoints = myStream.get("his_points") || 0;
       
-      console.log(`ℹ️ [BATTLE_STATE] Battle ended for ${liveChannel} - status: ${battleStatus} | Final: My=${finalMyPoints}, His=${finalHisPoints}`);
+      console.log(`ℹ️ [BATTLE_STATE] Battle ended for ${liveChannel} - status: ${battleStatus}, is_battle: ${isBattle} | Final: My=${finalMyPoints}, His=${finalHisPoints}`);
+      const stateToken = makeStateToken(liveChannel, myStream);
       return { 
         success: true, 
         battleActive: false,
         my_points: finalMyPoints,
         his_points: finalHisPoints,
-        battleEnded: true
+        battleEnded: true,
+        stateToken,
       };
     }
     
@@ -359,6 +465,7 @@ Parse.Cloud.define("getBattleState", async (request) => {
     
     console.log(`✅ [BATTLE_STATE] Battle found | My: ${myPoints}, His: ${hisPoints}, Opponent's My: ${opponentMyPoints}, StartTime: ${battleStartTime}`);
     
+    const stateToken = makeStateToken(liveChannel, myStream);
     return {
       success: true,
       battleActive: true,
@@ -368,7 +475,8 @@ Parse.Cloud.define("getBattleState", async (request) => {
       battle_start_time: battleStartTime,
       my_channel: liveChannel,
       opponent_channel: opponentChannel,
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      stateToken,
     };
     
   } catch (error) {

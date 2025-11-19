@@ -8,6 +8,7 @@ import 'package:fade_shimmer/fade_shimmer.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:get/get.dart' hide Trans;
 import 'package:get/get_state_manager/src/rx_flutter/rx_obx_widget.dart';
 import 'package:get/instance_manager.dart';
 import 'package:lottie/lottie.dart';
@@ -52,7 +53,6 @@ import 'gift/gift_data.dart';
 import 'gift/gift_manager/defines.dart';
 import 'gift/gift_manager/gift_manager.dart';
 import 'package:easy_localization/easy_localization.dart';
-import 'package:flex_color_picker/flex_color_picker.dart';
 
 import 'global_private_live_price_sheet.dart';
 import 'global_user_profil_sheet.dart';
@@ -131,14 +131,174 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
   int myBattlePoint = 0;
   int hisBattlePoint = 0;
 
+  String? _activeStreamObjectId;
+  String? _activeStreamChannel;
+  int _activeBattleStartTime = 0;
+  int _streamGeneration = 0;
+  String _activeChannelToken = '';
+  String? _latestServerStateToken;
+
+  // Host metadata readiness flag - ensures Zego only builds after author data is loaded
+  bool _hostMetadataReady = false;
+  Future<void>? _hostMetadataFuture;
+
+  // Battle state initialization flag - ensures Zego only builds after initial battle state check completes
+  // Made reactive so Obx() can track it and rebuild when it changes
+  RxBool _battleStateInitialized = false.obs;
+  Timer? _battleStateInitTimeout;
+
+  void _captureActiveStreamSnapshot(
+      {String reason = '', bool refreshToken = true}) {
+    _activeStreamObjectId = widget.liveStreaming?.objectId;
+    _activeStreamChannel = widget.liveStreaming?.getStreamingChannel;
+    _activeBattleStartTime = widget.liveStreaming?.getBattleStartTime ?? 0;
+    if (refreshToken) {
+      _streamGeneration++;
+      _activeChannelToken =
+          '${_activeStreamObjectId ?? ''}_${_activeStreamChannel ?? ''}_${_activeBattleStartTime}_$_streamGeneration';
+      debugPrint(
+          '[PK_BATTLE_TOKEN] 🔄 Token refreshed (reason: $reason) => $_activeChannelToken');
+    } else {
+      debugPrint(
+          '[PK_BATTLE_TOKEN] ℹ️ Snapshot updated without token bump (reason: $reason)');
+    }
+  }
+
+  bool _isTokenCurrent(String token) => token == _activeChannelToken;
+
+  bool _matchesActiveStream({String? objectId, String? channel}) {
+    if (objectId != null && _activeStreamObjectId != null) {
+      if (objectId != _activeStreamObjectId) {
+        return false;
+      }
+    }
+    if (channel != null && _activeStreamChannel != null) {
+      if (channel != _activeStreamChannel) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  void _resetServerStateToken() {
+    _latestServerStateToken = null;
+  }
+
+  void _updateServerStateToken(String? token) {
+    if (token == null) return;
+    if (_latestServerStateToken == token) {
+      return;
+    }
+    _latestServerStateToken = token;
+    debugPrint('[PK_BATTLE_TOKEN] 💾 Updated server state token: $token');
+  }
+
+  bool _isServerTokenForActiveChannel(String? token) {
+    if (token == null) {
+      return true;
+    }
+    if (_activeStreamChannel == null) {
+      return true;
+    }
+    return token.startsWith('${_activeStreamChannel}_');
+  }
+
+  bool _shouldAbortForToken(String token, String context) {
+    final stillValid = _isTokenCurrent(token);
+    if (!stillValid) {
+      debugPrint(
+          '[PK_BATTLE_TOKEN] ⚠️ Ignoring $context because token changed ($token ≠ $_activeChannelToken)');
+    }
+    return !stillValid;
+  }
+
+  bool _ensureActiveContext(String token, String context,
+      {String? objectId, String? channel}) {
+    if (_shouldAbortForToken(token, context)) {
+      return false;
+    }
+    if (objectId != null && _activeStreamObjectId != null) {
+      if (objectId != _activeStreamObjectId) {
+        debugPrint(
+            '[PK_BATTLE_TOKEN] ⚠️ Ignoring $context due to objectId mismatch ($objectId ≠ $_activeStreamObjectId)');
+        return false;
+      }
+    }
+    if (channel != null && _activeStreamChannel != null) {
+      if (channel != _activeStreamChannel) {
+        debugPrint(
+            '[PK_BATTLE_TOKEN] ⚠️ Ignoring $context due to channel mismatch ($channel ≠ $_activeStreamChannel)');
+        return false;
+      }
+    }
+    if (!mounted) {
+      debugPrint(
+          '[PK_BATTLE_TOKEN] ⚠️ Ignoring $context because widget unmounted');
+      return false;
+    }
+    return true;
+  }
+
+  Future<void> _leavePreviousRoomIfNeeded() async {
+    try {
+      ZegoUIKitPrebuiltLiveStreamingController().minimize.hide();
+      debugPrint(
+          '[PK_BATTLE_SYNC] ✅ Minimize.hide() invoked to ensure previous room is dismissed');
+    } catch (e) {
+      debugPrint('[PK_BATTLE_SYNC] ⚠️ Failed to leave previous room: $e');
+    }
+  }
+
   // Async initialization for viewers joining active battles
   Future<void> _initializeBattleAsync() async {
-    // 🎯 ALWAYS check server state first - don't rely on potentially stale local data
+    final invocationToken = _activeChannelToken;
+    final expectedObjectId = widget.liveStreaming?.objectId;
+    // 🚨 CRITICAL: Early null and mounted checks to prevent crashes during stream switches
+    if (widget.liveStreaming == null || !mounted) {
+      debugPrint(
+          '[PK_BATTLE_SYNC] ⚠️ _initializeBattleAsync() cancelled - widget.liveStreaming is null or widget not mounted');
+      return;
+    }
+
+    // 🚨 CRITICAL: Track objectId to ensure we're working with the correct stream
+    final initialObjectId = widget.liveStreaming!.objectId;
+    final initialChannel = widget.liveStreaming!.getStreamingChannel;
+
+    debugPrint('[PK_BATTLE_SYNC] 🔄 ========== INITIALIZING BATTLE ==========');
+    debugPrint('[PK_BATTLE_SYNC] 📍 Initial objectId: $initialObjectId');
+    debugPrint('[PK_BATTLE_SYNC] 📍 Initial channel: $initialChannel');
+
+    // 🚨 CRITICAL: Fetch fresh data FIRST before any checks
+    // This ensures we never use stale data from navigation
+    debugPrint(
+        '[PK_BATTLE_SYNC] 🔄 Fetching fresh data FIRST before battle state check...');
+    await _fetchFreshBattleData();
+    if (!_ensureActiveContext(
+        invocationToken, '_initializeBattleAsync_post_fetch',
+        objectId: expectedObjectId)) {
+      return;
+    }
+
+    // 🎯 CRITICAL: Verify objectId hasn't changed (shouldn't happen, but safety check)
+    final afterFetchObjectId = widget.liveStreaming!.objectId;
+    if (afterFetchObjectId != initialObjectId) {
+      debugPrint('[PK_BATTLE_SYNC] ⚠️ WARNING: objectId changed during fetch!');
+      debugPrint('[PK_BATTLE_SYNC]    Before: $initialObjectId');
+      debugPrint('[PK_BATTLE_SYNC]    After: $afterFetchObjectId');
+    }
+
+    debugPrint(
+        '[PK_BATTLE_SYNC] ✅ Fresh data fetched, now checking server state');
+    debugPrint('[PK_BATTLE_SYNC] 📍 Current objectId: $afterFetchObjectId');
+    debugPrint(
+        '[PK_BATTLE_SYNC] 📍 Current channel: ${widget.liveStreaming!.getStreamingChannel}');
+
+    // 🎯 ALWAYS check server state - use fresh data, not potentially stale local data
     // This is critical for users entering streams after battle restarts
     debugPrint(
-        '[PK_BATTLE_SYNC] 🔍 Checking server battle state (ignoring local cache)...');
+        '[PK_BATTLE_SYNC] 🔍 Checking server battle state with fresh data...');
 
-    // STEP 1: Call cloud function to get authoritative battle state FIRST
+    // STEP 1: Call cloud function to get authoritative battle state
     try {
       debugPrint(
           '[PK_BATTLE_SYNC] 🔍 Calling getBattleState cloud function...');
@@ -146,11 +306,28 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
       ParseResponse battleStateResponse = await QuickCloudCode.getBattleState(
         liveChannel: widget.liveStreaming!.getStreamingChannel!,
       );
+      if (!_ensureActiveContext(
+          invocationToken, '_initializeBattleAsync_getBattleState',
+          objectId: expectedObjectId)) {
+        return;
+      }
 
       if (battleStateResponse.success && battleStateResponse.result != null) {
         final state = battleStateResponse.result as Map<String, dynamic>;
+        final stateToken = state['stateToken'] as String?;
+        if (!_isServerTokenForActiveChannel(stateToken)) {
+          debugPrint(
+              '[PK_BATTLE_SYNC] ⚠️ Ignoring battle state (token channel mismatch)');
+          return;
+        }
+        _updateServerStateToken(stateToken);
 
         if (state['battleActive'] == true) {
+          if (!_ensureActiveContext(
+              invocationToken, '_initializeBattleAsync_state_active',
+              objectId: expectedObjectId)) {
+            return;
+          }
           final serverMyPoints = state['my_points'] ?? 0;
           final serverHisPoints = state['his_points'] ?? 0;
           final battleStartTime = state['battle_start_time'] ?? 0;
@@ -161,6 +338,48 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
               '[PK_BATTLE_SYNC]    My: $serverMyPoints, His: $serverHisPoints');
           debugPrint(
               '[PK_BATTLE_SYNC]    Start: $battleStartTime, Opponent: $opponentChannel');
+
+          // 🚨 CRITICAL: Store opponent channel for Zego PK system
+          // Zego needs to know about the opponent to populate hosts list
+          if (opponentChannel.isNotEmpty) {
+            widget.liveStreaming!.setBattleLiveId = opponentChannel;
+            debugPrint(
+                '[PK_BATTLE_SYNC] 💾 Stored opponent channel: $opponentChannel');
+
+            // 🚨 CRITICAL: Query opponent stream to get opponent host info
+            // This helps us understand why Zego's hosts list might be empty
+            try {
+              QueryBuilder<LiveStreamingModel> opponentQuery =
+                  QueryBuilder<LiveStreamingModel>(LiveStreamingModel());
+              opponentQuery.whereEqualTo(
+                  LiveStreamingModel.keyStreamingChannel, opponentChannel);
+              opponentQuery.includeObject([LiveStreamingModel.keyAuthor]);
+              opponentQuery.setLimit(1);
+
+              ParseResponse opponentResponse = await opponentQuery.query();
+              if (opponentResponse.success &&
+                  opponentResponse.results != null) {
+                final opponentStream =
+                    opponentResponse.results!.first as LiveStreamingModel;
+                await opponentStream.getAuthor?.fetch();
+                final opponentAuthorId = opponentStream.getAuthorId ?? '';
+                final opponentAuthorName =
+                    opponentStream.getAuthor?.getFullName ?? 'Unknown';
+                debugPrint(
+                    '[PK_BATTLE_SYNC] 🔍 Opponent stream found - Author ID: $opponentAuthorId, Name: $opponentAuthorName');
+                debugPrint(
+                    '[PK_BATTLE_SYNC] ⚠️ NOTE: Zego PK system may not populate hosts for viewers joining mid-battle');
+                debugPrint(
+                    '[PK_BATTLE_SYNC] ⚠️ Hosts list relies on Zego signaling (sendRequest/acceptRequest) which already completed');
+              } else {
+                debugPrint(
+                    '[PK_BATTLE_SYNC] ⚠️ Could not fetch opponent stream: ${opponentResponse.error?.message}');
+              }
+            } catch (e) {
+              debugPrint(
+                  '[PK_BATTLE_SYNC] ⚠️ Error querying opponent stream: $e');
+            }
+          }
 
           // Update local document with authoritative server values
           widget.liveStreaming!.setMyBattlePoints = serverMyPoints;
@@ -179,42 +398,142 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
           showGiftSendersController.hisBattlePoints.value = serverHisPoints;
 
           // 🚨 CRITICAL: Set battle UI visibility flag based on SERVER state
+          final oldValue = showGiftSendersController.isBattleLive.value;
           showGiftSendersController.isBattleLive.value = true;
+          debugPrint(
+              '[PK_BATTLE_SYNC] 🔄 isBattleLive.value changed: $oldValue → true (triggered by: _initializeBattleAsync - getBattleState success)');
 
           debugPrint(
               '[PK_BATTLE_SYNC] ✅ UI controllers updated with server values');
           debugPrint('[PK_BATTLE_SYNC] ✅ Battle UI visibility enabled');
+
+          // 🚨 CRITICAL: Force widget rebuild to ensure Obx() reacts to the change
+          // This ensures pkConfig is created immediately for viewers entering active battles
+          if (mounted) {
+            setState(() {
+              debugPrint(
+                  '[PK_BATTLE_SYNC] 🔄 setState() called to force rebuild (viewer entering active battle)');
+            });
+          }
         } else {
           debugPrint('[PK_BATTLE_SYNC] ⚠️ Battle not active on server');
           // Update local state to match server
           widget.liveStreaming!.setBattle = false; // ✅ Set is_battle to false
           await widget.liveStreaming!.save();
+          final oldValue = showGiftSendersController.isBattleLive.value;
           showGiftSendersController.isBattleLive.value = false;
+          debugPrint(
+              '[PK_BATTLE_SYNC] 🔄 isBattleLive.value changed: $oldValue → false (triggered by: _initializeBattleAsync - battle not active)');
+          // Mark initialization as complete
+          if (mounted) {
+            _battleStateInitialized.value = true;
+            _battleStateInitTimeout?.cancel();
+            _battleStateInitTimeout = null;
+            debugPrint(
+                '[PK_BATTLE_INIT] ✅ Battle state initialization completed (battle not active)');
+            setState(() {}); // Trigger rebuild to show Zego widget
+          }
           return;
         }
       } else {
+        // Cloud function failed - refetch fresh data and check again
         debugPrint(
-            '[PK_BATTLE_SYNC] ⚠️ getBattleState failed, using local fetch: ${battleStateResponse.error?.message}');
-        // Fallback: check local data if server check fails
-        if (widget.liveStreaming!.getBattleStatus ==
-            LiveStreamingModel.battleAlive) {
+            '[PK_BATTLE_SYNC] ⚠️ getBattleState failed, refetching fresh data: ${battleStateResponse.error?.message}');
+        await _fetchFreshBattleData();
+        if (!_ensureActiveContext(
+            invocationToken, '_initializeBattleAsync_fallback_fetch',
+            objectId: expectedObjectId)) {
+          return;
+        }
+
+        // Use fresh data to determine battle state
+        final freshBattleStatus = widget.liveStreaming!.getBattleStatus ==
+            LiveStreamingModel.battleAlive;
+        final freshIsBattle = widget.liveStreaming!.getBattle == true;
+
+        if (freshBattleStatus || freshIsBattle) {
+          debugPrint(
+              '[PK_BATTLE_SYNC] ✅ Fresh data shows battle active, enabling UI');
+          final oldValue = showGiftSendersController.isBattleLive.value;
           showGiftSendersController.isBattleLive.value = true;
-          await _fetchFreshBattleData();
+          debugPrint(
+              '[PK_BATTLE_SYNC] 🔄 isBattleLive.value changed: $oldValue → true (triggered by: _initializeBattleAsync - cloud function failed, fresh data check)');
+
+          // 🚨 CRITICAL: Force widget rebuild to ensure Obx() reacts to the change
+          // This ensures pkConfig is created when cloud function fails but fresh data shows battle active
+          if (mounted) {
+            setState(() {
+              debugPrint(
+                  '[PK_BATTLE_SYNC] 🔄 setState() called to force rebuild (fallback path - fresh data shows battle active)');
+            });
+          }
         } else {
+          debugPrint(
+              '[PK_BATTLE_SYNC] ⚠️ Fresh data shows no battle, disabling UI');
+          final oldValue = showGiftSendersController.isBattleLive.value;
           showGiftSendersController.isBattleLive.value = false;
+          debugPrint(
+              '[PK_BATTLE_SYNC] 🔄 isBattleLive.value changed: $oldValue → false (triggered by: _initializeBattleAsync - cloud function failed, fresh data check)');
+          // Mark initialization as complete
+          if (mounted) {
+            _battleStateInitialized.value = true;
+            _battleStateInitTimeout?.cancel();
+            _battleStateInitTimeout = null;
+            debugPrint(
+                '[PK_BATTLE_INIT] ✅ Battle state initialization completed (cloud function failed, no battle)');
+            setState(() {}); // Trigger rebuild to show Zego widget
+          }
           return;
         }
       }
     } catch (e) {
+      // Error occurred - refetch fresh data and check again
       debugPrint(
-          '[PK_BATTLE_SYNC] ❌ getBattleState error: $e, using local fetch');
-      // Fallback: check local data if server check fails
-      if (widget.liveStreaming!.getBattleStatus ==
-          LiveStreamingModel.battleAlive) {
+          '[PK_BATTLE_SYNC] ❌ getBattleState error: $e, refetching fresh data');
+      await _fetchFreshBattleData();
+      if (!_ensureActiveContext(
+          invocationToken, '_initializeBattleAsync_exception_fetch',
+          objectId: expectedObjectId)) {
+        return;
+      }
+
+      // Use fresh data to determine battle state
+      final freshBattleStatus = widget.liveStreaming!.getBattleStatus ==
+          LiveStreamingModel.battleAlive;
+      final freshIsBattle = widget.liveStreaming!.getBattle == true;
+
+      if (freshBattleStatus || freshIsBattle) {
+        debugPrint(
+            '[PK_BATTLE_SYNC] ✅ Fresh data shows battle active, enabling UI');
+        final oldValue = showGiftSendersController.isBattleLive.value;
         showGiftSendersController.isBattleLive.value = true;
-        await _fetchFreshBattleData();
+        debugPrint(
+            '[PK_BATTLE_SYNC] 🔄 isBattleLive.value changed: $oldValue → true (triggered by: _initializeBattleAsync - exception handler, fresh data check)');
+
+        // 🚨 CRITICAL: Force widget rebuild to ensure Obx() reacts to the change
+        // This ensures pkConfig is created when exception occurs but fresh data shows battle active
+        if (mounted) {
+          setState(() {
+            debugPrint(
+                '[PK_BATTLE_SYNC] 🔄 setState() called to force rebuild (exception handler - fresh data shows battle active)');
+          });
+        }
       } else {
+        debugPrint(
+            '[PK_BATTLE_SYNC] ⚠️ Fresh data shows no battle, disabling UI');
+        final oldValue = showGiftSendersController.isBattleLive.value;
         showGiftSendersController.isBattleLive.value = false;
+        debugPrint(
+            '[PK_BATTLE_SYNC] 🔄 isBattleLive.value changed: $oldValue → false (triggered by: _initializeBattleAsync - exception handler, fresh data check)');
+        // Mark initialization as complete
+        if (mounted) {
+          _battleStateInitialized.value = true;
+          _battleStateInitTimeout?.cancel();
+          _battleStateInitTimeout = null;
+          debugPrint(
+              '[PK_BATTLE_INIT] ✅ Battle state initialization completed (exception handler, no battle)');
+          setState(() {}); // Trigger rebuild to show Zego widget
+        }
         return;
       }
     }
@@ -223,6 +542,15 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
     if (!showGiftSendersController.isBattleLive.value) {
       debugPrint(
           '[PK_BATTLE_SYNC] ⚠️ Battle not active, skipping initialization');
+      // Mark initialization as complete even if battle is not active
+      if (mounted) {
+        _battleStateInitialized.value = true;
+        _battleStateInitTimeout?.cancel();
+        _battleStateInitTimeout = null;
+        debugPrint(
+            '[PK_BATTLE_INIT] ✅ Battle state initialization completed (no battle)');
+        setState(() {}); // Trigger rebuild to show Zego widget
+      }
       return;
     }
 
@@ -245,9 +573,15 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
         '[PK_BATTLE_SYNC] 📍 Watching document: ${widget.liveStreaming!.objectId} (${widget.liveStreaming!.getAuthor?.getFullName})');
 
     // STEP 4: Initialize PointsController with debounced updates
+    final pointsListenerToken = _activeChannelToken;
     PointsController.initialize(
       widget.liveID,
       (myPoints, hisPoints) {
+        if (!_ensureActiveContext(
+            pointsListenerToken, 'points_controller_update',
+            objectId: expectedObjectId)) {
+          return;
+        }
         _updatePointsWithDebounce(myPoints, hisPoints, 'ZEGO_COMMAND');
         debugPrint(
             '🎯 [VIEWER] Points updated via command - My: $myPoints, His: $hisPoints');
@@ -268,23 +602,76 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
 
     // STEP 7: 🔄 Start periodic refresh for everyone (safety net)
     _startViewerPeriodicRefresh();
+
+    // STEP 8: Mark battle state initialization as complete
+    // 🚨 CRITICAL: Add small delay to allow Zego's PK system to connect and populate hosts list
+    // This prevents builders from being called with empty hosts list immediately after Zego builds
+    // Reduced delay to 500ms - enough for PK connection but faster than before
+    if (mounted) {
+      Future.delayed(Duration(milliseconds: 500), () {
+        if (mounted) {
+          _battleStateInitialized.value = true;
+          _battleStateInitTimeout?.cancel();
+          _battleStateInitTimeout = null;
+          debugPrint(
+              '[PK_BATTLE_INIT] ✅ Battle state initialization completed (battle active) - allowing Zego PK system to connect');
+          setState(() {}); // Trigger rebuild to show Zego widget with pkConfig
+        }
+      });
+    }
   }
 
   // Periodic refresh for everyone (every 1.5 seconds as safety net)
   void _startViewerPeriodicRefresh() {
     _viewerRefreshTimer?.cancel();
 
+    // 🚨 CRITICAL: Capture the current channel when timer starts
+    // This prevents race condition where timer uses stale channel after stream switch
+    final capturedChannel = widget.liveStreaming?.getStreamingChannel;
+    if (capturedChannel == null || capturedChannel.isEmpty) {
+      debugPrint(
+          '[PK_BATTLE_SYNC] ⚠️ Cannot start periodic refresh - no channel');
+      return;
+    }
+    final invocationToken = _activeChannelToken;
+
     debugPrint(
         '[PK_BATTLE_SYNC] 🔄 Starting periodic refresh for everyone (every 1.5s)');
+    debugPrint('[PK_BATTLE_SYNC] 📍 Captured channel: $capturedChannel');
 
     _viewerRefreshTimer =
         Timer.periodic(Duration(milliseconds: 1500), (timer) async {
-      // Refresh if battle is active (check timer OR is_battle field)
-      // This ensures periodic refresh runs even if timer isn't initialized yet
+      if (!_ensureActiveContext(invocationToken, 'viewer_refresh_tick',
+          channel: capturedChannel)) {
+        timer.cancel();
+        _viewerRefreshTimer = null;
+        return;
+      }
+      // 🚨 CRITICAL: Validate channel hasn't changed (stream switch detected)
+      if (!mounted || widget.liveStreaming == null) {
+        debugPrint(
+            '[PK_BATTLE_SYNC] ⚠️ Stream disposed or null, cancelling timer');
+        timer.cancel();
+        _viewerRefreshTimer = null;
+        return;
+      }
+
+      final currentChannel = widget.liveStreaming!.getStreamingChannel;
+      if (currentChannel != capturedChannel) {
+        debugPrint(
+            '[PK_BATTLE_SYNC] ⚠️ Channel mismatch detected - stream switched!');
+        debugPrint('[PK_BATTLE_SYNC]    Captured: $capturedChannel');
+        debugPrint('[PK_BATTLE_SYNC]    Current: $currentChannel');
+        debugPrint('[PK_BATTLE_SYNC] 🛑 Cancelling timer - wrong stream');
+        timer.cancel();
+        _viewerRefreshTimer = null;
+        return;
+      }
+
+      // Refresh if battle timer is active (use timer, not stale is_battle field)
+      // Cloud function will determine actual battle state
       final battleTimerActive = showGiftSendersController.battleTimer.value > 0;
-      final isBattleFieldActive = widget.liveStreaming!.getBattle == true;
-      final shouldRefresh =
-          (battleTimerActive || isBattleFieldActive) && mounted;
+      final shouldRefresh = battleTimerActive && mounted;
 
       if (shouldRefresh) {
         debugPrint('[PK_BATTLE_SYNC] 🔄 ═══ Periodic refresh executing ═══');
@@ -292,13 +679,56 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
             '[PK_BATTLE_SYNC] Timer value: ${showGiftSendersController.battleTimer.value}');
         debugPrint(
             '[PK_BATTLE_SYNC] Current UI: My=${showGiftSendersController.myBattlePoints.value}, His=${showGiftSendersController.hisBattlePoints.value}');
+        debugPrint(
+            '[PK_BATTLE_SYNC] 📍 Using captured channel: $capturedChannel');
 
         try {
           // Use cloud function for authoritative state (more reliable than direct DB query)
+          // 🚨 CRITICAL: Use captured channel, not widget.liveStreaming (which might be stale)
           ParseResponse battleStateResponse =
               await QuickCloudCode.getBattleState(
-            liveChannel: widget.liveStreaming!.getStreamingChannel!,
+            liveChannel: capturedChannel,
           );
+          final battleResult =
+              battleStateResponse.result as Map<String, dynamic>?;
+          final stateToken = battleResult?['stateToken'] as String?;
+          if (!_isServerTokenForActiveChannel(stateToken)) {
+            debugPrint(
+                '[PK_BATTLE_SYNC] ⚠️ Ignoring periodic refresh (token mismatch)');
+            timer.cancel();
+            _viewerRefreshTimer = null;
+            return;
+          }
+          _updateServerStateToken(stateToken);
+          if (!_ensureActiveContext(
+              invocationToken, 'viewer_refresh_post_cloud',
+              channel: capturedChannel)) {
+            timer.cancel();
+            _viewerRefreshTimer = null;
+            return;
+          }
+
+          // 🚨 CRITICAL: Re-validate after async operation - widget might be disposed or stream switched
+          if (!mounted || widget.liveStreaming == null) {
+            debugPrint(
+                '[PK_BATTLE_SYNC] ⚠️ Widget disposed during async call, cancelling timer');
+            timer.cancel();
+            _viewerRefreshTimer = null;
+            return;
+          }
+
+          final currentChannelAfterAwait =
+              widget.liveStreaming!.getStreamingChannel;
+          if (currentChannelAfterAwait != capturedChannel) {
+            debugPrint(
+                '[PK_BATTLE_SYNC] ⚠️ Channel changed during async call - stream switched!');
+            debugPrint('[PK_BATTLE_SYNC]    Captured: $capturedChannel');
+            debugPrint(
+                '[PK_BATTLE_SYNC]    Current: $currentChannelAfterAwait');
+            timer.cancel();
+            _viewerRefreshTimer = null;
+            return;
+          }
 
           debugPrint(
               '[PK_BATTLE_SYNC] 📥 getBattleState response: success=${battleStateResponse.success}, hasResult=${battleStateResponse.result != null}');
@@ -313,6 +743,25 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
             final state = battleStateResponse.result as Map<String, dynamic>;
 
             if (state['battleActive'] == true) {
+              // 🚨 CRITICAL: Final validation before updating UI - ensure we're still on correct stream
+              if (!mounted || widget.liveStreaming == null) {
+                debugPrint(
+                    '[PK_BATTLE_SYNC] ⚠️ Widget disposed before UI update, cancelling');
+                timer.cancel();
+                _viewerRefreshTimer = null;
+                return;
+              }
+
+              final finalChannelCheck =
+                  widget.liveStreaming!.getStreamingChannel;
+              if (finalChannelCheck != capturedChannel) {
+                debugPrint(
+                    '[PK_BATTLE_SYNC] ⚠️ Channel changed before UI update - stream switched!');
+                timer.cancel();
+                _viewerRefreshTimer = null;
+                return;
+              }
+
               final serverMyPoints = state['my_points'] ?? 0;
               final serverHisPoints = state['his_points'] ?? 0;
 
@@ -321,15 +770,40 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
 
               // 🚨 CRITICAL: Ensure isBattleLive is true when battle is active
               // This ensures the battle UI appears even if _initializeBattleAsync() hasn't completed yet
-              if (!showGiftSendersController.isBattleLive.value) {
+              // Only update if still mounted
+              if (mounted && !showGiftSendersController.isBattleLive.value) {
                 debugPrint(
                     '[PK_BATTLE_SYNC] 🔄 Periodic refresh: Enabling battle UI (battleActive detected)');
+                final oldValue = showGiftSendersController.isBattleLive.value;
                 showGiftSendersController.isBattleLive.value = true;
+                debugPrint(
+                    '[PK_BATTLE_SYNC] 🔄 isBattleLive.value changed: $oldValue → true (triggered by: periodic refresh - battleActive detected)');
+              }
+
+              // 🚨 CRITICAL: PK Config Watchdog - ensure pkConfig is applied when battle is active
+              // This prevents white screen when battle stays active but pkConfig was lost (e.g., after reconnection)
+              if (mounted &&
+                  showGiftSendersController.isBattleLive.value &&
+                  _hostMetadataReady &&
+                  widget.liveID.isNotEmpty) {
+                // Force rebuild to ensure pkConfig is re-applied if it was lost
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) {
+                    setState(() {
+                      debugPrint(
+                          '[PK_BATTLE_UI] 🔄 Watchdog: Forcing rebuild to ensure pkConfig is applied');
+                    });
+                  }
+                });
               }
 
               // ALWAYS update UI controllers with fresh server data
-              showGiftSendersController.myBattlePoints.value = serverMyPoints;
-              showGiftSendersController.hisBattlePoints.value = serverHisPoints;
+              // Only update if still mounted and on correct stream
+              if (mounted) {
+                showGiftSendersController.myBattlePoints.value = serverMyPoints;
+                showGiftSendersController.hisBattlePoints.value =
+                    serverHisPoints;
+              }
 
               // Update tracking variables
               _lastMyPoints = serverMyPoints;
@@ -338,53 +812,55 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
               debugPrint(
                   '[PK_BATTLE_SYNC] ✅ UI updated - My: $serverMyPoints, His: $serverHisPoints');
             } else {
-              // Fallback: Check is_battle field if cloud function says battle is not active
-              // This handles cases where cloud function is slow or returns incorrect state
-              if (widget.liveStreaming!.getBattle == true) {
-                debugPrint(
-                    '[PK_BATTLE_SYNC] 🔄 Periodic refresh: Cloud function says no battle, but is_battle=true, enabling battle UI');
-                showGiftSendersController.isBattleLive.value = true;
-              }
               // Battle ended - preserve final scores!
-              if (state['battleEnded'] == true) {
-                final finalMyPoints = state['my_points'] ?? 0;
-                final finalHisPoints = state['his_points'] ?? 0;
+              // 🚨 CRITICAL: Validate before updating UI
+              if (mounted && widget.liveStreaming != null) {
+                final finalChannelCheck =
+                    widget.liveStreaming!.getStreamingChannel;
+                if (finalChannelCheck == capturedChannel) {
+                  if (state['battleEnded'] == true) {
+                    final finalMyPoints = state['my_points'] ?? 0;
+                    final finalHisPoints = state['his_points'] ?? 0;
 
-                debugPrint(
-                    '[PK_BATTLE_SYNC] 🏁 Battle ended - preserving final scores: My=$finalMyPoints, His=$finalHisPoints');
+                    debugPrint(
+                        '[PK_BATTLE_SYNC] 🏁 Battle ended - preserving final scores: My=$finalMyPoints, His=$finalHisPoints');
 
-                // Update UI with FINAL scores
-                showGiftSendersController.myBattlePoints.value = finalMyPoints;
-                showGiftSendersController.hisBattlePoints.value =
-                    finalHisPoints;
+                    // Update UI with FINAL scores
+                    showGiftSendersController.myBattlePoints.value =
+                        finalMyPoints;
+                    showGiftSendersController.hisBattlePoints.value =
+                        finalHisPoints;
 
-                // Update database
-                widget.liveStreaming!.setBattle =
-                    false; // ✅ Set is_battle to false
-                widget.liveStreaming!.setBattleStatus =
-                    LiveStreamingModel.battleEnded;
-                await widget.liveStreaming!.save();
+                    // Update database
+                    widget.liveStreaming!.setBattle =
+                        false; // ✅ Set is_battle to false
+                    widget.liveStreaming!.setBattleStatus =
+                        LiveStreamingModel.battleEnded;
+                    await widget.liveStreaming!.save();
+                  }
+
+                  debugPrint(
+                      '[PK_BATTLE_SYNC] 🛑 Battle ended (periodic check)');
+                  final oldValue = showGiftSendersController.isBattleLive.value;
+                  showGiftSendersController.isBattleLive.value =
+                      false; // ✅ Disable battle UI
+                  debugPrint(
+                      '[PK_BATTLE_SYNC] 🔄 isBattleLive.value changed: $oldValue → false (triggered by: periodic refresh - battle ended)');
+                } else {
+                  debugPrint(
+                      '[PK_BATTLE_SYNC] ⚠️ Channel changed during battle end check');
+                }
               }
-
-              debugPrint('[PK_BATTLE_SYNC] 🛑 Battle ended (periodic check)');
-              showGiftSendersController.isBattleLive.value =
-                  false; // ✅ Disable battle UI
               timer.cancel();
             }
           }
         } catch (e) {
           debugPrint('[PK_BATTLE_SYNC] ⚠️ Periodic refresh error: $e');
-          // Fallback: If getBattleState fails but is_battle is true, enable battle UI
-          if (widget.liveStreaming!.getBattle == true &&
-              !showGiftSendersController.isBattleLive.value) {
-            debugPrint(
-                '[PK_BATTLE_SYNC] 🔄 Periodic refresh: Error occurred, but is_battle=true, enabling battle UI as fallback');
-            showGiftSendersController.isBattleLive.value = true;
-          }
+          // Don't use stale data - if cloud function fails, just log the error
+          // The next refresh cycle will try again
         }
-      } else if (showGiftSendersController.battleTimer.value == 0 &&
-          widget.liveStreaming!.getBattle != true) {
-        // Battle ended, stop periodic refresh
+      } else if (showGiftSendersController.battleTimer.value == 0) {
+        // Battle ended (timer is 0), stop periodic refresh
         debugPrint(
             '[PK_BATTLE_SYNC] 🛑 Battle ended, stopping periodic refresh');
         timer.cancel();
@@ -395,6 +871,7 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
 
   // Sync battle timer for viewers joining mid-battle
   Future<void> _syncBattleTimer() async {
+    final invocationToken = _activeChannelToken;
     int battleStartTime = widget.liveStreaming!.getBattleStartTime ?? 0;
 
     if (battleStartTime == 0) {
@@ -405,6 +882,9 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
 
       // Refetch to get latest battle start time
       await _fetchFreshBattleData();
+      if (!_ensureActiveContext(invocationToken, '_syncBattleTimer_fetch')) {
+        return;
+      }
 
       battleStartTime = widget.liveStreaming!.getBattleStartTime ?? 0;
       if (battleStartTime == 0) {
@@ -428,7 +908,8 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
 
     if (remainingTime > 0 && remainingTime <= battleDuration) {
       // Sync timer with remaining time
-      if (mounted) {
+      if (_ensureActiveContext(
+          invocationToken, '_syncBattleTimer_remaining_positive')) {
         showGiftSendersController.battleTimer.value = remainingTime;
         debugPrint(
             '[PK_BATTLE_TIMER] ✅ Timer synced - Remaining: ${remainingTime}s');
@@ -438,7 +919,8 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
       TimerController.startTimer(
         startTime: battleStartTime,
         onTimerUpdate: (remaining) {
-          if (mounted) {
+          if (_ensureActiveContext(
+              invocationToken, '_syncBattleTimer_local_updates')) {
             showGiftSendersController.battleTimer.value = remaining;
             if (remaining == 0) {
               debugPrint('[PK_BATTLE_TIMER] ⏰ Battle ended for viewer');
@@ -456,7 +938,8 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
     } else if (remainingTime <= 0) {
       debugPrint(
           '[PK_BATTLE_TIMER] ⚠️ Battle already ended (${-remainingTime}s ago)');
-      if (mounted) {
+      if (_ensureActiveContext(
+          invocationToken, '_syncBattleTimer_remaining_nonpositive')) {
         showGiftSendersController.battleTimer.value = 0;
         // Show winner immediately
         showGiftSendersController.showBattleWinner.value = true;
@@ -472,34 +955,114 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
     }
   }
 
+  // Ensure host metadata is ready before building Zego
+  // This prevents null check crashes when Zego tries to access getAuthor before it's loaded
+  Future<void> _ensureHostMetadataReady() async {
+    // If author is already available, mark as ready immediately
+    if (widget.liveStreaming?.getAuthor != null) {
+      if (mounted) {
+        setState(() {
+          _hostMetadataReady = true;
+        });
+        debugPrint('[PK_BATTLE_UI] ✅ Host metadata already ready');
+      }
+      return;
+    }
+
+    // Otherwise, wait for fresh data fetch
+    await _fetchFreshBattleData();
+
+    // Check again after fetch
+    if (widget.liveStreaming?.getAuthor != null) {
+      if (mounted) {
+        setState(() {
+          _hostMetadataReady = true;
+        });
+        debugPrint('[PK_BATTLE_UI] ✅ Host metadata ready after fetch');
+      }
+    } else {
+      debugPrint('[PK_BATTLE_UI] ⚠️ Host metadata still not ready after fetch');
+    }
+  }
+
   // Fetch absolutely fresh battle data from database (for late joiners)
+  // 🚨 CRITICAL: This function ensures we always get fresh data for the correct stream
+  // It bypasses any caching and queries directly by objectId
   Future<void> _fetchFreshBattleData() async {
     try {
-      debugPrint('[PK_BATTLE_SYNC] 🔄 Fetching fresh data from database...');
+      // 🎯 CRITICAL: Validate objectId before querying
+      final targetObjectId = widget.liveStreaming!.objectId;
+      if (targetObjectId == null || targetObjectId.isEmpty) {
+        debugPrint(
+            '[PK_BATTLE_SYNC] ❌ ERROR: Invalid objectId - cannot fetch fresh data');
+        return;
+      }
 
+      debugPrint('[PK_BATTLE_SYNC] 🔄 Fetching fresh data from database...');
+      debugPrint('[PK_BATTLE_SYNC] 📍 Querying for objectId: $targetObjectId');
+      debugPrint(
+          '[PK_BATTLE_SYNC] 📍 Current channel: ${widget.liveStreaming!.getStreamingChannel}');
+
+      // 🚨 CRITICAL: Create a fresh query with no caching
+      // Using whereEqualTo with objectId ensures we get the exact stream
       QueryBuilder<LiveStreamingModel> query =
           QueryBuilder<LiveStreamingModel>(LiveStreamingModel());
-      query.whereEqualTo(
-          LiveStreamingModel.keyObjectId, widget.liveStreaming!.objectId);
+      query.whereEqualTo(LiveStreamingModel.keyObjectId, targetObjectId);
       query.includeObject([
         LiveStreamingModel.keyAuthor,
         LiveStreamingModel.keyPrivateLiveGift,
       ]);
 
+      // 🚨 CRITICAL: Execute query - this bypasses any local caching
       final response = await query.query();
 
       if (response.success &&
           response.results != null &&
           response.results!.isNotEmpty) {
-        widget.liveStreaming = response.results!.first as LiveStreamingModel;
+        final fetchedStream = response.results!.first as LiveStreamingModel;
+
+        // 🎯 CRITICAL: Verify we got the correct stream
+        if (fetchedStream.objectId != targetObjectId) {
+          debugPrint(
+              '[PK_BATTLE_SYNC] ❌ ERROR: Fetched stream objectId mismatch!');
+          debugPrint('[PK_BATTLE_SYNC]    Expected: $targetObjectId');
+          debugPrint('[PK_BATTLE_SYNC]    Got: ${fetchedStream.objectId}');
+          return;
+        }
+
+        // Update widget with fresh data
+        widget.liveStreaming = fetchedStream;
+        _captureActiveStreamSnapshot(
+            reason: 'fetch_fresh_data', refreshToken: false);
+
+        // 🚨 CRITICAL: Mark host metadata as ready if author is now available
+        if (fetchedStream.getAuthor != null && !_hostMetadataReady && mounted) {
+          setState(() {
+            _hostMetadataReady = true;
+          });
+          debugPrint(
+              '[PK_BATTLE_UI] ✅ Host metadata marked ready after fresh fetch');
+        }
+
+        debugPrint('[PK_BATTLE_SYNC] ✅ Fresh data fetched successfully');
         debugPrint(
-            '[PK_BATTLE_SYNC] ✅ Fresh data fetched - My: ${widget.liveStreaming!.getMyBattlePoints}, His: ${widget.liveStreaming!.getHisBattlePoints}');
+            '[PK_BATTLE_SYNC] 📍 Verified objectId: ${widget.liveStreaming!.objectId}');
+        debugPrint(
+            '[PK_BATTLE_SYNC] 📍 Verified channel: ${widget.liveStreaming!.getStreamingChannel}');
+        debugPrint(
+            '[PK_BATTLE_SYNC] 📊 Battle data - My: ${widget.liveStreaming!.getMyBattlePoints}, His: ${widget.liveStreaming!.getHisBattlePoints}');
+        debugPrint(
+            '[PK_BATTLE_SYNC] 📊 Battle status: ${widget.liveStreaming!.getBattleStatus}, is_battle: ${widget.liveStreaming!.getBattle}');
       } else {
         debugPrint(
             '[PK_BATTLE_SYNC] ⚠️ Failed to fetch fresh data: ${response.error?.message}');
+        debugPrint(
+            '[PK_BATTLE_SYNC] 📍 Query was for objectId: $targetObjectId');
       }
     } catch (e) {
       debugPrint('[PK_BATTLE_SYNC] ❌ Error fetching fresh data: $e');
+      debugPrint(
+          '[PK_BATTLE_SYNC] 📍 Error occurred while querying objectId: ${widget.liveStreaming!.objectId}');
     }
   }
 
@@ -624,6 +1187,14 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
   @override
   void initState() {
     super.initState();
+
+    // 🚨 CRITICAL: Cancel any existing periodic refresh timer from previous stream
+    // This prevents race condition where old timer continues using stale channel data
+    _viewerRefreshTimer?.cancel();
+    _viewerRefreshTimer = null;
+    debugPrint(
+        '[PK_BATTLE_SYNC] 🛑 Cancelled any existing periodic refresh timer');
+
     WakelockPlus.enable();
     initSharedPref();
 
@@ -636,18 +1207,41 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
       requestingHostsMapRequestIDNotifier: requestingHostsMapRequestIDNotifier,
       liveStreaming: widget.liveStreaming!,
       onIncomingBattleRequest: (event, defaultAction) async {
+        debugPrint(
+            '[PK_BATTLE_ACCEPT] 📥 ========== INCOMING BATTLE REQUEST ==========');
+        debugPrint('[PK_BATTLE_ACCEPT] 📥 Request ID: ${event.requestID}');
+        debugPrint('[PK_BATTLE_ACCEPT] 📥 From Host ID: ${event.fromHost.id}');
+        debugPrint(
+            '[PK_BATTLE_ACCEPT] 📥 From Host Name: ${event.fromHost.name}');
+        debugPrint('[PK_BATTLE_ACCEPT] 📥 From Live ID: ${event.fromLiveID}');
+
         QueryBuilder queryUser = QueryBuilder(UserModel.forQuery());
         queryUser.whereEqualTo(UserModel.keyObjectId, event.fromHost.id);
         queryUser.setLimit(1);
         ParseResponse response = await queryUser.query();
         if (response.success && response.results != null) {
           UserModel battleRequestHost = response.results!.first;
+          debugPrint(
+              '[PK_BATTLE_ACCEPT] 📥 User data fetched, opening invitation dialog');
           openBattleRequestInvitation(user: battleRequestHost, event: event);
         } else {
+          debugPrint(
+              '[PK_BATTLE_ACCEPT] ⚠️ Failed to fetch user data, using default action');
           defaultAction.call();
         }
       },
       onOutgoingRequestAccepted: (event, defaultAction) {
+        debugPrint(
+            '[PK_BATTLE_ACCEPT] ✅ ========== OUTGOING REQUEST ACCEPTED ==========');
+        debugPrint('[PK_BATTLE_ACCEPT] ✅ Request ID: ${event.requestID}');
+        debugPrint('[PK_BATTLE_ACCEPT] ✅ From Host ID: ${event.fromHost.id}');
+        debugPrint(
+            '[PK_BATTLE_ACCEPT] ✅ From Host Name: ${event.fromHost.name}');
+        debugPrint('[PK_BATTLE_ACCEPT] ✅ From Live ID: ${event.fromLiveID}');
+        debugPrint('[PK_BATTLE_ACCEPT] ✅ Calling updateLiveToBattle()...');
+        debugPrint(
+            '[PK_BATTLE_ACCEPT] ✅ Will call initiateBattleTimer() after updateLiveToBattle()');
+
         defaultAction.call();
         updateLiveToBattle(event.fromLiveID);
         initiateBattleTimer();
@@ -663,27 +1257,97 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
     showGiftSendersController.diamondsCounter.value =
         widget.liveStreaming!.getDiamonds!.toString();
 
-    // 🎯 CRITICAL: Check if battle is ACTIVE using both battle_status and is_battle field
-    // This ensures we catch battles even if battle_status is stale
-    final battleStatusActive =
-        widget.liveStreaming!.getBattleStatus == LiveStreamingModel.battleAlive;
-    final isBattleFieldActive = widget.liveStreaming!.getBattle == true;
-    showGiftSendersController.isBattleLive.value =
-        battleStatusActive || isBattleFieldActive;
-
-    debugPrint('[PK_BATTLE_INIT] battle_status check: $battleStatusActive');
-    debugPrint('[PK_BATTLE_INIT] is_battle field check: $isBattleFieldActive');
-
+    // 🚨 CRITICAL: Reset battle state when entering a new stream
+    // This ensures previous battle data doesn't interfere with new stream
     debugPrint(
-        '[PK_BATTLE_INIT] Battle status: ${widget.liveStreaming!.getBattleStatus}');
+        '[PK_BATTLE_INIT] 🔄 Resetting battle state for new stream entry');
     debugPrint(
-        '[PK_BATTLE_INIT] isBattleLive set to: ${showGiftSendersController.isBattleLive.value}');
+        '[PK_BATTLE_INIT] 📍 Stream objectId: ${widget.liveStreaming!.objectId}');
+    debugPrint(
+        '[PK_BATTLE_INIT] 📍 Stream channel: ${widget.liveStreaming!.getStreamingChannel}');
+    final oldValue = showGiftSendersController.isBattleLive.value;
+    showGiftSendersController.isBattleLive.value = false;
+    debugPrint(
+        '[PK_BATTLE_INIT] 🔄 isBattleLive.value changed: $oldValue → false (triggered by: initState - reset for new stream)');
+    showGiftSendersController.myBattlePoints.value = 0;
+    showGiftSendersController.hisBattlePoints.value = 0;
+    showGiftSendersController.battleTimer.value = 0;
+    _resetServerStateToken();
+    Future.microtask(() async {
+      await _leavePreviousRoomIfNeeded();
+    });
+    _captureActiveStreamSnapshot(reason: 'init_state');
+    Future.microtask(() async {
+      await _leavePreviousRoomIfNeeded();
+    });
 
     // 🚀 Initialize BattlePointsManager - Single Source of Truth
     battlePointsManager = BattlePointsManager();
 
-    // Initialize battle asynchronously
-    _initializeBattleAsync();
+    // 🚨 CRITICAL: Initialize host metadata future to gate Zego build
+    // This ensures Zego only builds after author data is loaded
+    _hostMetadataReady = false;
+    _hostMetadataFuture = _ensureHostMetadataReady();
+
+    // 🚨 CRITICAL: Reset battle state initialization flag
+    // This ensures Zego waits for battle state check before initializing
+    _battleStateInitialized.value = false;
+    _battleStateInitTimeout?.cancel();
+    _battleStateInitTimeout = null;
+    debugPrint(
+        '[PK_BATTLE_INIT] 🔄 Battle state initialization flag reset to false');
+
+    // 🚨 CRITICAL: Fetch fresh data FIRST before any battle checks
+    // This ensures we never use stale data from navigation
+    // Chain _initializeBattleAsync() to run AFTER fresh data is fetched
+    _fetchFreshBattleData().then((_) {
+      if (!_matchesActiveStream(objectId: widget.liveStreaming?.objectId)) {
+        debugPrint(
+            '[PK_BATTLE_INIT] ⚠️ Ignoring init battle state (stream changed)');
+        return;
+      }
+      // 🎯 CRITICAL: Check if battle is ACTIVE using both battle_status and is_battle field
+      // Now using FRESH data from server, not stale navigation data
+      final battleStatusActive = widget.liveStreaming!.getBattleStatus ==
+          LiveStreamingModel.battleAlive;
+      final isBattleFieldActive = widget.liveStreaming!.getBattle == true;
+      final oldValue = showGiftSendersController.isBattleLive.value;
+      final newValue = battleStatusActive || isBattleFieldActive;
+      showGiftSendersController.isBattleLive.value = newValue;
+      if (oldValue != newValue) {
+        debugPrint(
+            '[PK_BATTLE_INIT] 🔄 isBattleLive.value changed: $oldValue → $newValue (triggered by: initState - fresh data check, battleStatusActive: $battleStatusActive, isBattleFieldActive: $isBattleFieldActive)');
+
+        // 🚨 CRITICAL: Force widget rebuild when battle is detected in initial check
+        // This ensures pkConfig is created immediately if fresh data shows a battle
+        // without waiting for _initializeBattleAsync() to complete
+        if (mounted && newValue == true) {
+          setState(() {
+            debugPrint(
+                '[PK_BATTLE_INIT] 🔄 setState() called to force rebuild (initState - battle detected in fresh data)');
+          });
+        }
+      }
+
+      debugPrint(
+          '[PK_BATTLE_INIT] ✅ Fresh data fetched - checking battle state');
+      debugPrint(
+          '[PK_BATTLE_INIT] 📍 Verified objectId: ${widget.liveStreaming!.objectId}');
+      debugPrint(
+          '[PK_BATTLE_INIT] 📍 Verified channel: ${widget.liveStreaming!.getStreamingChannel}');
+      debugPrint('[PK_BATTLE_INIT] battle_status check: $battleStatusActive');
+      debugPrint(
+          '[PK_BATTLE_INIT] is_battle field check: $isBattleFieldActive');
+
+      debugPrint(
+          '[PK_BATTLE_INIT] Battle status: ${widget.liveStreaming!.getBattleStatus}');
+      debugPrint(
+          '[PK_BATTLE_INIT] isBattleLive set to: ${showGiftSendersController.isBattleLive.value}');
+
+      // 🚨 CRITICAL: Initialize battle AFTER fresh data is fetched
+      // This ensures _initializeBattleAsync() uses the fresh data, not stale navigation data
+      _initializeBattleAsync();
+    });
 
     ZegoGiftManager().cache.cacheAllFiles(giftItemList);
 
@@ -701,9 +1365,12 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
     generalTabControl =
         TabController(vsync: this, length: tabsLength, initialIndex: tabIndex)
           ..addListener(() {
-            setState(() {
-              tabIndex = generalTabControl.index;
-            });
+            // 🚨 CRITICAL: Check mounted before setState to prevent errors during stream switches
+            if (mounted) {
+              setState(() {
+                tabIndex = generalTabControl.index;
+              });
+            }
           });
     setupStreamingLiveQuery();
     setupLiveGifts();
@@ -876,6 +1543,18 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
                 width: size.width / 2.7,
                 height: 50,
                 onTap: () {
+                  debugPrint(
+                      '[PK_BATTLE_ACCEPT] ✅ ========== INCOMING REQUEST ACCEPTED ==========');
+                  debugPrint('[PK_BATTLE_ACCEPT] ✅ User clicked Accept button');
+                  debugPrint(
+                      '[PK_BATTLE_ACCEPT] ✅ Request ID: ${event.requestID}');
+                  debugPrint(
+                      '[PK_BATTLE_ACCEPT] ✅ From Host ID: ${event.fromHost.id}');
+                  debugPrint(
+                      '[PK_BATTLE_ACCEPT] ✅ From Host Name: ${event.fromHost.name}');
+                  debugPrint(
+                      '[PK_BATTLE_ACCEPT] ✅ From Live ID: ${event.fromLiveID}');
+
                   showGiftSendersController.showBattleWinner.value = false;
                   ZegoUIKitPrebuiltLiveStreamingController().pk.acceptRequest(
                         requestID: event.requestID,
@@ -884,7 +1563,11 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
                           liveID: event.fromLiveID,
                         ),
                       );
+                  debugPrint(
+                      '[PK_BATTLE_ACCEPT] ✅ acceptRequest() called, now calling updateLiveToBattle()...');
                   updateLiveToBattle(event.fromLiveID);
+                  debugPrint(
+                      '[PK_BATTLE_ACCEPT] ✅ updateLiveToBattle() completed, calling initiateBattleTimer()...');
                   initiateBattleTimer();
                   updateBattleInvitee();
                   QuickHelp.goBackToPreviousPage(context);
@@ -990,13 +1673,30 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
     debugPrint('[PK_BATTLE_START] 🎮 Opponent Live ID: $liveId');
     debugPrint(
         '[PK_BATTLE_START] 📍 My Channel: ${widget.liveStreaming!.getStreamingChannel}');
+    debugPrint(
+        '[PK_BATTLE_START] 📍 My ObjectId: ${widget.liveStreaming!.objectId}');
+    debugPrint(
+        '[PK_BATTLE_START] 📍 My Author ID: ${widget.liveStreaming!.getAuthorId}');
 
     // 🚨 CRITICAL: Use cloud function to set up BOTH sides of the battle
     try {
+      debugPrint(
+          '[PK_BATTLE_START] ☁️ Calling initializeBattle cloud function...');
+      debugPrint(
+          '[PK_BATTLE_START] ☁️   myChannel: ${widget.liveStreaming!.getStreamingChannel}');
+      debugPrint('[PK_BATTLE_START] ☁️   opponentChannel: $liveId');
+
       ParseResponse response = await QuickCloudCode.initializeBattle(
         myChannel: widget.liveStreaming!.getStreamingChannel!,
         opponentChannel: liveId,
       );
+
+      debugPrint(
+          '[PK_BATTLE_START] ☁️ Cloud function response: success=${response.success}');
+      if (response.error != null) {
+        debugPrint(
+            '[PK_BATTLE_START] ☁️ Cloud function error: ${response.error?.message}');
+      }
 
       if (response.success && response.result != null) {
         final result = response.result as Map<String, dynamic>;
@@ -1004,42 +1704,77 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
 
         debugPrint('[PK_BATTLE_START] ✅ Cloud function initialized both sides');
         debugPrint('[PK_BATTLE_START] ⏰ Battle start time: $battleStartTime');
+        debugPrint('[PK_BATTLE_START] 📊 Cloud function result: $result');
 
         // Update local document with server values
+        debugPrint(
+            '[PK_BATTLE_START] 💾 Updating local document with server values...');
         widget.liveStreaming!.setBattleStatus = LiveStreamingModel.battleAlive;
         widget.liveStreaming!.setBattle =
             true; // ✅ Set is_battle to true when battle starts
+        debugPrint('[PK_BATTLE_START] 💾 Set battle_status: battle_alive');
+        debugPrint('[PK_BATTLE_START] 💾 Set is_battle: true');
         widget.liveStreaming!.setBattleLiveId = liveId;
         widget.liveStreaming!.setBattleStartTime = battleStartTime;
         widget.liveStreaming!.setMyBattlePoints = 0;
         widget.liveStreaming!.setHisBattlePoints = 0;
 
         // Refetch to ensure we have latest data
+        debugPrint(
+            '[PK_BATTLE_START] 🔄 Refetching document to ensure latest data...');
         await widget.liveStreaming!.fetch();
 
         debugPrint('[PK_BATTLE_START] ✅ Battle metadata synchronized');
+        debugPrint(
+            '[PK_BATTLE_START] ✅ Verified battle_status: ${widget.liveStreaming!.getBattleStatus}');
+        debugPrint(
+            '[PK_BATTLE_START] ✅ Verified is_battle: ${widget.liveStreaming!.getBattle}');
       } else {
         debugPrint(
             '[PK_BATTLE_START] ⚠️ Cloud function failed, using local save: ${response.error?.message}');
 
         // Fallback to local save (old method)
+        debugPrint('[PK_BATTLE_START] 💾 Fallback: Updating local document...');
         widget.liveStreaming!.setBattleStatus = LiveStreamingModel.battleAlive;
+        widget.liveStreaming!.setBattle = true;
+        debugPrint('[PK_BATTLE_START] 💾 Set battle_status: battle_alive');
+        debugPrint('[PK_BATTLE_START] 💾 Set is_battle: true');
         widget.liveStreaming!.setBattleLiveId = liveId;
         widget.liveStreaming!.setBattleStartTime = currentTime;
         widget.liveStreaming!.setMyBattlePoints = 0;
         widget.liveStreaming!.setHisBattlePoints = 0;
-        await widget.liveStreaming!.save();
+
+        final saveResponse = await widget.liveStreaming!.save();
+        debugPrint(
+            '[PK_BATTLE_START] 💾 Local save result: success=${saveResponse.success}');
+        if (!saveResponse.success) {
+          debugPrint(
+              '[PK_BATTLE_START] 💾 Local save error: ${saveResponse.error?.message}');
+        }
       }
     } catch (e) {
       debugPrint('[PK_BATTLE_START] ❌ Error: $e, using local save');
+      debugPrint('[PK_BATTLE_START] ❌ Stack trace: ${StackTrace.current}');
 
       // Fallback to local save
+      debugPrint(
+          '[PK_BATTLE_START] 💾 Exception fallback: Updating local document...');
       widget.liveStreaming!.setBattleStatus = LiveStreamingModel.battleAlive;
+      widget.liveStreaming!.setBattle = true;
+      debugPrint('[PK_BATTLE_START] 💾 Set battle_status: battle_alive');
+      debugPrint('[PK_BATTLE_START] 💾 Set is_battle: true');
       widget.liveStreaming!.setBattleLiveId = liveId;
       widget.liveStreaming!.setBattleStartTime = currentTime;
       widget.liveStreaming!.setMyBattlePoints = 0;
       widget.liveStreaming!.setHisBattlePoints = 0;
-      await widget.liveStreaming!.save();
+
+      final saveResponse = await widget.liveStreaming!.save();
+      debugPrint(
+          '[PK_BATTLE_START] 💾 Exception fallback save result: success=${saveResponse.success}');
+      if (!saveResponse.success) {
+        debugPrint(
+            '[PK_BATTLE_START] 💾 Exception fallback save error: ${saveResponse.error?.message}');
+      }
     }
 
     debugPrint('[PK_BATTLE_START] ✅ ========================================');
@@ -1049,10 +1784,41 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
     debugPrint(
         '[PK_BATTLE_SYNC] 🎯 ========== INITIATING BATTLE TIMER ==========');
     debugPrint('[PK_BATTLE_SYNC] ⏰ Battle starting - initializing systems...');
+    debugPrint(
+        '[PK_BATTLE_SYNC] 📍 Current battle_status: ${widget.liveStreaming!.getBattleStatus}');
+    debugPrint(
+        '[PK_BATTLE_SYNC] 📍 Current is_battle: ${widget.liveStreaming!.getBattle}');
+    debugPrint(
+        '[PK_BATTLE_SYNC] 📍 Current isBattleLive.value: ${showGiftSendersController.isBattleLive.value}');
 
     // STEP 0: Reset UI timer to 300 immediately (prevent showing old time)
     showGiftSendersController.battleTimer.value = 300;
     debugPrint('[PK_BATTLE_SYNC] 🔄 UI timer set to 300 seconds');
+
+    // 🚨 CRITICAL: Enable battle UI immediately
+    final oldBattleLiveValue = showGiftSendersController.isBattleLive.value;
+    if (!oldBattleLiveValue) {
+      debugPrint(
+          '[PK_BATTLE_SYNC] 🎯 Enabling battle UI (isBattleLive.value = true)');
+      showGiftSendersController.isBattleLive.value = true;
+      debugPrint(
+          '[PK_BATTLE_SYNC] 🔄 isBattleLive.value changed: $oldBattleLiveValue → true (triggered by: initiateBattleTimer - battle starting)');
+      debugPrint(
+          '[PK_BATTLE_SYNC] 🎯 isBattleLive.value is now: ${showGiftSendersController.isBattleLive.value}');
+      debugPrint(
+          '[PK_BATTLE_SYNC] 🎯 This should trigger build() to create pkConfig');
+
+      // 🚨 CRITICAL: Force widget rebuild to ensure Obx() reacts to the change
+      // This ensures pkConfig is created immediately for the host
+      if (mounted) {
+        setState(() {
+          debugPrint('[PK_BATTLE_SYNC] 🔄 setState() called to force rebuild');
+        });
+      }
+    } else {
+      debugPrint(
+          '[PK_BATTLE_SYNC] 🎯 Battle UI already enabled (isBattleLive.value was already true)');
+    }
 
     // STEP 1: Fetch absolutely fresh data
     await _fetchFreshBattleData();
@@ -1069,9 +1835,15 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
         initialMyPoints, initialHisPoints, 'BATTLE_START');
 
     // STEP 4: Initialize PointsController with debounced updates
+    final hostPointsToken = _activeChannelToken;
     PointsController.initialize(
       widget.liveID,
       (myPoints, hisPoints) {
+        if (!_ensureActiveContext(
+            hostPointsToken, 'points_controller_update_host',
+            objectId: widget.liveStreaming?.objectId)) {
+          return;
+        }
         _updatePointsWithDebounce(myPoints, hisPoints, 'ZEGO_COMMAND');
       },
     );
@@ -1092,81 +1864,87 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
         '🎯 Initial - My Points: $initialMyPoints, His Points: $initialHisPoints');
     debugPrint('🎯 ==========================================');
 
-    // STEP 6: Start timer after short delay for synchronization
-    // Reduced from 2s to 1s for better sync
-    Future.delayed(Duration(seconds: 1)).then((value) async {
-      final currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    // STEP 6: Start timer using SERVER battle_start_time (no delay to prevent desync)
+    // 🚨 CRITICAL: Use server timestamp from cloud function, not local time
+    // The cloud function already set battle_start_time atomically for both streams
+    int serverBattleStartTime = widget.liveStreaming!.getBattleStartTime ?? 0;
 
-      debugPrint('[PK_BATTLE_TIMER] 🚀 Starting battle timer NOW');
-      debugPrint('[PK_BATTLE_TIMER] 📅 Timestamp: $currentTime');
-
-      // 🕒 Save battle start time to database FIRST for viewer sync
-      widget.liveStreaming!.setBattleStartTime = currentTime;
-      await widget.liveStreaming!.save();
-      debugPrint('[PK_BATTLE_TIMER] ✅ Battle start time saved: $currentTime');
+    if (serverBattleStartTime == 0) {
       debugPrint(
-          '[PK_BATTLE_TIMER] 📍 Document: ${widget.liveStreaming!.objectId}');
+          '[PK_BATTLE_TIMER] ❌ No battle_start_time from server! Refetching...');
+      await _fetchFreshBattleData();
+      serverBattleStartTime = widget.liveStreaming!.getBattleStartTime ?? 0;
+      if (serverBattleStartTime == 0) {
+        debugPrint(
+            '[PK_BATTLE_TIMER] ❌ Still no battle_start_time after refetch!');
+        return;
+      }
+      debugPrint(
+          '[PK_BATTLE_TIMER] ✅ Got battle_start_time after refetch: $serverBattleStartTime');
+    }
 
-      // Wait for DB write to complete
-      await Future.delayed(Duration(milliseconds: 100));
+    debugPrint('[PK_BATTLE_TIMER] 🚀 Starting battle timer NOW');
+    debugPrint(
+        '[PK_BATTLE_TIMER] ⏰ Using SERVER battle_start_time: $serverBattleStartTime');
+    debugPrint(
+        '[PK_BATTLE_TIMER] 📍 Document: ${widget.liveStreaming!.objectId}');
 
-      // Send sync command to room
-      debugPrint('[PK_BATTLE_TIMER] 📡 Sending sync command to room...');
-      sendSyncCommand(startTime: currentTime, duration: 300);
+    // Send sync command to room using SERVER timestamp (ensures both sides are in sync)
+    debugPrint(
+        '[PK_BATTLE_TIMER] 📡 Sending sync command to room with server timestamp...');
+    sendSyncCommand(startTime: serverBattleStartTime, duration: 300);
 
-      // Start local timer
-      debugPrint('[PK_BATTLE_TIMER] 🎯 Starting local countdown from 300s...');
-      TimerController.startLocalTimer(
-          onTimerUpdate: (remainingTimer) {
-            if (mounted) {
-              showGiftSendersController.battleTimer.value = remainingTimer;
+    // Start local timer
+    debugPrint('[PK_BATTLE_TIMER] 🎯 Starting local countdown from 300s...');
+    TimerController.startLocalTimer(
+        onTimerUpdate: (remainingTimer) {
+          if (mounted) {
+            showGiftSendersController.battleTimer.value = remainingTimer;
 
-              // Log every 10 seconds
-              if (remainingTimer % 10 == 0 && remainingTimer > 0) {
-                debugPrint(
-                    '[PK_BATTLE_TIMER] ⏰ Timer: ${remainingTimer}s remaining');
-              }
+            // Log every 10 seconds
+            if (remainingTimer % 10 == 0 && remainingTimer > 0) {
+              debugPrint(
+                  '[PK_BATTLE_TIMER] ⏰ Timer: ${remainingTimer}s remaining');
+            }
 
-              if (showGiftSendersController.battleTimer.value == 0) {
-                // 🚀 Stop polling when battle ends
-                battlePointsManager.stopPolling();
-                debugPrint(
-                    '[PK_BATTLE_SYNC] ⏸️ Battle ended - polling stopped');
+            if (showGiftSendersController.battleTimer.value == 0) {
+              // 🚀 Stop polling when battle ends
+              battlePointsManager.stopPolling();
+              debugPrint('[PK_BATTLE_SYNC] ⏸️ Battle ended - polling stopped');
 
-                // 🏁 Update battle status to battle_ended and keep final scores
-                widget.liveStreaming!.setBattleStatus =
-                    LiveStreamingModel.battleEnded;
-                widget.liveStreaming!.setBattle =
-                    false; // ✅ Set is_battle to false when battle ends
-                widget.liveStreaming!.save();
-                debugPrint(
-                    '[PK_BATTLE_END] ✅ Battle status set to battle_ended | Final scores: My=${showGiftSendersController.myBattlePoints.value}, His=${showGiftSendersController.hisBattlePoints.value}');
+              // 🏁 Update battle status to battle_ended and keep final scores
+              widget.liveStreaming!.setBattleStatus =
+                  LiveStreamingModel.battleEnded;
+              widget.liveStreaming!.setBattle =
+                  false; // ✅ Set is_battle to false when battle ends
+              widget.liveStreaming!.save();
+              debugPrint(
+                  '[PK_BATTLE_END] ✅ Battle status set to battle_ended | Final scores: My=${showGiftSendersController.myBattlePoints.value}, His=${showGiftSendersController.hisBattlePoints.value}');
 
-                showGiftSendersController.showBattleWinner.value = true;
-                Future.delayed(Duration(seconds: 10)).then((value) {
-                  if (mounted) {
-                    showGiftSendersController.showBattleWinner.value = false;
+              showGiftSendersController.showBattleWinner.value = true;
+              Future.delayed(Duration(seconds: 10)).then((value) {
+                if (mounted) {
+                  showGiftSendersController.showBattleWinner.value = false;
 
-                    // 🧹 Clear points from database after winner display (keep UI showing final scores)
-                    widget.liveStreaming!.setMyBattlePoints = 0;
-                    widget.liveStreaming!.setHisBattlePoints = 0;
-                    widget.liveStreaming!.setBattleLiveId = "";
-                    widget.liveStreaming!.save();
-                    debugPrint(
-                        '[PK_BATTLE_END] 🧹 Database points cleared after winner display');
-                  }
-                });
-                if (widget.isHost) {
-                  updateVictories();
-                  updateUserBattleData();
+                  // 🧹 Clear points from database after winner display (keep UI showing final scores)
+                  widget.liveStreaming!.setMyBattlePoints = 0;
+                  widget.liveStreaming!.setHisBattlePoints = 0;
+                  widget.liveStreaming!.setBattleLiveId = "";
+                  widget.liveStreaming!.save();
+                  debugPrint(
+                      '[PK_BATTLE_END] 🧹 Database points cleared after winner display');
                 }
+              });
+              if (widget.isHost) {
+                updateVictories();
+                updateUserBattleData();
               }
             }
-          },
-          duration: 300);
+          }
+        },
+        duration: 300);
 
-      debugPrint('[PK_BATTLE_TIMER] ✅ Timer started successfully');
-    });
+    debugPrint('[PK_BATTLE_TIMER] ✅ Timer started successfully');
   }
 
   updateVictories() {
@@ -1398,19 +2176,38 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
   @override
   void dispose() {
     super.dispose();
+
+    // 🚨 CRITICAL: Cancel periodic refresh timer FIRST before any other cleanup
+    // This prevents timer from running after widget is disposed and using stale data
+    _viewerRefreshTimer?.cancel();
+    _viewerRefreshTimer = null;
+    debugPrint(
+        '[PK_BATTLE_SYNC] 🛑 Periodic refresh timer cancelled in dispose()');
+    _battleStateInitTimeout?.cancel();
+    _battleStateInitTimeout = null;
+    _activeChannelToken = '';
+    _activeStreamObjectId = null;
+    _activeStreamChannel = null;
+    _activeBattleStartTime = 0;
+    _resetServerStateToken();
+    _hostMetadataReady = false;
+    _hostMetadataFuture = null;
+    _battleStateInitialized.value = false;
+
     WakelockPlus.disable();
     generalTabControl.dispose();
     showGiftSendersController.isPrivateLive.value = false;
-    showGiftSendersController.isPrivateLive.value =
-        widget.liveStreaming!.getPrivate!;
+    // 🚨 CRITICAL: Null check before accessing widget.liveStreaming
+    // This prevents crashes when switching streams or widget is disposed
+    if (widget.liveStreaming != null &&
+        widget.liveStreaming!.getPrivate != null) {
+      showGiftSendersController.isPrivateLive.value =
+          widget.liveStreaming!.getPrivate!;
+    }
 
     // Cleanup debounce timer
     _pointsUpdateDebouncer?.cancel();
     _pointsUpdateDebouncer = null;
-
-    // Cleanup viewer refresh timer
-    _viewerRefreshTimer?.cancel();
-    _viewerRefreshTimer = null;
 
     // 🚀 Cleanup BattlePointsManager
     try {
@@ -1435,8 +2232,15 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
 
     _avatarWidgetsCache.clear();
 
-    following = widget.currentUser!.getFollowing!
-        .contains(widget.liveStreaming!.getAuthorId!);
+    // 🚨 CRITICAL: Null checks before accessing widget properties
+    // This prevents crashes when switching streams or widget is disposed
+    if (widget.currentUser != null &&
+        widget.currentUser!.getFollowing != null &&
+        widget.liveStreaming != null &&
+        widget.liveStreaming!.getAuthorId != null) {
+      following = widget.currentUser!.getFollowing!
+          .contains(widget.liveStreaming!.getAuthorId!);
+    }
 
     ZegoGiftManager().service.recvNotifier.removeListener(onGiftReceived);
     ZegoGiftManager().service.uninit();
@@ -1447,6 +2251,71 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
 
   @override
   Widget build(BuildContext context) {
+    // 🚨 CRITICAL: Early null checks before building any configs
+    if (widget.liveStreaming == null || widget.currentUser == null) {
+      debugPrint(
+          '[PK_BATTLE_SYNC] ⚠️ Missing required data in build(), showing loading');
+      return Center(
+        child: CircularProgressIndicator(),
+      );
+    }
+
+    // 🚨 CRITICAL: Gate Zego build on host metadata readiness
+    // This prevents null check crashes when Zego tries to access getAuthor before it's loaded
+    if (!_hostMetadataReady && _hostMetadataFuture != null) {
+      return FutureBuilder<void>(
+        future: _hostMetadataFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting ||
+              !_hostMetadataReady) {
+            debugPrint('[PK_BATTLE_UI] ⏳ Waiting for host metadata...');
+            return Center(
+              child: CircularProgressIndicator(),
+            );
+          }
+          // Once ready, rebuild to show Zego
+          if (snapshot.connectionState == ConnectionState.done &&
+              _hostMetadataReady) {
+            // Trigger rebuild to show Zego widget
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) setState(() {});
+            });
+          }
+          // Fall through to build Zego if ready
+          return _buildZegoWidget(context);
+        },
+      );
+    }
+
+    // If host metadata is ready, build Zego directly
+    if (_hostMetadataReady) {
+      return _buildZegoWidget(context);
+    }
+
+    // Fallback: show loading if we're still waiting
+    return Center(
+      child: CircularProgressIndicator(),
+    );
+  }
+
+  Widget _buildZegoWidget(BuildContext context) {
+    // 🚨 CRITICAL: Wait for battle state initialization before building Zego
+    // This ensures pkConfig is set before Zego initializes
+    if (!_battleStateInitialized.value) {
+      debugPrint('[PK_BATTLE_UI] ⏳ Waiting for battle state initialization...');
+      return Center(
+        child: CircularProgressIndicator(),
+      );
+    }
+
+    // 🚨 CRITICAL: Final check before building Zego
+    if (widget.liveStreaming?.getAuthor == null) {
+      debugPrint('[PK_BATTLE_UI] ⚠️ getAuthor still null, showing loading');
+      return Center(
+        child: CircularProgressIndicator(),
+      );
+    }
+
     final AvatarService avatarService = AvatarService();
     final hostConfig = ZegoUIKitPrebuiltLiveStreamingConfig.host(
       plugins: [
@@ -1464,19 +2333,51 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
       //..bottomMenuBar.hostExtendButtons = [privateLiveBtn]
       ..avatarBuilder = (BuildContext context, Size size, ZegoUIKitUser? user,
           Map extraInfo) {
-        return user != null
-            ? Container(
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  image: DecorationImage(
-                    fit: BoxFit.contain,
-                    image: NetworkImage(
-                      widget.liveStreaming!.getAuthor!.getAvatar!.url!,
-                    ),
-                  ),
+        if (user == null) {
+          return const SizedBox.shrink();
+        }
+        final host = widget.liveStreaming?.getAuthor;
+        // Determine whether this avatar belongs to the host or audience/co-host
+        final isHostAvatar = host != null && user.id == host.objectId;
+
+        if (isHostAvatar && host != null) {
+          return ClipOval(
+            child: SizedBox(
+              width: size.width,
+              height: size.height,
+              child: QuickActions.avatarWidget(
+                host,
+                width: size.width,
+                height: size.height,
+                hideAvatarFrame: true,
+              ),
+            ),
+          );
+        }
+
+        // For other users, fall back to the avatar service (cached URLs)
+        return FutureBuilder<String?>(
+          future: avatarService.fetchUserAvatar(user.id),
+          builder: (context, snapshot) {
+            final tempUser = UserModel.forQuery();
+            if (snapshot.hasData && snapshot.data?.isNotEmpty == true) {
+              tempUser.setAvatar =
+                  ParseFile(null, name: null, url: snapshot.data);
+            }
+            return ClipOval(
+              child: SizedBox(
+                width: size.width,
+                height: size.height,
+                child: QuickActions.avatarWidget(
+                  tempUser,
+                  width: size.width,
+                  height: size.height,
+                  hideAvatarFrame: true,
                 ),
-              )
-            : const SizedBox();
+              ),
+            );
+          },
+        );
       };
 
     final audienceConfig = ZegoUIKitPrebuiltLiveStreamingConfig.audience(
@@ -1559,7 +2460,10 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
           }
           coHostsList.removeWhere(
               (id) => !co_hosts_ids.any((coHost) => coHost.id == id));
-          setState(() {});
+          // 🚨 CRITICAL: Check mounted before setState to prevent errors during stream switches
+          if (mounted) {
+            setState(() {});
+          }
         },
       ),
       audioVideo: ZegoLiveStreamingAudioVideoEvents(
@@ -1578,68 +2482,74 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
       ),
     );
 
-    final hostEvents = ZegoUIKitPrebuiltLiveStreamingEvents(
-      inRoomMessage: ZegoLiveStreamingInRoomMessageEvents(
-        onClicked: (message) {
-          if (message.user.id != widget.currentUser!.objectId) {
-            showUserProfileBottomSheet(
-              currentUser: widget.currentUser!,
-              userId: message.user.id,
-              context: context,
-            );
-          }
-        },
-      ),
-      memberList: ZegoLiveStreamingMemberListEvents(onClicked: (user) {
-        if (user.id != widget.currentUser!.objectId) {
-          QuickHelp.hideLoadingDialog(context);
-          showUserProfileBottomSheet(
-            currentUser: widget.currentUser!,
-            userId: user.id,
-            context: context,
-          );
-        }
-      }),
-      pk: pkEvents!.event,
-      onError: (ZegoUIKitError error) {
-        debugPrint('onError:$error');
-      },
-      user: ZegoLiveStreamingUserEvents(
-        onEnter: (user) {
-          if (ZegoLiveStreamingState.inPKBattle == liveStateNotifier.value) {
-            Future.delayed(Duration(seconds: 3)).then((value) {
-              final currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-              sendSyncCommand(
-                  startTime: currentTime,
-                  duration: showGiftSendersController.battleTimer.value);
-            });
-          }
-        },
-      ),
-      onEnded: (
-        ZegoLiveStreamingEndEvent event,
-        VoidCallback defaultAction,
-      ) {
-        if (ZegoLiveStreamingEndReason.hostEnd == event.reason) {
-          if (event.isFromMinimizing) {
-            /// now is minimizing state, not need to navigate, just switch to idle
-            ZegoUIKitPrebuiltLiveStreamingController().minimize.hide();
-          } else {
-            Navigator.pop(context);
-            QuickHelp.goBackToPreviousPage(context);
-          }
-        } else {
-          defaultAction.call();
-          QuickHelp.goBackToPreviousPage(context);
-        }
-      },
-      onStateUpdated: (state) {
-        liveStateNotifier.value = state;
-        if (ZegoLiveStreamingState.idle == state) {
-          ZegoGiftManager().playList.clear();
-        }
-      },
-    );
+    // 🚨 CRITICAL: Only create hostEvents if pkEvents is initialized
+    // This prevents null check error when build() is called before initState() completes
+    final hostEvents = pkEvents != null
+        ? ZegoUIKitPrebuiltLiveStreamingEvents(
+            inRoomMessage: ZegoLiveStreamingInRoomMessageEvents(
+              onClicked: (message) {
+                if (message.user.id != widget.currentUser!.objectId) {
+                  showUserProfileBottomSheet(
+                    currentUser: widget.currentUser!,
+                    userId: message.user.id,
+                    context: context,
+                  );
+                }
+              },
+            ),
+            memberList: ZegoLiveStreamingMemberListEvents(onClicked: (user) {
+              if (user.id != widget.currentUser!.objectId) {
+                QuickHelp.hideLoadingDialog(context);
+                showUserProfileBottomSheet(
+                  currentUser: widget.currentUser!,
+                  userId: user.id,
+                  context: context,
+                );
+              }
+            }),
+            pk: pkEvents!.event,
+            onError: (ZegoUIKitError error) {
+              debugPrint('onError:$error');
+            },
+            user: ZegoLiveStreamingUserEvents(
+              onEnter: (user) {
+                if (ZegoLiveStreamingState.inPKBattle ==
+                    liveStateNotifier.value) {
+                  Future.delayed(Duration(seconds: 3)).then((value) {
+                    final currentTime =
+                        DateTime.now().millisecondsSinceEpoch ~/ 1000;
+                    sendSyncCommand(
+                        startTime: currentTime,
+                        duration: showGiftSendersController.battleTimer.value);
+                  });
+                }
+              },
+            ),
+            onEnded: (
+              ZegoLiveStreamingEndEvent event,
+              VoidCallback defaultAction,
+            ) {
+              if (ZegoLiveStreamingEndReason.hostEnd == event.reason) {
+                if (event.isFromMinimizing) {
+                  /// now is minimizing state, not need to navigate, just switch to idle
+                  ZegoUIKitPrebuiltLiveStreamingController().minimize.hide();
+                } else {
+                  Navigator.pop(context);
+                  QuickHelp.goBackToPreviousPage(context);
+                }
+              } else {
+                defaultAction.call();
+                QuickHelp.goBackToPreviousPage(context);
+              }
+            },
+            onStateUpdated: (state) {
+              liveStateNotifier.value = state;
+              if (ZegoLiveStreamingState.idle == state) {
+                ZegoGiftManager().playList.clear();
+              }
+            },
+          )
+        : null;
 
     return SafeArea(
       child: Builder(
@@ -1649,28 +2559,121 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
               // Access isBattleLive.value directly so Obx can track it
               final isBattleActive =
                   showGiftSendersController.isBattleLive.value;
+              // 🚨 CRITICAL: Access _battleStateInitialized.value so Obx() tracks it
+              // This ensures Obx() rebuilds when battle state initialization completes
+              final battleStateReady = _battleStateInitialized.value;
+
+              debugPrint(
+                  '[PK_CONFIG] 🔍 build() called - isBattleActive: $isBattleActive, battleStateReady: $battleStateReady, liveID: ${widget.liveID}, isHost: ${widget.isHost}');
 
               // Create base config
               final baseConfig = (widget.isHost ? hostConfig : audienceConfig)
                 ..audioVideoView.useVideoViewAspectFill = true
                 ..mediaPlayer.supportTransparent = true;
 
-              // Only set pkBattle when battle is actually active (based on isBattleLive.value)
+              // Only set pkBattle when battle is actually active AND host metadata is ready AND battle state is initialized
               // isBattleLive.value is set by:
               // 1. initState() - from local battle_status field
               // 2. _initializeBattleAsync() - from getBattleState cloud function (state['battleActive'])
               // 3. Periodic refresh - when it detects battleActive: true
-              if (isBattleActive) {
-                baseConfig.pkBattle = pkConfig(
-                  liveId: widget.liveID,
-                  pointsWidget: pointsWidget(),
-                  showWinnerAndLoser: Obx(() {
-                    return Visibility(
-                      visible: showGiftSendersController.showBattleWinner.value,
-                      child: winnerWidget(),
-                    );
-                  }),
-                  victoryWidget: victoryWidget(),
+              // 4. initiateBattleTimer() - when battle starts
+              // _battleStateInitialized.value is set when _initializeBattleAsync() completes
+              if (isBattleActive &&
+                  widget.liveID.isNotEmpty &&
+                  _hostMetadataReady &&
+                  battleStateReady) {
+                debugPrint(
+                    '[PK_CONFIG] 🎨 ========== CREATING PK CONFIG ==========');
+                debugPrint('[PK_CONFIG] 🎨 isBattleActive: $isBattleActive');
+                debugPrint('[PK_CONFIG] 🎨 liveID: ${widget.liveID}');
+                debugPrint(
+                    '[PK_CONFIG] 🎨 battle_status: ${widget.liveStreaming?.getBattleStatus}');
+                debugPrint(
+                    '[PK_CONFIG] 🎨 is_battle: ${widget.liveStreaming?.getBattle}');
+                debugPrint(
+                    '[PK_CONFIG] 🎨 isBattleLive.value: ${showGiftSendersController.isBattleLive.value}');
+
+                try {
+                  // 🚨 CRITICAL: Log opponent channel for debugging hosts list issue
+                  final opponentChannel =
+                      widget.liveStreaming?.getBattleLiveId ?? '';
+                  debugPrint(
+                      '[PK_CONFIG] 🎨 Calling pkConfig() with liveId: ${widget.liveID}');
+                  debugPrint(
+                      '[PK_CONFIG] 🎨 Opponent channel (battle_liveID): $opponentChannel');
+                  debugPrint(
+                      '[PK_CONFIG] 🎨 Current channel: ${widget.liveStreaming?.getStreamingChannel}');
+
+                  baseConfig.pkBattle = pkConfig(
+                    liveId: widget.liveID,
+                    pointsWidget: pointsWidget(),
+                    showWinnerAndLoser: Obx(() {
+                      return Visibility(
+                        visible:
+                            showGiftSendersController.showBattleWinner.value,
+                        child: winnerWidget(),
+                      );
+                    }),
+                    victoryWidget: victoryWidget(),
+                  );
+                  debugPrint(
+                      '[PK_CONFIG] ✅ pkConfig created and applied successfully');
+                  debugPrint('[PK_CONFIG] ✅ baseConfig.pkBattle is now set');
+                  debugPrint(
+                      '[PK_CONFIG] ⚠️ NOTE: Zego PK system should populate hosts list automatically');
+                  debugPrint(
+                      '[PK_CONFIG] ⚠️ If hosts remain empty, Zego may need time to detect PK battle state');
+                } catch (e) {
+                  debugPrint('[PK_CONFIG] ⚠️ Error creating pkConfig: $e');
+                  debugPrint(
+                      '[PK_CONFIG] ⚠️ Stack trace: ${StackTrace.current}');
+                  // Don't set pkBattle if config creation fails
+                }
+              } else {
+                if (!isBattleActive) {
+                  debugPrint(
+                      '[PK_CONFIG] 🚫 Skipping pkConfig - battle not active (isBattleActive: $isBattleActive)');
+                }
+                if (widget.liveID.isEmpty) {
+                  debugPrint(
+                      '[PK_CONFIG] 🚫 Skipping pkConfig - liveID is empty');
+                }
+              }
+
+              // 🚨 CRITICAL: Null checks before building widget to prevent crashes
+              if (widget.currentUser == null ||
+                  widget.currentUser!.objectId == null ||
+                  widget.currentUser!.objectId!.isEmpty ||
+                  widget.currentUser!.getFullName == null ||
+                  widget.currentUser!.getFullName!.isEmpty ||
+                  widget.liveID.isEmpty ||
+                  (widget.isHost && pkEvents == null)) {
+                debugPrint(
+                    '[PK_BATTLE_SYNC] ⚠️ Missing required data for ZegoUIKitPrebuiltLiveStreaming');
+                debugPrint(
+                    '[PK_BATTLE_SYNC]    currentUser: ${widget.currentUser != null}');
+                debugPrint(
+                    '[PK_BATTLE_SYNC]    objectId: ${widget.currentUser?.objectId != null}');
+                debugPrint(
+                    '[PK_BATTLE_SYNC]    getFullName: ${widget.currentUser?.getFullName != null}');
+                debugPrint('[PK_BATTLE_SYNC]    liveID: ${widget.liveID}');
+                debugPrint('[PK_BATTLE_SYNC]    pkEvents: ${pkEvents != null}');
+                return Center(
+                  child: CircularProgressIndicator(),
+                );
+              }
+
+              // 🚨 CRITICAL: Ensure events are properly initialized before use
+              // hostEvents uses pkEvents!.event which will crash if pkEvents is null
+              final events = widget.isHost
+                  ? (pkEvents != null ? hostEvents : null)
+                  : audienceEvents;
+
+              if (events == null) {
+                debugPrint(
+                    '[PK_BATTLE_SYNC] ⚠️ Events not initialized, showing loading');
+                return Center(
+                  child: CircularProgressIndicator(),
                 );
               }
 
@@ -1680,7 +2683,7 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
                   userID: widget.currentUser!.objectId!,
                   userName: widget.currentUser!.getFullName!,
                   liveID: widget.liveID,
-                  events: widget.isHost ? hostEvents : audienceEvents,
+                  events: events,
                   config: baseConfig
                     ..audioVideoView.backgroundBuilder = (BuildContext context,
                         Size size, ZegoUIKitUser? user, Map extraInfo) {
@@ -1694,160 +2697,163 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
                           : const SizedBox();
                     }
                     ..topMenuBar.hostAvatarBuilder = (ZegoUIKitUser? user) {
-                      return user != null
-                          ? Row(
+                      // 🚨 CRITICAL: Null-safe check - return placeholder if host data not ready
+                      if (user == null) {
+                        debugPrint(
+                            '[PK_BATTLE_UI] ⚠️ hostAvatarBuilder: user is null, showing placeholder');
+                        return const SizedBox.shrink();
+                      }
+
+                      final author = widget.liveStreaming?.getAuthor;
+                      if (author == null) {
+                        debugPrint(
+                            '[PK_BATTLE_UI] ⚠️ hostAvatarBuilder: getAuthor is null, showing placeholder');
+                        return const SizedBox.shrink();
+                      }
+
+                      return Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          ContainerCorner(
+                            height: 37,
+                            borderRadius: 50,
+                            colors: [kVioletColor, earnCashColor],
+                            onTap: () {
+                              if (user.id != widget.currentUser!.objectId) {
+                                showUserProfileBottomSheet(
+                                  currentUser: widget.currentUser!,
+                                  userId: user.id,
+                                  context: context,
+                                );
+                              }
+                            },
+                            child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                ContainerCorner(
-                                  height: 37,
-                                  borderRadius: 50,
-                                  colors: [kVioletColor, earnCashColor],
-                                  onTap: () {
-                                    if (user.id !=
-                                        widget.currentUser!.objectId) {
-                                      showUserProfileBottomSheet(
-                                        currentUser: widget.currentUser!,
-                                        userId: user.id,
-                                        context: context,
-                                      );
-                                    }
-                                  },
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          ContainerCorner(
-                                            marginRight: 5,
-                                            color:
-                                                Colors.black.withOpacity(0.5),
-                                            child: QuickActions.avatarWidget(
-                                              widget.liveStreaming!.getAuthor!,
-                                              width: double.infinity,
-                                              height: double.infinity,
-                                            ),
-                                            borderRadius: 50,
-                                            height: 30,
-                                            width: 30,
-                                            borderWidth: 0,
-                                          ),
-                                          Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.center,
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              ContainerCorner(
-                                                width: 65,
-                                                child: TextScroll(
-                                                  widget.liveStreaming!
-                                                      .getAuthor!.getFullName!,
-                                                  mode: TextScrollMode.endless,
-                                                  velocity: Velocity(
-                                                      pixelsPerSecond:
-                                                          Offset(30, 0)),
-                                                  delayBefore:
-                                                      Duration(seconds: 1),
-                                                  pauseBetween: Duration(
-                                                      milliseconds: 150),
-                                                  style: TextStyle(
-                                                    color: Colors.white,
-                                                    fontSize: 10,
-                                                  ),
-                                                  textAlign: TextAlign.left,
-                                                  selectable: true,
-                                                  intervalSpaces: 5,
-                                                  numberOfReps: 9999,
-                                                ),
-                                              ),
-                                              ContainerCorner(
-                                                width: 65,
-                                                child: Row(
-                                                  mainAxisSize:
-                                                      MainAxisSize.min,
-                                                  children: [
-                                                    Padding(
-                                                      padding:
-                                                          const EdgeInsets.only(
-                                                              left: 5),
-                                                      child: Image.asset(
-                                                        "assets/images/grade_welfare.png",
-                                                        height: 12,
-                                                        width: 12,
-                                                      ),
-                                                    ),
-                                                    Obx(() {
-                                                      return TextWithTap(
-                                                        QuickHelp
-                                                            .checkFundsWithString(
-                                                          amount:
-                                                              showGiftSendersController
-                                                                  .diamondsCounter
-                                                                  .value,
-                                                        ),
-                                                        marginLeft: 5,
-                                                        marginRight: 5,
-                                                        fontWeight:
-                                                            FontWeight.bold,
-                                                        fontSize: 12,
-                                                        color: Colors.white,
-                                                      );
-                                                    }),
-                                                  ],
-                                                ),
-                                              ),
-                                            ],
-                                          )
-                                        ],
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    ContainerCorner(
+                                      marginRight: 5,
+                                      color: Colors.black.withOpacity(0.5),
+                                      child: QuickActions.avatarWidget(
+                                        author,
+                                        width: double.infinity,
+                                        height: double.infinity,
                                       ),
-                                      ContainerCorner(
-                                        marginLeft: 10,
-                                        marginRight: 6,
-                                        color: Colors.white.withOpacity(0.2),
-                                        borderRadius: 50,
-                                        height: 23,
-                                        width: 23,
-                                        child: Padding(
-                                          padding: const EdgeInsets.all(3.0),
-                                          child: Lottie.asset(
-                                              "assets/lotties/ic_live_animation.json"),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                if (!widget.isHost)
-                                  ContainerCorner(
-                                    marginLeft: 5,
-                                    height: 30,
-                                    width: 30,
-                                    color: following
-                                        ? Colors.blueAccent
-                                        : kVioletColor,
-                                    child: ContainerCorner(
-                                      color: kTransparentColor,
+                                      borderRadius: 50,
                                       height: 30,
                                       width: 30,
-                                      child: Center(
-                                        child: Icon(
-                                          following ? Icons.done : Icons.add,
-                                          color: Colors.white,
-                                        ),
-                                      ),
+                                      borderWidth: 0,
                                     ),
-                                    borderRadius: 50,
-                                    onTap: () {
-                                      if (!following) {
-                                        followOrUnfollow();
-                                        //ZegoInRoomMessage.fromBroadcastMessage("")
-                                      }
-                                    },
+                                    Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        ContainerCorner(
+                                          width: 65,
+                                          child: TextScroll(
+                                            author.getFullName ?? 'Loading...',
+                                            mode: TextScrollMode.endless,
+                                            velocity: Velocity(
+                                                pixelsPerSecond: Offset(30, 0)),
+                                            delayBefore: Duration(seconds: 1),
+                                            pauseBetween:
+                                                Duration(milliseconds: 150),
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 10,
+                                            ),
+                                            textAlign: TextAlign.left,
+                                            selectable: true,
+                                            intervalSpaces: 5,
+                                            numberOfReps: 9999,
+                                          ),
+                                        ),
+                                        ContainerCorner(
+                                          width: 65,
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Padding(
+                                                padding: const EdgeInsets.only(
+                                                    left: 5),
+                                                child: Image.asset(
+                                                  "assets/images/grade_welfare.png",
+                                                  height: 12,
+                                                  width: 12,
+                                                ),
+                                              ),
+                                              Obx(() {
+                                                return TextWithTap(
+                                                  QuickHelp
+                                                      .checkFundsWithString(
+                                                    amount:
+                                                        showGiftSendersController
+                                                            .diamondsCounter
+                                                            .value,
+                                                  ),
+                                                  marginLeft: 5,
+                                                  marginRight: 5,
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 12,
+                                                  color: Colors.white,
+                                                );
+                                              }),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    )
+                                  ],
+                                ),
+                                ContainerCorner(
+                                  marginLeft: 10,
+                                  marginRight: 6,
+                                  color: Colors.white.withOpacity(0.2),
+                                  borderRadius: 50,
+                                  height: 23,
+                                  width: 23,
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(3.0),
+                                    child: Lottie.asset(
+                                        "assets/lotties/ic_live_animation.json"),
                                   ),
+                                ),
                               ],
-                            )
-                          : const SizedBox();
+                            ),
+                          ),
+                          if (!widget.isHost)
+                            ContainerCorner(
+                              marginLeft: 5,
+                              height: 30,
+                              width: 30,
+                              color:
+                                  following ? Colors.blueAccent : kVioletColor,
+                              child: ContainerCorner(
+                                color: kTransparentColor,
+                                height: 30,
+                                width: 30,
+                                child: Center(
+                                  child: Icon(
+                                    following ? Icons.done : Icons.add,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                              borderRadius: 50,
+                              onTap: () {
+                                if (!following) {
+                                  followOrUnfollow();
+                                  //ZegoInRoomMessage.fromBroadcastMessage("")
+                                }
+                              },
+                            ),
+                        ],
+                      );
                     }
                     ..memberButton.builder = (number) {
                       return ContainerCorner(
@@ -2063,34 +3069,51 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
   }
 
   void followOrUnfollow() async {
+    // 🚨 CRITICAL: Null checks before accessing widget properties
+    if (widget.currentUser == null ||
+        widget.liveStreaming == null ||
+        !mounted) {
+      return;
+    }
+
     if (following) {
       widget.currentUser!.removeFollowing = widget.liveStreaming!.getAuthorId!;
       widget.liveStreaming!.removeFollower = widget.currentUser!.objectId!;
 
-      setState(() {
-        following = false;
-      });
+      if (mounted) {
+        setState(() {
+          following = false;
+        });
+      }
     } else {
       widget.currentUser!.setFollowing = widget.liveStreaming!.getAuthorId!;
       widget.liveStreaming!.addFollower = widget.currentUser!.objectId!;
 
-      setState(() {
-        following = true;
-      });
+      if (mounted) {
+        setState(() {
+          following = true;
+        });
+      }
     }
 
     await widget.currentUser!.save();
     widget.liveStreaming!.save();
 
+    // 🚨 CRITICAL: Null check before accessing getAuthor
+    final author = widget.liveStreaming?.getAuthor;
+    if (author == null) {
+      debugPrint('[PK_BATTLE_UI] ⚠️ Cannot follow/unfollow - author is null');
+      return;
+    }
+
     ParseResponse parseResponse = await QuickCloudCode.followUser(
-        author: widget.currentUser!,
-        receiver: widget.liveStreaming!.getAuthor!);
+        author: widget.currentUser!, receiver: author);
 
     if (parseResponse.success) {
       sendMessage("start_following".tr());
       QuickActions.createOrDeleteNotification(
         widget.currentUser!,
-        widget.liveStreaming!.getAuthor!,
+        author,
         NotificationsModel.notificationTypeFollowers,
       );
     }
@@ -2611,7 +3634,20 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
               },
               onGiftSelected: (gift) {
                 print("onGiftSelected called ${gift.getCoins}");
-                sendGift(gift, widget.liveStreaming!.getAuthor!);
+                // 🚨 CRITICAL: Null check before accessing getAuthor
+                final author = widget.liveStreaming?.getAuthor;
+                if (author == null) {
+                  debugPrint(
+                      '[PK_BATTLE_UI] ⚠️ Cannot send gift - author is null');
+                  QuickHelp.showAppNotificationAdvanced(
+                    context: context,
+                    title: "Error",
+                    message: "Host information not available",
+                    isError: true,
+                  );
+                  return;
+                }
+                sendGift(gift, author);
 
                 //QuickHelp.goBackToPreviousPage(context);
                 QuickHelp.showAppNotificationAdvanced(
@@ -2619,9 +3655,7 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
                   user: widget.currentUser,
                   title: "live_streaming.gift_sent_title".tr(),
                   message: "live_streaming.gift_sent_explain".tr(
-                    namedArgs: {
-                      "name": widget.liveStreaming!.getAuthor!.getFirstName!
-                    },
+                    namedArgs: {"name": author.getFirstName ?? "Host"},
                   ),
                   isError: false,
                 );
@@ -2838,9 +3872,12 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
       }
 
       // Refresh UI to show updated earnings
-      setState(() {
-        // This will trigger a rebuild and show the updated diamond count
-      });
+      // 🚨 CRITICAL: Check mounted before setState to prevent errors during stream switches
+      if (mounted) {
+        setState(() {
+          // This will trigger a rebuild and show the updated diamond count
+        });
+      }
     } else {
       //QuickHelp.goBackToPreviousPage(context);
       debugPrint("gift Navigator pop up");
@@ -2848,6 +3885,15 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
   }
 
   setupStreamingLiveQuery() async {
+    // 🚨 CRITICAL: Null check before accessing widget.liveStreaming
+    // This prevents crashes when switching streams or widget is disposed
+    if (widget.liveStreaming == null ||
+        widget.liveStreaming!.objectId == null) {
+      debugPrint(
+          '[PK_BATTLE_SYNC] ⚠️ setupStreamingLiveQuery() cancelled - widget.liveStreaming or objectId is null');
+      return;
+    }
+
     QueryBuilder<LiveStreamingModel> query =
         QueryBuilder<LiveStreamingModel>(LiveStreamingModel());
 
@@ -2867,10 +3913,39 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
     subscription!.on(LiveQueryEvent.update,
         (LiveStreamingModel newUpdatedLive) async {
       print('*** LIVEQUERY UPDATE ***');
-      await newUpdatedLive.getAuthor!.fetch();
+
+      // 🚨 CRITICAL: Null checks before accessing nested properties
+      // This prevents crashes when switching between streams
+      if (newUpdatedLive.getAuthor != null) {
+        try {
+          await newUpdatedLive.getAuthor!.fetch();
+        } catch (e) {
+          debugPrint(
+              '[PK_BATTLE_SYNC] ⚠️ Error fetching author in LiveQuery UPDATE: $e');
+        }
+      } else {
+        debugPrint('[PK_BATTLE_SYNC] ⚠️ getAuthor is null in LiveQuery UPDATE');
+      }
+
       widget.liveStreaming = newUpdatedLive;
+      _captureActiveStreamSnapshot(
+          reason: 'live_query_update', refreshToken: false);
+
+      // 🚨 CRITICAL: Mark host metadata as ready if author is now available
+      if (newUpdatedLive.getAuthor != null && !_hostMetadataReady && mounted) {
+        setState(() {
+          _hostMetadataReady = true;
+        });
+        debugPrint(
+            '[PK_BATTLE_UI] ✅ Host metadata marked ready after LiveQuery update');
+      }
 
       if (!mounted) return;
+      if (!_matchesActiveStream(objectId: newUpdatedLive.objectId)) {
+        debugPrint(
+            '[PK_BATTLE_SYNC] ⚠️ LiveQuery update ignored (objectId mismatch)');
+        return;
+      }
 
       showGiftSendersController.diamondsCounter.value =
           newUpdatedLive.getDiamonds.toString();
@@ -2931,15 +4006,41 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
         initiateBattleTimer();
       }
 
-      showGiftSendersController.isBattleLive.value =
+      final oldValue = showGiftSendersController.isBattleLive.value;
+      // 🚨 CRITICAL: Check BOTH battle_status AND is_battle field (consistent with other checks)
+      // This ensures we catch battles even if battle_status is stale
+      final battleStatusActive =
           newUpdatedLive.getBattleStatus == LiveStreamingModel.battleAlive;
+      final isBattleFieldActive = newUpdatedLive.getBattle == true;
+      final newValue = battleStatusActive || isBattleFieldActive;
+      showGiftSendersController.isBattleLive.value = newValue;
+      if (oldValue != newValue) {
+        debugPrint(
+            '[PK_BATTLE_SYNC] 🔄 isBattleLive.value changed: $oldValue → $newValue (triggered by: LiveQuery UPDATE - battle_status: ${newUpdatedLive.getBattleStatus}, is_battle: ${newUpdatedLive.getBattle})');
+
+        // 🚨 CRITICAL: Force widget rebuild when battle state changes
+        // This ensures pkConfig is created/removed immediately when battle state changes
+        if (mounted && newValue == true) {
+          setState(() {
+            debugPrint(
+                '[PK_BATTLE_SYNC] 🔄 setState() called to force rebuild (LiveQuery UPDATE - battle detected)');
+          });
+        }
+      }
       if (!newUpdatedLive.getStreaming! && !widget.isHost) {
-        QuickHelp.goToNavigatorScreen(
-            context,
-            LiveEndScreen(
-              currentUser: widget.currentUser,
-              liveAuthor: widget.liveStreaming!.getAuthor,
-            ));
+        // 🚨 CRITICAL: Null check before accessing getAuthor
+        if (widget.liveStreaming != null &&
+            widget.liveStreaming!.getAuthor != null) {
+          QuickHelp.goToNavigatorScreen(
+              context,
+              LiveEndScreen(
+                currentUser: widget.currentUser,
+                liveAuthor: widget.liveStreaming!.getAuthor,
+              ));
+        } else {
+          debugPrint(
+              '[PK_BATTLE_SYNC] ⚠️ Cannot navigate to LiveEndScreen - getAuthor is null');
+        }
         //onViewerLeave();
       }
     });
@@ -2947,11 +4048,39 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
     subscription!.on(LiveQueryEvent.enter,
         (LiveStreamingModel updatedLive) async {
       print('*** ENTER ***');
-      await updatedLive.getAuthor!.fetch();
+
+      // 🚨 CRITICAL: Null checks before accessing nested properties
+      // This prevents crashes when switching between streams
+      if (updatedLive.getAuthor != null) {
+        try {
+          await updatedLive.getAuthor!.fetch();
+        } catch (e) {
+          debugPrint(
+              '[PK_BATTLE_SYNC] ⚠️ Error fetching author in LiveQuery ENTER: $e');
+        }
+      } else {
+        debugPrint('[PK_BATTLE_SYNC] ⚠️ getAuthor is null in LiveQuery ENTER');
+      }
+
       widget.liveStreaming = updatedLive;
-      widget.liveStreaming = updatedLive;
+      _captureActiveStreamSnapshot(
+          reason: 'live_query_enter', refreshToken: false);
+
+      // 🚨 CRITICAL: Mark host metadata as ready if author is now available
+      if (updatedLive.getAuthor != null && !_hostMetadataReady && mounted) {
+        setState(() {
+          _hostMetadataReady = true;
+        });
+        debugPrint(
+            '[PK_BATTLE_UI] ✅ Host metadata marked ready after LiveQuery enter');
+      }
 
       if (!mounted) return;
+      if (!_matchesActiveStream(objectId: updatedLive.objectId)) {
+        debugPrint(
+            '[PK_BATTLE_SYNC] ⚠️ LiveQuery enter ignored (objectId mismatch)');
+        return;
+      }
       showGiftSendersController.diamondsCounter.value =
           widget.liveStreaming!.getDiamonds.toString();
       showGiftSendersController.hisBattlePoints.value =
@@ -2961,6 +4090,12 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
 
       debugPrint(
           '🎯 LiveQuery ENTER - Initial points loaded - My: ${updatedLive.getMyBattlePoints}, His: ${updatedLive.getHisBattlePoints}');
+
+      // 🚨 CRITICAL: Verify battle state with server after LiveQuery ENTER
+      // This ensures viewers joining mid-battle get proper battle initialization
+      debugPrint(
+          '[PK_BATTLE_SYNC] 🔄 LiveQuery ENTER - Verifying battle state...');
+      _initializeBattleAsync();
     });
   }
 
@@ -4080,14 +5215,20 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
   }
 
   updateBattleInviter() {
-    setState(() {
-      imLiveInviter = true;
-    });
+    // 🚨 CRITICAL: Check mounted before setState to prevent errors during stream switches
+    if (mounted) {
+      setState(() {
+        imLiveInviter = true;
+      });
+    }
   }
 
   updateBattleInvitee() {
-    setState(() {
-      imLiveInviter = false;
-    });
+    // 🚨 CRITICAL: Check mounted before setState to prevent errors during stream switches
+    if (mounted) {
+      setState(() {
+        imLiveInviter = false;
+      });
+    }
   }
 }

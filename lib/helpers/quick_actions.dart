@@ -27,43 +27,31 @@ class QuickActions {
     String? imageUrl,
     UserModel? currentUser,
   }) {
-    if (imageUrl != null) {
-      return Container(
-        margin: margin,
-        width: width,
-        height: height,
-        child: CachedNetworkImage(
-          imageUrl: imageUrl,
-          imageBuilder: (context, imageProvider) => Container(
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              image: DecorationImage(image: imageProvider, fit: BoxFit.cover),
-            ),
-          ),
-          //placeholder: (context, url) => _avatarInitials(currentUser),
-          //errorWidget: (context, url, error) => _avatarInitials(currentUser),
-        ),
-      );
-    } else if (currentUser != null && currentUser.getAvatar != null) {
-      return Container(
-        margin: margin,
-        width: width,
-        height: height,
-        child: CachedNetworkImage(
-          imageUrl: currentUser.getAvatar!.url!,
-          imageBuilder: (context, imageProvider) => Container(
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              image: DecorationImage(image: imageProvider, fit: BoxFit.cover),
-            ),
-          ),
-          placeholder: (context, url) => _avatarInitials(currentUser),
-          errorWidget: (context, url, error) => _avatarInitials(currentUser),
-        ),
-      );
-    } else {
-      return Container();
-    }
+    final effectiveUrl = imageUrl ?? currentUser?.getAvatar?.url;
+    final hasUrl = effectiveUrl?.isNotEmpty == true;
+
+    return Container(
+      margin: margin,
+      width: width,
+      height: height,
+      child: hasUrl
+          ? CachedNetworkImage(
+              imageUrl: effectiveUrl!,
+              imageBuilder: (context, imageProvider) => Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  image: DecorationImage(
+                    image: imageProvider,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              ),
+              placeholder: (context, url) => _avatarInitials(currentUser),
+              errorWidget: (context, url, error) =>
+                  _avatarInitials(currentUser),
+            )
+          : _avatarInitials(currentUser),
+    );
   }
 
   static Widget eventBgImage(String? imageUrl,
@@ -150,7 +138,9 @@ class QuickActions {
         'QuickActions.avatarWidget: Avatar URL: ${currentUser.getAvatar?.url}');
     print('QuickActions.avatarWidget: Image URL: $imageUrl');
 
-    // Always show avatar without checks
+    final effectiveImageUrl = imageUrl ?? currentUser.getAvatar?.url;
+    final hasNetworkAvatar = effectiveImageUrl?.isNotEmpty == true;
+
     return Stack(
       alignment: AlignmentDirectional.center,
       children: [
@@ -158,15 +148,16 @@ class QuickActions {
           margin: margin,
           width: width,
           height: height,
-          child: (currentUser.getAvatar?.url?.isNotEmpty == true ||
-                  (imageUrl?.isNotEmpty == true))
+          child: hasNetworkAvatar
               ? CachedNetworkImage(
-                  imageUrl: currentUser.getAvatar?.url ?? imageUrl ?? "",
+                  imageUrl: effectiveImageUrl!,
                   imageBuilder: (context, imageProvider) => Container(
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       image: DecorationImage(
-                          image: imageProvider, fit: BoxFit.cover),
+                        image: imageProvider,
+                        fit: BoxFit.cover,
+                      ),
                     ),
                   ),
                   placeholder: (context, url) => _avatarInitials(currentUser),

@@ -147,11 +147,12 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen>
 
     // 🚀 Initialize BattlePointsManager - Single Source of Truth
     battlePointsManager = BattlePointsManager();
-    
+
     // Initialize with the CORRECT document (the host whose stream we joined)
-    debugPrint('[PK_BATTLE_SYNC] Multi-user screen - initializing BattlePointsManager');
+    debugPrint(
+        '[PK_BATTLE_SYNC] Multi-user screen - initializing BattlePointsManager');
     battlePointsManager.initialize(widget.liveStreaming!);
-    
+
     // Fetch fresh points immediately
     battlePointsManager.fetchFreshPointsNow();
 
@@ -160,11 +161,13 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen>
         widget.liveStreaming!.getMyBattlePoints ?? 0;
     showGiftSendersController.hisBattlePoints.value =
         widget.liveStreaming!.getHisBattlePoints ?? 0;
-    
-    debugPrint('🎯 [Multi INIT] Initial points from database - My: ${widget.liveStreaming!.getMyBattlePoints}, His: ${widget.liveStreaming!.getHisBattlePoints}');
-    
+
+    debugPrint(
+        '🎯 [Multi INIT] Initial points from database - My: ${widget.liveStreaming!.getMyBattlePoints}, His: ${widget.liveStreaming!.getHisBattlePoints}');
+
     // Fetch fresh battle state from server if battle is active
-    if (widget.liveStreaming!.getBattleStatus == LiveStreamingModel.battleAlive) {
+    if (widget.liveStreaming!.getBattleStatus ==
+        LiveStreamingModel.battleAlive) {
       QuickCloudCode.getBattleState(
         liveChannel: widget.liveStreaming!.getStreamingChannel!,
       ).then((response) {
@@ -173,16 +176,17 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen>
           if (state['battleActive'] == true) {
             final serverMyPoints = state['my_points'] ?? 0;
             final serverHisPoints = state['his_points'] ?? 0;
-            
-            debugPrint('🎯 [Multi INIT] Fresh battle state from server - My: $serverMyPoints, His: $serverHisPoints');
-            
+
+            debugPrint(
+                '🎯 [Multi INIT] Fresh battle state from server - My: $serverMyPoints, His: $serverHisPoints');
+
             // Update UI immediately
             showGiftSendersController.myBattlePoints.value = serverMyPoints;
             showGiftSendersController.hisBattlePoints.value = serverHisPoints;
-            
+
             // 🚨 CRITICAL: Enable battle UI visibility
             showGiftSendersController.isBattleLive.value = true;
-            
+
             // Update local document
             widget.liveStreaming!.setMyBattlePoints = serverMyPoints;
             widget.liveStreaming!.setHisBattlePoints = serverHisPoints;
@@ -190,17 +194,18 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen>
         }
       });
     }
-    
+
     // Initialize PointsController to receive cross-room updates
     PointsController.initialize(
       widget.liveID,
       (myPoints, hisPoints) {
         showGiftSendersController.myBattlePoints.value = myPoints;
         showGiftSendersController.hisBattlePoints.value = hisPoints;
-        debugPrint('🎯 [Multi] Points updated via command - My: $myPoints, His: $hisPoints');
+        debugPrint(
+            '🎯 [Multi] Points updated via command - My: $myPoints, His: $hisPoints');
       },
     );
-    
+
     // Load initial points into PointsController
     PointsController.loadInitialPoints(
       widget.liveStreaming!.getMyBattlePoints ?? 0,
@@ -210,28 +215,32 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen>
         showGiftSendersController.hisBattlePoints.value = hisPoints;
       },
     );
-    
+
     // 🕒 Sync battle timer if joining an active battle
-    if (widget.liveStreaming!.getBattleStatus == LiveStreamingModel.battleAlive) {
+    if (widget.liveStreaming!.getBattleStatus ==
+        LiveStreamingModel.battleAlive) {
       final battleStartTime = widget.liveStreaming!.getBattleStartTime ?? 0;
       if (battleStartTime > 0) {
-        debugPrint('[PK_BATTLE_TIMER] Multi-user viewer syncing timer - Battle started at: $battleStartTime');
+        debugPrint(
+            '[PK_BATTLE_TIMER] Multi-user viewer syncing timer - Battle started at: $battleStartTime');
         // Calculate remaining time
         final currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
         final elapsedTime = currentTime - battleStartTime;
         const battleDuration = 300; // 5 minutes
         final remainingTime = battleDuration - elapsedTime;
-        
+
         if (remainingTime > 0) {
           // Start local timer with remaining time
           showGiftSendersController.battleTimer.value = remainingTime;
-          debugPrint('[PK_BATTLE_TIMER] Multi-user timer synced - Remaining: $remainingTime seconds');
+          debugPrint(
+              '[PK_BATTLE_TIMER] Multi-user timer synced - Remaining: $remainingTime seconds');
         } else {
-          debugPrint('[PK_BATTLE_TIMER] Multi-user battle already ended - Elapsed: ${elapsedTime}s');
+          debugPrint(
+              '[PK_BATTLE_TIMER] Multi-user battle already ended - Elapsed: ${elapsedTime}s');
         }
       }
     }
-    
+
     ZegoGiftManager().cache.cacheAllFiles(giftItemList);
 
     ZegoGiftManager().service.recvNotifier.addListener(onGiftReceived);
@@ -259,7 +268,7 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen>
     showGiftSendersController.isPrivateLive.value = false;
     ZegoGiftManager().service.recvNotifier.removeListener(onGiftReceived);
     ZegoGiftManager().service.uninit();
-    
+
     // 🚀 Cleanup BattlePointsManager
     try {
       battlePointsManager.onClose();
@@ -267,7 +276,7 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen>
     } catch (e) {
       debugPrint('[PK_BATTLE_SYNC] Error disposing BattlePointsManager: $e');
     }
-    
+
     PointsController.dispose(); // Clean up battle points listener
     _avatarWidgetsCache.clear();
   }
@@ -276,10 +285,10 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen>
       ValueNotifier<ZegoLiveStreamingState>(ZegoLiveStreamingState.idle);
 
   Controller showGiftSendersController = Get.put(Controller());
-  
+
   // Battle Points Manager - Single Source of Truth for PK points
   late BattlePointsManager battlePointsManager;
-  
+
   var coHostsList = [];
   var usersInRoom = [];
   Subscription? subscription;
@@ -312,25 +321,57 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen>
     )
       ..audioVideoView.foregroundBuilder = hostAudioVideoViewForegroundBuilder
       ..preview.showPreviewForHost = false
-                  // Keep camera OFF when room starts - user will manually turn it on
+      // Keep camera OFF when room starts - user will manually turn it on
       ..turnOnCameraWhenJoining = false
-      ..turnOnMicrophoneWhenJoining = false 
+      ..turnOnMicrophoneWhenJoining = false
       ..bottomMenuBar.hostExtendButtons = [themeButton, shareMediaButton]
       ..avatarBuilder = (BuildContext context, Size size, ZegoUIKitUser? user,
           Map extraInfo) {
-        return user != null
-            ? Container(
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  image: DecorationImage(
-                    fit: BoxFit.contain,
-                    image: NetworkImage(
-                      widget.liveStreaming!.getAuthor!.getAvatar!.url!,
-                    ),
-                  ),
+        if (user == null) {
+          return const SizedBox.shrink();
+        }
+
+        final host = widget.liveStreaming?.getAuthor;
+        final isHostAvatar = host != null && user.id == host.objectId;
+
+        if (isHostAvatar && host != null) {
+          return ClipOval(
+            child: SizedBox(
+              width: size.width,
+              height: size.height,
+              child: QuickActions.avatarWidget(
+                host,
+                width: size.width,
+                height: size.height,
+                hideAvatarFrame: true,
+              ),
+            ),
+          );
+        }
+
+        return FutureBuilder<String?>(
+          future: avatarService.fetchUserAvatar(user.id),
+          builder: (context, snapshot) {
+            final tempUser = UserModel.forQuery();
+            if (snapshot.hasData && snapshot.data?.isNotEmpty == true) {
+              tempUser.setAvatar =
+                  ParseFile(null, name: null, url: snapshot.data);
+            }
+
+            return ClipOval(
+              child: SizedBox(
+                width: size.width,
+                height: size.height,
+                child: QuickActions.avatarWidget(
+                  tempUser,
+                  width: size.width,
+                  height: size.height,
+                  hideAvatarFrame: true,
                 ),
-              )
-            : const SizedBox();
+              ),
+            );
+          },
+        );
       };
 
     final audienceConfig = ZegoUIKitPrebuiltLiveStreamingConfig.audience(
@@ -964,7 +1005,7 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen>
           ParseLiveListElementSnapshot<LiveViewersModel> snapshot) {
         if (snapshot.hasData) {
           LiveViewersModel viewer = snapshot.loadedData!;
-          
+
           // Safety check: Skip if author is null
           if (viewer.getAuthor == null) {
             return const SizedBox.shrink();
@@ -1418,7 +1459,8 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen>
 
       if (mUser.objectId == widget.liveStreaming!.getAuthorId) {
         // Add diamonds to live streaming (for display during stream)
-        final diamondsToAdd = QuickHelp.getCoinsForReceiver(giftsModel.getCoins!);
+        final diamondsToAdd =
+            QuickHelp.getCoinsForReceiver(giftsModel.getCoins!);
         widget.liveStreaming!.addDiamonds = diamondsToAdd;
 
         // 💰 UPDATE HOST'S ACTUAL EARNINGS via cloud function (handles race conditions)
@@ -1427,9 +1469,11 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen>
             author: mUser,
             credits: giftsModel.getCoins!,
           );
-          debugPrint("💰 [LIVE EARNINGS] Successfully sent earnings via cloud function");
+          debugPrint(
+              "💰 [LIVE EARNINGS] Successfully sent earnings via cloud function");
         } catch (e) {
-          debugPrint("❌ [LIVE EARNINGS] Error sending gift via cloud function: $e");
+          debugPrint(
+              "❌ [LIVE EARNINGS] Error sending gift via cloud function: $e");
         }
 
         // Handle PK battle points if battle is active
@@ -1441,56 +1485,67 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen>
 
           // 🎯 Let cloud function handle ALL database updates to prevent double-increment
           try {
-            ParseResponse cloudResponse = await QuickCloudCode.saveHisBattlePoints(
+            ParseResponse cloudResponse =
+                await QuickCloudCode.saveHisBattlePoints(
               points: battlePoints,
-              liveChannel: widget.liveStreaming!.getStreamingChannel!,  // ✅ Use streaming_channel from database
+              liveChannel: widget.liveStreaming!
+                  .getStreamingChannel!, // ✅ Use streaming_channel from database
             );
-            
-            debugPrint("🔍 [Multi] Cloud response - Success: ${cloudResponse.success}, Results: ${cloudResponse.results}, Results length: ${cloudResponse.results?.length}");
-            debugPrint("🔍 [Multi] Cloud response - Result type: ${cloudResponse.result?.runtimeType}");
-            debugPrint("🔍 [Multi] Cloud response - Result: ${cloudResponse.result}");
-            debugPrint("🔍 [Multi] Using streaming_channel: ${widget.liveStreaming!.getStreamingChannel}");
-            
+
+            debugPrint(
+                "🔍 [Multi] Cloud response - Success: ${cloudResponse.success}, Results: ${cloudResponse.results}, Results length: ${cloudResponse.results?.length}");
+            debugPrint(
+                "🔍 [Multi] Cloud response - Result type: ${cloudResponse.result?.runtimeType}");
+            debugPrint(
+                "🔍 [Multi] Cloud response - Result: ${cloudResponse.result}");
+            debugPrint(
+                "🔍 [Multi] Using streaming_channel: ${widget.liveStreaming!.getStreamingChannel}");
+
             // Parse Server cloud functions return data in 'result' not 'results'
             if (cloudResponse.success && cloudResponse.result != null) {
               final result = cloudResponse.result as Map<String, dynamic>;
               debugPrint("🔍 [Multi] Result data: $result");
               final newMyPoints = result['my_points'] ?? 0;
               final newHisPoints = result['his_points'] ?? 0;
-              
+
               // 🚀 Update BattlePointsManager with cloud function results
               battlePointsManager.updatePoints(
                 newMyPoints: newMyPoints,
                 newHisPoints: newHisPoints,
               );
-              
+
               showGiftSendersController.myBattlePoints.value = newMyPoints;
               showGiftSendersController.hisBattlePoints.value = newHisPoints;
-              
-              debugPrint("💾 [Multi] ✅ Cloud sync - My: $newMyPoints, His: $newHisPoints");
-              
+
+              debugPrint(
+                  "💾 [Multi] ✅ Cloud sync - My: $newMyPoints, His: $newHisPoints");
+
               // 🎯 Send real-time command using cloud function results (don't fetch from DB yet)
               PointsController.sendPointsUpdateToMyRoom(
                 currentRoomID: widget.liveID,
-                myTotalPoints: newMyPoints,  // ✅ Use cloud function result directly
+                myTotalPoints:
+                    newMyPoints, // ✅ Use cloud function result directly
                 senderHostID: widget.liveStreaming!.getAuthorId!,
               );
-              debugPrint("🎯 [Multi] 📤 Real-time command sent to my room - Points: $newMyPoints");
+              debugPrint(
+                  "🎯 [Multi] 📤 Real-time command sent to my room - Points: $newMyPoints");
             } else {
               // Fallback
-              debugPrint("⚠️ [Multi] Cloud function failed - Success: ${cloudResponse.success}, Error: ${cloudResponse.error?.message}, Code: ${cloudResponse.error?.code}");
+              debugPrint(
+                  "⚠️ [Multi] Cloud function failed - Success: ${cloudResponse.success}, Error: ${cloudResponse.error?.message}, Code: ${cloudResponse.error?.code}");
               widget.liveStreaming!.addMyBattlePoints = battlePoints;
               final totalMyPoints = widget.liveStreaming!.getMyBattlePoints!;
               showGiftSendersController.myBattlePoints.value = totalMyPoints;
               await widget.liveStreaming!.save();
-              
+
               // Send command with fallback value
               PointsController.sendPointsUpdateToMyRoom(
                 currentRoomID: widget.liveID,
                 myTotalPoints: totalMyPoints,
                 senderHostID: widget.liveStreaming!.getAuthorId!,
               );
-              debugPrint("🎯 [Multi] 📤 Real-time command sent (fallback) - Points: $totalMyPoints");
+              debugPrint(
+                  "🎯 [Multi] 📤 Real-time command sent (fallback) - Points: $totalMyPoints");
             }
           } catch (e) {
             debugPrint("❌ [Multi] Cloud function exception: $e");
@@ -1498,14 +1553,15 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen>
             final totalMyPoints = widget.liveStreaming!.getMyBattlePoints!;
             showGiftSendersController.myBattlePoints.value = totalMyPoints;
             await widget.liveStreaming!.save();
-            
+
             // Send command with fallback value
             PointsController.sendPointsUpdateToMyRoom(
               currentRoomID: widget.liveID,
               myTotalPoints: totalMyPoints,
               senderHostID: widget.liveStreaming!.getAuthorId!,
             );
-            debugPrint("🎯 [Multi] 📤 Real-time command sent (exception fallback) - Points: $totalMyPoints");
+            debugPrint(
+                "🎯 [Multi] 📤 Real-time command sent (exception fallback) - Points: $totalMyPoints");
           }
         } else {
           await widget.liveStreaming!.save();
@@ -1524,11 +1580,13 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen>
           final totalHisPoints = widget.liveStreaming!.getHisBattlePoints!;
 
           showGiftSendersController.hisBattlePoints.value = totalHisPoints;
-          
-          debugPrint("🎯 [Multi] 📊 Opponent received gift - My view of his points: $totalHisPoints");
+
+          debugPrint(
+              "🎯 [Multi] 📊 Opponent received gift - My view of his points: $totalHisPoints");
 
           widget.liveStreaming!.save().then((_) {
-            debugPrint("💾 [Multi] My view of opponent points saved: $totalHisPoints");
+            debugPrint(
+                "💾 [Multi] My view of opponent points saved: $totalHisPoints");
           });
         }
         sendMessage("sent_gift".tr(namedArgs: {"name": mUser.getFullName!}));
@@ -1598,17 +1656,18 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen>
       if (newUpdatedLive.getBattleStatus == LiveStreamingModel.battleAlive) {
         final dbMyPoints = newUpdatedLive.getMyBattlePoints ?? 0;
         final dbHisPoints = newUpdatedLive.getHisBattlePoints ?? 0;
-        
+
         // 🚀 Update BattlePointsManager (it manages its own state)
         battlePointsManager.updatePoints(
           newMyPoints: dbMyPoints,
           newHisPoints: dbHisPoints,
         );
-        
+
         showGiftSendersController.myBattlePoints.value = dbMyPoints;
         showGiftSendersController.hisBattlePoints.value = dbHisPoints;
-        
-        debugPrint('🎯 [Multi] LiveQuery UPDATE - Database sync - My: $dbMyPoints, His: $dbHisPoints');
+
+        debugPrint(
+            '🎯 [Multi] LiveQuery UPDATE - Database sync - My: $dbMyPoints, His: $dbHisPoints');
       }
 
       if (!newUpdatedLive.getStreaming! && !widget.isHost) {
@@ -1663,12 +1722,15 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen>
         showGiftSendersController.selectedRoomTheme.value =
             widget.liveStreaming!.getRoomTheme!;
       }
-      
+
       // Load initial battle points from database
       if (updatedLive.getBattleStatus == LiveStreamingModel.battleAlive) {
-        showGiftSendersController.myBattlePoints.value = updatedLive.getMyBattlePoints!;
-        showGiftSendersController.hisBattlePoints.value = updatedLive.getHisBattlePoints!;
-        debugPrint('🎯 [Multi] LiveQuery ENTER - Initial points loaded - My: ${updatedLive.getMyBattlePoints}, His: ${updatedLive.getHisBattlePoints}');
+        showGiftSendersController.myBattlePoints.value =
+            updatedLive.getMyBattlePoints!;
+        showGiftSendersController.hisBattlePoints.value =
+            updatedLive.getHisBattlePoints!;
+        debugPrint(
+            '🎯 [Multi] LiveQuery ENTER - Initial points loaded - My: ${updatedLive.getMyBattlePoints}, His: ${updatedLive.getHisBattlePoints}');
       }
     });
   }
@@ -2002,7 +2064,9 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen>
                                     width: 45,
                                     child: TextWithTap(
                                       showGiftSendersController
-                                          .giftSenderList[index].getFullName ?? "Unknown",
+                                              .giftSenderList[index]
+                                              .getFullName ??
+                                          "Unknown",
                                       fontSize: 8,
                                       color: Colors.white,
                                       marginTop: 2,
@@ -2033,7 +2097,9 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen>
                                     width: 45,
                                     child: TextWithTap(
                                       showGiftSendersController
-                                          .giftReceiverList[index].getFullName ?? "Unknown",
+                                              .giftReceiverList[index]
+                                              .getFullName ??
+                                          "Unknown",
                                       fontSize: 8,
                                       color: Colors.white,
                                       marginTop: 2,
