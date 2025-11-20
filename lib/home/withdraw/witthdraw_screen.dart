@@ -32,7 +32,7 @@ class _WithDrawScreenState extends State<WithDrawScreen> {
   int pCoinPercent = 30;
   int pointPercent = 70;
 
-  int minimumAmountWithdrawal = 10;
+  int minimumAmountWithdrawal = 100000;
   int exchangeRatio = 300;
 
   double pCoinAvailable = 0.0;
