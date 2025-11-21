@@ -2,6 +2,7 @@
 
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:gallery_saver_plus/gallery_saver.dart';
 import 'package:get/get.dart';
@@ -31,6 +32,9 @@ class VideoInteractionsController extends GetxController {
   final UserModel? currentUser;
   late final ReelsController _reelsController;
   final PostsService _postsService = Get.find<PostsService>();
+  static final Map<String, DateTime> _lastRefreshByVideo = {};
+  static final Set<String> _refreshInFlight = {};
+  static const Duration _refreshCooldown = Duration(seconds: 10);
 
   final RxBool isLiked = false.obs;
   final RxBool isSaved = false.obs;
@@ -67,27 +71,25 @@ class VideoInteractionsController extends GetxController {
   }
 
   void _initializeValues() {
-    print('=== VIDEO INTERACTIONS INITIALIZATION DEBUG ===');
-    print('Video ID: ${video.objectId}');
-    print('Video author: ${video.getAuthor?.getFullName}');
-    print('Current user: ${currentUser?.getFullName}');
-    print('Current user ID: ${currentUser?.objectId}');
+    if (kDebugMode) {
+      print('=== VIDEO INTERACTIONS INITIALIZATION DEBUG ===');
+      print('Video ID: ${video.objectId}');
+      print('Video author: ${video.getAuthor?.getFullName}');
+      print('Current user: ${currentUser?.getFullName}');
+      print('Current user ID: ${currentUser?.objectId}');
+      print('Video likes list: ${video.getLikes}');
+      print('Video saves list: ${video.getSaves}');
+      print('Video comments list: ${video.getComments}');
+    }
 
-    // Ensure we have valid user ID for comparison
     String? currentUserId = currentUser?.objectId;
-
-    print('Video likes list: ${video.getLikes}');
-    print('Video saves list: ${video.getSaves}');
-    print('Video comments list: ${video.getComments}');
 
     if (currentUserId != null) {
       isLiked.value = video.getLikes.contains(currentUserId);
       isSaved.value = video.getSaves.contains(currentUserId);
-      print('User ID found, checking likes/saves...');
     } else {
       isLiked.value = false;
       isSaved.value = false;
-      print('No user ID found, setting likes/saves to false');
     }
 
     // Verificar se o autor e o usuário atual são válidos antes de acessar following
@@ -96,10 +98,8 @@ class VideoInteractionsController extends GetxController {
         currentUser!.getFollowing != null) {
       isFollowing.value =
           currentUser!.getFollowing!.contains(video.getAuthor!.objectId);
-      print('Following status: ${isFollowing.value}');
     } else {
       isFollowing.value = false;
-      print('Following status set to false (missing data)');
     }
 
     likesCount.value = video.getLikes.length;
@@ -110,15 +110,17 @@ class VideoInteractionsController extends GetxController {
     // Initialize comments count with direct query
     _updateCommentsCount();
 
-    print('=== INITIALIZATION RESULTS ===');
-    print("Likes count: ${likesCount.value}");
-    print("Saves count: ${savesCount.value}");
-    print("Comments count: ${commentsCount.value}");
-    print("Views count: ${viewsCount.value}");
-    print("Shares count: ${sharesCount.value}");
-    print("User liked: ${isLiked.value}");
-    print("User saved: ${isSaved.value}");
-    print("User following: ${isFollowing.value}");
+    if (kDebugMode) {
+      print('=== INITIALIZATION RESULTS ===');
+      print("Likes count: ${likesCount.value}");
+      print("Saves count: ${savesCount.value}");
+      print("Comments count: ${commentsCount.value}");
+      print("Views count: ${viewsCount.value}");
+      print("Shares count: ${sharesCount.value}");
+      print("User liked: ${isLiked.value}");
+      print("User saved: ${isSaved.value}");
+      print("User following: ${isFollowing.value}");
+    }
 
     // Force UI refresh for all counts
     likesCount.refresh();
@@ -433,30 +435,54 @@ class VideoInteractionsController extends GetxController {
 
   // Method to refresh video data from server
   Future<void> refreshVideoData() async {
+    final videoId = video.objectId;
+    if (videoId == null) return;
+
+    final now = DateTime.now();
+    final lastRefresh = _lastRefreshByVideo[videoId];
+    if (lastRefresh != null &&
+        now.difference(lastRefresh) < _refreshCooldown) {
+      if (kDebugMode) {
+        print(
+            '[VideoInteractions] Skipping refresh for $videoId (cooldown active)');
+      }
+      return;
+    }
+
+    if (_refreshInFlight.contains(videoId)) {
+      return;
+    }
+
+    _refreshInFlight.add(videoId);
+    _lastRefreshByVideo[videoId] = now;
+
     try {
-      print('=== REFRESHING VIDEO DATA FROM SERVER ===');
-      print('Video ID: ${video.objectId}');
-      print(
-          'Before refresh - Likes: ${likesCount.value}, Comments: ${commentsCount.value}, Saves: ${savesCount.value}');
+      if (kDebugMode) {
+        print('=== REFRESHING VIDEO DATA FROM SERVER ===');
+        print('Video ID: $videoId');
+        print(
+            'Before refresh - Likes: ${likesCount.value}, Comments: ${commentsCount.value}, Saves: ${savesCount.value}');
+      }
 
       await video.fetch();
 
       // 🔥 CRITICAL: Fetch author separately if it's null OR if it has no name
       if (video.getAuthor == null || video.getAuthor!.getFullName == null) {
-        print('VideoInteractionsController: Author null or incomplete, fetching separately...');
-        print('  - Author exists: ${video.getAuthor != null}');
-        print('  - Author name: ${video.getAuthor?.getFullName}');
-        print('  - Author ID: ${video.getAuthorId}');
+        if (kDebugMode) {
+          print(
+              'VideoInteractionsController: Author null or incomplete, fetching separately...');
+        }
         
         if (video.getAuthorId != null && Get.isRegistered<PostsService>()) {
           await Get.find<PostsService>().fetchAuthorForPost(video);
-          print('VideoInteractionsController: Author fetched: ${video.getAuthor?.getFullName}');
+          if (kDebugMode) {
+            print(
+                'VideoInteractionsController: Author fetched: ${video.getAuthor?.getFullName}');
+          }
           
           // 🔥 CRITICAL: Force UI update of author widget specifically
           update(['author_widget']);
         }
-      } else {
-        print('VideoInteractionsController: Author already complete: ${video.getAuthor?.getFullName}');
       }
 
       // Update all counts with fresh data
@@ -468,10 +494,10 @@ class VideoInteractionsController extends GetxController {
       // Query comments directly from Comments table
       await _updateCommentsCount();
 
-      print(
-          'After refresh - Likes: ${likesCount.value}, Comments: ${commentsCount.value}, Saves: ${savesCount.value}');
-      print('Video likes list: ${video.getLikes}');
-      print('Video saves list: ${video.getSaves}');
+      if (kDebugMode) {
+        print(
+            'After refresh - Likes: ${likesCount.value}, Comments: ${commentsCount.value}, Saves: ${savesCount.value}');
+      }
 
       // Force UI refresh for all counts
       likesCount.refresh();
@@ -483,9 +509,10 @@ class VideoInteractionsController extends GetxController {
       // Update the video in reels
       _updateVideoInReels();
 
-      print('=== VIDEO DATA REFRESH COMPLETE ===');
     } catch (e) {
       print('Error refreshing video data: $e');
+    } finally {
+      _refreshInFlight.remove(videoId);
     }
   }
 

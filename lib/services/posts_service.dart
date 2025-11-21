@@ -41,6 +41,8 @@ class PostsService extends GetxService {
   // Cache apenas para vídeos (simplificado)
   final Map<String, Map<String, dynamic>> _videosCache = {};
   final List<String> _videoIds = [];
+  final Map<String, UserModel> _authorCache = {};
+  final Set<String> _authorFetchInProgress = {};
 
   // Preferências
   SharedPreferences? _prefs;
@@ -607,61 +609,43 @@ class PostsService extends GetxService {
 
   /// Carregar autor para um post específico
   Future<void> fetchAuthorForPost(PostsModel post) async {
-    print(
-        "PostsService: fetchAuthorForPost chamado para post ${post.objectId}");
-    print("PostsService: Post já tem autor? ${post.getAuthor != null}");
-    print("PostsService: Post AuthorID: ${post.getAuthorId}");
-
+    final authorId = post.getAuthorId;
     if ((post.getAuthor != null && post.getAuthor!.getFullName != null) ||
-        post.getAuthorId == null) return;
+        authorId == null) {
+      return;
+    }
+
+    if (_authorCache.containsKey(authorId)) {
+      post.setAuthor = _authorCache[authorId]!;
+      updatePost(post);
+      return;
+    }
+
+    if (_authorFetchInProgress.contains(authorId)) {
+      return;
+    }
+
+    _authorFetchInProgress.add(authorId);
 
     try {
-      QueryBuilder<UserModel> query =
-          QueryBuilder<UserModel>(UserModel.forQuery())
-            ..whereEqualTo(UserModel.keyObjectId, post.getAuthorId)
-            ..includeObject([
-              UserModel.keyAvatar,
-              UserModel.keyAvatarFrame
-            ]); // Include avatar data
+      final query = QueryBuilder<UserModel>(UserModel.forQuery())
+        ..whereEqualTo(UserModel.keyObjectId, authorId)
+        ..includeObject([UserModel.keyAvatar, UserModel.keyAvatarFrame]);
 
-      print(
-          "PostsService: Executando query para buscar autor ${post.getAuthorId}");
       final response = await query.query();
-
-      print(
-          "PostsService: Query response - success: ${response.success}, results: ${response.results?.length}");
 
       if (response.success &&
           response.results != null &&
           response.results!.isNotEmpty) {
-        UserModel author = response.results!.first as UserModel;
-
-        // Verify author data
-        print(
-            "PostsService: Author loaded - Name: ${author.getFullName}, Avatar: ${author.getAvatar?.url}");
-
+        final author = response.results!.first as UserModel;
+        _authorCache[authorId] = author;
         post.setAuthor = author;
-
-        print(
-            "PostsService: Author set for post ${post.objectId}: ${post.getAuthor?.getFullName}");
-
-        // Atualizar no feed e nos vídeos se necessário
         updatePost(post);
-
-        // Forçar atualização da UI
-        videoPosts.refresh();
-        allPosts.refresh();
-
-        print(
-            "PostsService: Autor ${author.getFullName} carregado para post ${post.objectId}");
-        print(
-            "PostsService: Author details - Name: ${author.getFullName}, Avatar: ${author.getAvatar?.url}");
-      } else {
-        print(
-            "PostsService: Nenhum autor encontrado para post ${post.objectId}");
       }
     } catch (e) {
       print("PostsService: Erro ao carregar autor para post: $e");
+    } finally {
+      _authorFetchInProgress.remove(authorId);
     }
   }
 
@@ -745,6 +729,8 @@ class PostsService extends GetxService {
     videoPosts.clear();
     print("PostsService: Recursos liberados");
   }
+
+  int get authorCacheSize => _authorCache.length;
 
   @override
   void onClose() {

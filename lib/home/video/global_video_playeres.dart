@@ -2,11 +2,9 @@
 
 import 'package:cached_video_player_plus/cached_video_player_plus.dart';
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'package:trace/models/PostsModel.dart';
 import 'package:trace/utils/colors.dart';
 
-import '../../helpers/quick_help.dart';
 import '../../models/UserModel.dart';
 import '../../views/reels_interactions.dart';
 
@@ -34,9 +32,11 @@ class GlobalVideoPlayer extends StatefulWidget {
 
 class _GlobalVideoPlayerState extends State<GlobalVideoPlayer> {
   CachedVideoPlayerPlusController? _controller;
+  VoidCallback? _controllerListener;
   bool _isInitialized = false;
   bool _hasError = false;
   String? _errorMessage;
+  bool get _usesExternalController => widget.externalController != null;
 
   @override
   void initState() {
@@ -46,75 +46,99 @@ class _GlobalVideoPlayerState extends State<GlobalVideoPlayer> {
 
   Future<void> _initializePlayer() async {
     try {
-      if (widget.externalController != null &&
-          widget.externalController!.value.isInitialized) {
-        _controller = widget.externalController;
-        _isInitialized = true;
-
-        /*if (widget.autoPlay && !_controller!.value.isPlaying) {
-          await _controller!.play();
-        }*/
-
-        if (widget.looping != _controller!.value.isLooping) {
-          await _controller!.setLooping(widget.looping);
-        }
-
-        if (mounted) setState(() {});
-      } else {
-        final videoUrl = widget.video.getVideo?.url;
-        if (videoUrl == null) {
-          throw "URL do vídeo não encontrada";
-        }
-
-        _controller = CachedVideoPlayerPlusController.networkUrl(
-          Uri.parse(videoUrl),
-          invalidateCacheIfOlderThan: const Duration(days: 2),
-        );
-
-        await _controller!.initialize();
-        await _controller!.setLooping(widget.looping);
-
-        if (widget.autoPlay) {
-          await _controller!.play();
-        }
-
-        if (mounted) {
-          setState(() {
-            _isInitialized = true;
-          });
-        }
+      if (_usesExternalController) {
+        _attachExternalController(widget.externalController!);
+        return;
       }
-    } catch (e) {
+
+      final videoUrl = widget.video.getVideo?.url;
+      if (videoUrl == null) {
+        throw "URL do vídeo não encontrada";
+      }
+
+      _controller = CachedVideoPlayerPlusController.networkUrl(
+        Uri.parse(videoUrl),
+        invalidateCacheIfOlderThan: const Duration(days: 2),
+      );
+
+      await _controller!.initialize();
+      await _controller!.setLooping(widget.looping);
+
+      if (widget.autoPlay) {
+        await _controller!.play();
+      }
+
       if (mounted) {
         setState(() {
-          _hasError = true;
-          _errorMessage = "Error loading video: $e";
+          _isInitialized = true;
         });
       }
-      debugPrint("GlobalVideoPlayer error: $e");
+    } catch (e) {
+      _handleError(e);
     }
+  }
+
+  void _attachExternalController(
+      CachedVideoPlayerPlusController externalController) {
+    _controller = externalController;
+    _isInitialized = externalController.value.isInitialized;
+    _controllerListener = () {
+      if (!mounted) return;
+      final initialized = externalController.value.isInitialized;
+      if (_isInitialized != initialized) {
+        setState(() {
+          _isInitialized = initialized;
+        });
+      } else {
+        setState(() {});
+      }
+    };
+    externalController.addListener(_controllerListener!);
+  }
+
+  void _handleError(Object e) {
+    if (mounted) {
+      setState(() {
+        _hasError = true;
+        _errorMessage = "Error loading video: $e";
+      });
+    }
+    debugPrint("GlobalVideoPlayer error: $e");
   }
 
   @override
   void didUpdateWidget(GlobalVideoPlayer oldWidget) {
     super.didUpdateWidget(oldWidget);
 
-    if (oldWidget.video.objectId != widget.video.objectId) {
+    final oldUsesExternal = oldWidget.externalController != null;
+    final newUsesExternal = _usesExternalController;
+    final videoChanged = oldWidget.video.objectId != widget.video.objectId;
+    final controllerChanged =
+        oldWidget.externalController != widget.externalController;
+
+    if (videoChanged ||
+        oldUsesExternal != newUsesExternal ||
+        controllerChanged) {
       _disposeCurrentController();
       _initializePlayer();
-    } else if (widget.externalController != oldWidget.externalController) {
-      if (widget.externalController?.textureId != _controller?.textureId) {
-        _disposeCurrentController();
-        _initializePlayer();
-      }
     }
   }
 
   void _disposeCurrentController() {
-    if (_controller != null && widget.externalController != _controller) {
-      _controller!.pause();
+    if (_controller == null) return;
+
+    if (_usesExternalController) {
+      if (_controllerListener != null && widget.externalController != null) {
+        widget.externalController!.removeListener(_controllerListener!);
+      }
+    } else {
+      try {
+        _controller!.pause();
+      } catch (_) {}
       _controller!.dispose();
     }
+
+    _controllerListener = null;
     _controller = null;
     _isInitialized = false;
   }
@@ -145,7 +169,7 @@ class _GlobalVideoPlayerState extends State<GlobalVideoPlayer> {
     }
 
     if (!_isInitialized || _controller == null) {
-      return QuickHelp.appLoading();
+      return _buildThumbnailPlaceholder();
     }
 
     final videoSize = _controller!.value.size;
@@ -196,6 +220,27 @@ class _GlobalVideoPlayerState extends State<GlobalVideoPlayer> {
         ReelsInteractions(
           postModel: widget.video,
           currentUser: widget.currentUser,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildThumbnailPlaceholder() {
+    final thumbnailUrl = widget.video.getVideoThumbnail?.url;
+    return Stack(
+      alignment: AlignmentDirectional.center,
+      children: [
+        SizedBox.expand(
+          child: thumbnailUrl != null
+              ? Image.network(
+                  thumbnailUrl,
+                  fit: BoxFit.cover,
+                )
+              : Container(color: Colors.black),
+        ),
+        CircularProgressIndicator(
+          strokeWidth: 2,
+          valueColor: AlwaysStoppedAnimation<Color>(Colors.white70),
         ),
       ],
     );
