@@ -68,7 +68,8 @@ class ReelsInteractions extends StatelessWidget {
     if (Get.isRegistered<Map<String, bool>>(tag: 'author_fetch_locks')) {
       final locks = Get.find<Map<String, bool>>(tag: 'author_fetch_locks');
       if (locks[fetchKey] == true) {
-        print('ReelsInteractions: Already fetching author for post ${postModel.objectId}');
+        print(
+            'ReelsInteractions: Already fetching author for post ${postModel.objectId}');
         return;
       }
     }
@@ -79,11 +80,12 @@ class ReelsInteractions extends StatelessWidget {
     if (Get.isRegistered<PostsService>()) {
       // 🔥 Set fetch lock
       if (!Get.isRegistered<Map<String, bool>>(tag: 'author_fetch_locks')) {
-        Get.put<Map<String, bool>>({}, tag: 'author_fetch_locks', permanent: true);
+        Get.put<Map<String, bool>>({},
+            tag: 'author_fetch_locks', permanent: true);
       }
       final locks = Get.find<Map<String, bool>>(tag: 'author_fetch_locks');
       locks[fetchKey] = true;
-      
+
       final postsService = Get.find<PostsService>();
 
       // Use async method with proper error handling
@@ -109,7 +111,7 @@ class ReelsInteractions extends StatelessWidget {
           print(
               'ReelsInteractions: Failed to load author for post ${postModel.objectId} - author is null or has no name');
         }
-        
+
         // 🔥 Release fetch lock
         locks.remove(fetchKey);
       }).catchError((error) {
@@ -244,116 +246,119 @@ class ReelsInteractions extends StatelessWidget {
   }
 
   Widget _interactionsWidget(BuildContext context) {
-    return Container(
-      alignment: AlignmentDirectional.centerEnd,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.end,
-        mainAxisSize: MainAxisSize.max,
-        children: [
-          // Like Button com feedback visual melhorado
-          Obx(() => _buildInteractionButton(
-                icon: controller.isLiked.value
-                    ? Icons.favorite
-                    : Icons.favorite_outline_outlined,
-                color: controller.isLiked.value ? kRedColor1 : Colors.white,
-                count: controller.likesCount.value,
-                onTap: () async {
-                  HapticFeedback.mediumImpact();
-                  await controller.toggleLike();
-                },
-                showAnimation: true,
-              )),
+    // All interactions commented out
+    return const SizedBox.shrink();
 
-          // Save Button com feedback visual melhorado
-          Visibility(
-            visible: currentUser != null &&
-                postModel.getAuthor != null &&
-                currentUser!.objectId != postModel.getAuthor!.objectId,
-            child: Column(
-              children: [
-                SizedBox(height: 10),
-                Obx(() => _buildInteractionButton(
-                      icon: controller.isSaved.value
-                          ? Icons.bookmark
-                          : Icons.bookmark_border_outlined,
-                      color: controller.isSaved.value
-                          ? kOrangeColor
-                          : Colors.white,
-                      count: controller.savesCount.value,
-                      onTap: () async {
-                        HapticFeedback.mediumImpact();
-                        await controller.toggleSave();
-                      },
-                      showAnimation: true,
-                    )),
-              ],
-            ),
-          ),
+    // return Container(
+    //   alignment: AlignmentDirectional.centerEnd,
+    //   child: Column(
+    //     mainAxisAlignment: MainAxisAlignment.end,
+    //     mainAxisSize: MainAxisSize.max,
+    //     children: [
+    //       // Like Button com feedback visual melhorado
+    //       Obx(() => _buildInteractionButton(
+    //             icon: controller.isLiked.value
+    //                 ? Icons.favorite
+    //                 : Icons.favorite_outline_outlined,
+    //             color: controller.isLiked.value ? kRedColor1 : Colors.white,
+    //             count: controller.likesCount.value,
+    //             onTap: () async {
+    //               HapticFeedback.mediumImpact();
+    //               await controller.toggleLike();
+    //             },
+    //             showAnimation: true,
+    //           )),
 
-          // Comments Button com feedback visual melhorado
-          SizedBox(height: 10),
-          Obx(() => _buildInteractionButton(
-                icon: Icons.comment,
-                color: Colors.white,
-                iconSize: 24,
-                count: controller.commentsCount.value,
-                onTap: () {
-                  HapticFeedback.mediumImpact();
-                  controller.showComments(context);
-                },
-                showAnimation: false,
-              )),
-          SizedBox(height: 10),
-          _buildInteractionButton(
-            icon: Icons.download,
-            color: Colors.white,
-            iconSize: 24,
-            count: null, // Download doesn't have a count
-            onTap: () {
-              HapticFeedback.mediumImpact();
-              controller.downloadVideo(context);
-            },
-            showAnimation: false,
-          ),
-          SizedBox(height: 10),
-          Obx(() => _buildInteractionButton(
-                icon: Icons.remove_red_eye_sharp,
-                color: Colors.white,
-                iconSize: 24,
-                count: controller.viewsCount.value,
-                onTap: () {
-                  HapticFeedback.mediumImpact();
-                },
-                showAnimation: false,
-              )),
+    //       // Save Button com feedback visual melhorado
+    //       Visibility(
+    //         visible: currentUser != null &&
+    //             postModel.getAuthor != null &&
+    //             currentUser!.objectId != postModel.getAuthor!.objectId,
+    //         child: Column(
+    //           children: [
+    //             SizedBox(height: 10),
+    //             Obx(() => _buildInteractionButton(
+    //                   icon: controller.isSaved.value
+    //                       ? Icons.bookmark
+    //                       : Icons.bookmark_border_outlined,
+    //                   color: controller.isSaved.value
+    //                       ? kOrangeColor
+    //                       : Colors.white,
+    //                   count: controller.savesCount.value,
+    //                   onTap: () async {
+    //                     HapticFeedback.mediumImpact();
+    //                     await controller.toggleSave();
+    //                   },
+    //                   showAnimation: true,
+    //                 )),
+    //           ],
+    //         ),
+    //       ),
 
-          SizedBox(height: 10),
-          Obx(() => _buildInteractionButton(
-                icon: Icons.share_outlined,
-                color: Colors.white,
-                iconSize: 24,
-                count: controller.sharesCount.value,
-                onTap: () {
-                  HapticFeedback.mediumImpact();
-                  controller.sharePost(context);
-                },
-                showAnimation: false,
-              )),
+    //       // Comments Button com feedback visual melhorado
+    //       SizedBox(height: 10),
+    //       Obx(() => _buildInteractionButton(
+    //             icon: Icons.comment,
+    //             color: Colors.white,
+    //             iconSize: 24,
+    //             count: controller.commentsCount.value,
+    //             onTap: () {
+    //               HapticFeedback.mediumImpact();
+    //               controller.showComments(context);
+    //             },
+    //             showAnimation: false,
+    //           )),
+    //       SizedBox(height: 10),
+    //       _buildInteractionButton(
+    //         icon: Icons.download,
+    //         color: Colors.white,
+    //         iconSize: 24,
+    //         count: null, // Download doesn't have a count
+    //         onTap: () {
+    //           HapticFeedback.mediumImpact();
+    //           controller.downloadVideo(context);
+    //         },
+    //         showAnimation: false,
+    //       ),
+    //       SizedBox(height: 10),
+    //       Obx(() => _buildInteractionButton(
+    //             icon: Icons.remove_red_eye_sharp,
+    //             color: Colors.white,
+    //             iconSize: 24,
+    //             count: controller.viewsCount.value,
+    //             onTap: () {
+    //               HapticFeedback.mediumImpact();
+    //             },
+    //             showAnimation: false,
+    //           )),
 
-          // More Options Button com feedback visual melhorado
-          SizedBox(height: 15),
-          _buildInteractionButton(
-            icon: Icons.more_horiz,
-            color: Colors.white,
-            onTap: () {
-              HapticFeedback.mediumImpact();
-              controller.openOptionsSheet(context);
-            },
-            showAnimation: false,
-          ),
-        ],
-      ),
-    );
+    //       SizedBox(height: 10),
+    //       Obx(() => _buildInteractionButton(
+    //             icon: Icons.share_outlined,
+    //             color: Colors.white,
+    //             iconSize: 24,
+    //             count: controller.sharesCount.value,
+    //             onTap: () {
+    //               HapticFeedback.mediumImpact();
+    //               controller.sharePost(context);
+    //             },
+    //             showAnimation: false,
+    //           )),
+
+    //       // More Options Button com feedback visual melhorado
+    //       SizedBox(height: 15),
+    //       _buildInteractionButton(
+    //         icon: Icons.more_horiz,
+    //         color: Colors.white,
+    //         onTap: () {
+    //           HapticFeedback.mediumImpact();
+    //           controller.openOptionsSheet(context);
+    //         },
+    //         showAnimation: false,
+    //       ),
+    //     ],
+    //   ),
+    // );
   }
 
   Widget _buildInteractionButton({

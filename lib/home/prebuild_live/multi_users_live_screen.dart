@@ -1059,12 +1059,23 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen>
 
     ParseResponse parseResponse = await queryLiveViewers.query();
     if (parseResponse.success) {
-      if (parseResponse.result != null) {
+      if (parseResponse.results != null && parseResponse.results!.isNotEmpty) {
         LiveViewersModel liveViewers =
             parseResponse.results!.first! as LiveViewersModel;
 
+        // Check if viewer was watching before (only decrement if they were watching)
+        bool wasWatching = liveViewers.getWatching == true;
+
         liveViewers.setWatching = false;
         await liveViewers.save();
+
+        // Only decrement if viewer was actually watching
+        if (wasWatching && widget.liveStreaming != null) {
+          widget.liveStreaming!.removeViewersCount = 1;
+          await widget.liveStreaming!.save();
+          print(
+              '[VIEWER_COUNT] ➖ Decremented viewersCountLive for live: ${widget.liveStreaming!.objectId}');
+        }
       }
     }
   }
@@ -1082,25 +1093,42 @@ class MultiUsersLiveScreenState extends State<MultiUsersLiveScreen>
 
     ParseResponse parseResponse = await queryLiveViewers.query();
     if (parseResponse.success) {
-      if (parseResponse.results != null) {
+      if (parseResponse.results != null && parseResponse.results!.isNotEmpty) {
         LiveViewersModel liveViewers =
             parseResponse.results!.first! as LiveViewersModel;
 
-        liveViewers.setWatching = true;
+        // Check if viewer was NOT watching before (new viewer joining)
+        bool wasWatching = liveViewers.getWatching == true;
 
+        liveViewers.setWatching = true;
         await liveViewers.save();
+
+        // Only increment if this is a new viewer (wasn't watching before)
+        if (!wasWatching && widget.liveStreaming != null) {
+          widget.liveStreaming!.addViewersCount = 1;
+          await widget.liveStreaming!.save();
+          print(
+              '[VIEWER_COUNT] ➕ Incremented viewersCountLive for live: ${widget.liveStreaming!.objectId}');
+        }
       } else {
+        // New viewer - create LiveViewersModel
         LiveViewersModel liveViewersModel = LiveViewersModel();
 
         liveViewersModel.setAuthor = widget.currentUser!;
         liveViewersModel.setAuthorId = widget.currentUser!.objectId!;
-
         liveViewersModel.setWatching = true;
-
         liveViewersModel.setLiveAuthorId = widget.liveStreaming!.getAuthorId!;
         liveViewersModel.setLiveId = widget.liveStreaming!.objectId!;
 
         await liveViewersModel.save();
+
+        // Increment count for new viewer
+        if (widget.liveStreaming != null) {
+          widget.liveStreaming!.addViewersCount = 1;
+          await widget.liveStreaming!.save();
+          print(
+              '[VIEWER_COUNT] ➕ Incremented viewersCountLive for new viewer: ${widget.liveStreaming!.objectId}');
+        }
       }
     }
   }
