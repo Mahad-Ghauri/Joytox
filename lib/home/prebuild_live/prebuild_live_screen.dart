@@ -837,6 +837,17 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
                     widget.liveStreaming!.setBattleStatus =
                         LiveStreamingModel.battleEnded;
                     await widget.liveStreaming!.save();
+
+                    // ✅ FIX: Show winner animation for viewers when battle ends
+                    showGiftSendersController.showBattleWinner.value = true;
+                    Future.delayed(Duration(seconds: 10)).then((value) {
+                      if (mounted) {
+                        showGiftSendersController.showBattleWinner.value =
+                            false;
+                      }
+                    });
+                    debugPrint(
+                        '[PK_BATTLE_SYNC] 🏆 Winner animation triggered for viewers');
                   }
 
                   debugPrint(
@@ -872,6 +883,7 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
   // Sync battle timer for viewers joining mid-battle
   Future<void> _syncBattleTimer() async {
     final invocationToken = _activeChannelToken;
+   
     int battleStartTime = widget.liveStreaming!.getBattleStartTime ?? 0;
 
     if (battleStartTime == 0) {
@@ -882,7 +894,8 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
 
       // Refetch to get latest battle start time
       await _fetchFreshBattleData();
-      if (!_ensureActiveContext(invocationToken, '_syncBattleTimer_fetch')) {
+      if (!_ensureActiveContext(
+          invocationToken, '_syncBattleTimer_fetch')) {
         return;
       }
 
@@ -941,13 +954,23 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
       if (_ensureActiveContext(
           invocationToken, '_syncBattleTimer_remaining_nonpositive')) {
         showGiftSendersController.battleTimer.value = 0;
+
+        // ✅ FIX: Ensure battle status is set to ended
+        widget.liveStreaming!.setBattleStatus = LiveStreamingModel.battleEnded;
+        widget.liveStreaming!.setBattle = false;
+        await widget.liveStreaming!.save();
+        debugPrint(
+            '[PK_BATTLE_TIMER] ✅ Battle status set to battle_ended for viewer joining mid-battle');
+
         // Show winner immediately
         showGiftSendersController.showBattleWinner.value = true;
-        Future.delayed(Duration(seconds: 5)).then((value) {
+        Future.delayed(Duration(seconds: 10)).then((value) {
           if (mounted) {
             showGiftSendersController.showBattleWinner.value = false;
           }
         });
+        debugPrint(
+            '[PK_BATTLE_TIMER] 🏆 Winner animation triggered for viewer joining after battle ended');
       }
     } else {
       debugPrint(
@@ -2143,7 +2166,14 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
     Size size = MediaQuery.sizeOf(context);
     int myPoints = showGiftSendersController.myBattlePoints.value;
     int hisPoints = showGiftSendersController.hisBattlePoints.value;
-    if (showGiftSendersController.showBattleWinner.value) {
+
+    // ✅ FIX: Only show when battle has actually ended
+    final bool isBattleEnded =
+        widget.liveStreaming?.getBattleStatus == LiveStreamingModel.battleEnded;
+    final bool shouldShowWinner =
+        showGiftSendersController.showBattleWinner.value && isBattleEnded;
+
+    if (shouldShowWinner) {
       if (myPoints > hisPoints) {
         return Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -2608,9 +2638,16 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
                     liveId: widget.liveID,
                     pointsWidget: pointsWidget(),
                     showWinnerAndLoser: Obx(() {
+                      // ✅ FIX: Check both showBattleWinner AND battleEnded status
+                      final bool isBattleEnded =
+                          widget.liveStreaming?.getBattleStatus ==
+                              LiveStreamingModel.battleEnded;
+                      final bool shouldShow =
+                          showGiftSendersController.showBattleWinner.value &&
+                              isBattleEnded;
+
                       return Visibility(
-                        visible:
-                            showGiftSendersController.showBattleWinner.value,
+                        visible: shouldShow,
                         child: winnerWidget(),
                       );
                     }),
