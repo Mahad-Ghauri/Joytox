@@ -83,18 +83,19 @@ class TimerController {
     // Set new start time
     _battleStartTime = startTime;
     
-    // Calculate and set initial remaining time
+    // Calculate initial remaining time
     final initialRemaining = _calculateRemainingTime(battleDuration);
-    controller.battleTimer.value = initialRemaining;
     _lastRemainingTime = initialRemaining;
     
     debugPrint('[TIMER_CONTROLLER] ⏰ Initial remaining: $initialRemaining seconds');
     debugPrint('[TIMER_CONTROLLER] ✅ Timer initialized and running');
+    
+    // Immediately update via callback to set correct initial value
+    onTimerUpdate(initialRemaining);
 
     // Start periodic timer
     _timer = Timer.periodic(Duration(seconds: 1), (timer) {
       final remaining = _calculateRemainingTime(battleDuration);
-      controller.battleTimer.value = remaining;
       
       // Only log if time changed (prevent spam)
       if (remaining != _lastRemainingTime) {

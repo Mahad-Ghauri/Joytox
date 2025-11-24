@@ -112,6 +112,8 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
 
   Timer? removeGiftTimer;
   int repeatPkTimes = 0;
+  int _battleStartTime =
+      0; // Store original battle start time for sync commands
 
   // Debounce mechanism to prevent point flickering
   Timer? _pointsUpdateDebouncer;
@@ -840,23 +842,27 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
 
                     // ✅ FIX: Show winner animation for viewers when battle ends
                     showGiftSendersController.showBattleWinner.value = true;
+                    debugPrint(
+                        '[PK_BATTLE_SYNC] 🏆 Winner animation triggered for viewers');
+
+                    // ✅ FIX: Delay hiding battle UI until after winner display (same as host behavior)
                     Future.delayed(Duration(seconds: 10)).then((value) {
                       if (mounted) {
                         showGiftSendersController.showBattleWinner.value =
                             false;
+
+                        // Disable battle UI AFTER winner animation completes
+                        final oldValue =
+                            showGiftSendersController.isBattleLive.value;
+                        showGiftSendersController.isBattleLive.value = false;
+                        debugPrint(
+                            '[PK_BATTLE_SYNC] 🔄 isBattleLive.value changed: $oldValue → false (triggered by: winner animation completed)');
                       }
                     });
-                    debugPrint(
-                        '[PK_BATTLE_SYNC] 🏆 Winner animation triggered for viewers');
                   }
 
                   debugPrint(
                       '[PK_BATTLE_SYNC] 🛑 Battle ended (periodic check)');
-                  final oldValue = showGiftSendersController.isBattleLive.value;
-                  showGiftSendersController.isBattleLive.value =
-                      false; // ✅ Disable battle UI
-                  debugPrint(
-                      '[PK_BATTLE_SYNC] 🔄 isBattleLive.value changed: $oldValue → false (triggered by: periodic refresh - battle ended)');
                 } else {
                   debugPrint(
                       '[PK_BATTLE_SYNC] ⚠️ Channel changed during battle end check');
@@ -1294,6 +1300,7 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
     showGiftSendersController.myBattlePoints.value = 0;
     showGiftSendersController.hisBattlePoints.value = 0;
     showGiftSendersController.battleTimer.value = 0;
+    _battleStartTime = 0; // Reset battle start time
     _resetServerStateToken();
     Future.microtask(() async {
       await _leavePreviousRoomIfNeeded();
@@ -1619,6 +1626,7 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
 
     // STEP 2: Reset UI timer to 0 first (prevents showing old time)
     showGiftSendersController.battleTimer.value = 0;
+    _battleStartTime = 0; // Reset battle start time
     debugPrint('[PK_BATTLE_RESTART] 🔄 UI timer reset to 0');
 
     // STEP 3: Reset BattlePointsManager
@@ -1910,6 +1918,11 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
         '[PK_BATTLE_TIMER] ⏰ Using SERVER battle_start_time: $serverBattleStartTime');
     debugPrint(
         '[PK_BATTLE_TIMER] 📍 Document: ${widget.liveStreaming!.objectId}');
+
+    // Store battle start time for future sync commands
+    _battleStartTime = serverBattleStartTime;
+    debugPrint(
+        '[PK_BATTLE_TIMER] 💾 Stored battle start time: $_battleStartTime');
 
     // Send sync command to room using SERVER timestamp (ensures both sides are in sync)
     debugPrint(
@@ -2545,11 +2558,14 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
                 if (ZegoLiveStreamingState.inPKBattle ==
                     liveStateNotifier.value) {
                   Future.delayed(Duration(seconds: 3)).then((value) {
-                    final currentTime =
-                        DateTime.now().millisecondsSinceEpoch ~/ 1000;
-                    sendSyncCommand(
-                        startTime: currentTime,
-                        duration: showGiftSendersController.battleTimer.value);
+                    // Use stored battle start time and full duration (300)
+                    // This ensures viewers get correct timer sync
+                    if (_battleStartTime > 0) {
+                      sendSyncCommand(
+                          startTime: _battleStartTime, duration: 300);
+                      debugPrint(
+                          '[PK_BATTLE_SYNC] 📡 Sent sync command to new viewer (startTime: $_battleStartTime, duration: 300)');
+                    }
                   });
                 }
               },
@@ -4055,6 +4071,7 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
         TimerController.reset(); // Clear old timer state
         battlePointsManager.stopPolling();
         showGiftSendersController.battleTimer.value = 0;
+        _battleStartTime = 0; // Reset battle start time
         battlePointsManager.resetPoints();
         debugPrint(
             '[PK_BATTLE_RESTART_OPPONENT] 🔄 Local state reset complete');
