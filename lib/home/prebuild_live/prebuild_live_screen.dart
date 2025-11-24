@@ -25,6 +25,7 @@ import 'package:zego_uikit_signaling_plugin/zego_uikit_signaling_plugin.dart';
 import 'package:trace/home/streaming/internal/business/gift/gift_controller.dart';
 import 'package:trace/home/prebuild_live/pk_points_controller.dart';
 import 'package:trace/helpers/battle_points_manager.dart';
+import 'package:trace/services/stream_cleanup_service.dart';
 
 import '../../app/constants.dart';
 import '../../helpers/quick_actions.dart';
@@ -1226,6 +1227,12 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
     WakelockPlus.enable();
     initSharedPref();
 
+    // ✅ Start monitoring stream for cleanup if host
+    if (widget.isHost && widget.liveStreaming != null) {
+      StreamCleanupService.instance.startMonitoring(widget.liveStreaming!);
+      debugPrint('[STREAM_CLEANUP] 🎬 Started monitoring stream for cleanup');
+    }
+
     Future.delayed(Duration(minutes: 2)).then((value) {
       widget.currentUser!.addUserPoints = widget.isHost ? 350 : 200;
       widget.currentUser!.save();
@@ -2218,6 +2225,12 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
   @override
   void dispose() {
     super.dispose();
+
+    // ✅ Stop monitoring stream for cleanup if host
+    if (widget.isHost) {
+      StreamCleanupService.instance.stopMonitoring();
+      debugPrint('[STREAM_CLEANUP] 🛑 Stopped monitoring stream for cleanup');
+    }
 
     // 🚨 CRITICAL: Cancel periodic refresh timer FIRST before any other cleanup
     // This prevents timer from running after widget is disposed and using stale data
@@ -3256,12 +3269,20 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
                                     onTap: () async {
                                       if (widget.isHost) {
                                         QuickHelp.showLoadingDialog(context);
-                                        widget.liveStreaming!.setStreaming =
-                                            false;
-                                        ParseResponse response =
-                                            await widget.liveStreaming!.save();
-                                        if (response.success &&
-                                            response.result != null) {
+
+                                        // ✅ Delete stream document immediately when host ends stream
+                                        debugPrint(
+                                            '[STREAM_END] 🛑 Host ending stream - deleting document');
+                                        debugPrint(
+                                            '[STREAM_END] 📍 Stream ID: ${widget.liveStreaming!.objectId}');
+
+                                        ParseResponse response = await widget
+                                            .liveStreaming!
+                                            .delete();
+
+                                        if (response.success) {
+                                          debugPrint(
+                                              '[STREAM_END] ✅ Stream document deleted successfully');
                                           QuickHelp.hideLoadingDialog(context);
                                           QuickHelp.goToNavigatorScreen(
                                             context,
@@ -3272,6 +3293,8 @@ class PreBuildLiveScreenState extends State<PreBuildLiveScreen>
                                           );
                                           onViewerLeave();
                                         } else {
+                                          debugPrint(
+                                              '[STREAM_END] ❌ Failed to delete stream: ${response.error?.message}');
                                           QuickHelp.hideLoadingDialog(context);
                                           QuickHelp.showAppNotificationAdvanced(
                                             title: "try_again_later".tr(),

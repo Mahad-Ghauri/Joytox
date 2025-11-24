@@ -46,6 +46,7 @@ import 'package:devicelocale/devicelocale.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:trace/models/UserModel.dart';
+import 'package:trace/services/stream_cleanup_service.dart';
 import 'package:trace/utils/colors.dart';
 import 'package:trace/utils/theme.dart';
 import 'package:easy_localization/easy_localization.dart';
@@ -337,10 +338,21 @@ class _AppState extends State<App> with WidgetsBindingObserver {
 
       // Pré-carrega o feed quando o app é retomado
       _preloadFeed();
-    } else {
+
+      // Cancel stream cleanup timer if app resumes
+      StreamCleanupService.instance.onAppResumed();
+    } else if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
       RemoveOnline();
       QuickHelp.saveCurrentRoute(route: "background");
       print("AppState: background / closed");
+
+      // Start stream cleanup timer when app goes to background
+      StreamCleanupService.instance.onAppPaused();
+    } else {
+      RemoveOnline();
+      QuickHelp.saveCurrentRoute(route: "background");
+      print("AppState: other state - $state");
     }
   }
 
